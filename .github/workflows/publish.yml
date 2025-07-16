@@ -66,6 +66,7 @@ jobs:
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
+        id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -91,5 +92,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ steps.get_version.outputs.VERSION }}.vsix
-          asset_name: extension-v${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_name: git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix
           asset_content_type: application/zip
