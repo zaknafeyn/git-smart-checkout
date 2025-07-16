@@ -38,10 +38,7 @@
     }
   },
   "scripts": {
-    "build-vsix": "yarn package && vsce package",
-    "publish": "yarn package && vsce publish",
-    "vscode:package": "vsce package",
-    "vscode:prepublish": "yarn package && vsce package",
+    "vscode:prepublish": "yarn package",
     "compile": "yarn check-types && yarn lint && node esbuild.mjs",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.mjs --watch",
@@ -52,7 +49,10 @@
     "pretest": "yarn compile-tests && yarn compile && yarn lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "build-vsix": "yarn package && vsce package --yarn",
+    "build-vsix-dev": "yarn compile && vsce package --yarn --no-dependencies",
+    "publish": "yarn package && vsce publish --yarn"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
