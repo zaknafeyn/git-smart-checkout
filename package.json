@@ -1,0 +1,68 @@
+{
+  "name": "git-smart-checkout",
+  "author": "Valentyn Radchuk <zaknafeyn@gmail.com>",
+  "license": "MIT",
+  "displayName": "Git smart checkout",
+  "description": "Git checkout with automatic stash",
+  "version": "0.0.1",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:git-smart-checkout.checkoutTo"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "git-smart-checkout.checkoutTo",
+        "title": "Checkout to... (With Stash)",
+        "category": "Git"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "git-smart-checkout.checkoutTo"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^7.14.1",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.4.0",
+    "@vscode/vsce": "^2.15.0",
+    "esbuild": "^0.21.5",
+    "eslint": "^9.25.1",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0"
+  }
+}

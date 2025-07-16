@@ -1,0 +1,11 @@
+# Ignore native code
+macos
+
+#ignore config file
+/eslint.config.mjs
+
+# Ignore artifacts:
+dist*
+
+# Ignore all HTML files:
+**/*.html
