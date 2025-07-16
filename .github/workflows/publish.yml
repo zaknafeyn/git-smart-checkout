@@ -1,0 +1,93 @@
+name: Deploy VS Code Extension
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Triggers on tags like v0.1.2, v1.0.0, etc.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          yarn version --new-version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+          echo "Updated package.json version to ${{ steps.get_version.outputs.VERSION }}"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # - name: Run type checking
+      #   run: yarn check-types
+
+      # - name: Run linting
+      #   run: yarn lint
+
+      # - name: Run tests
+      #   run: yarn test
+      #   continue-on-error: true # Continue if tests fail (optional)
+
+      - name: Build extension
+        run: yarn package
+
+      - name: Create VSIX package
+        run: yarn build-vsix
+
+      - name: Upload VSIX as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-package
+          path: '*.vsix'
+          retention-days: 30
+
+      - name: Publish to VS Code Marketplace
+        run: yarn dlx vsce publish --yarn --pat ${{ secrets.VCODE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCODE_PAT }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Changes in v${{ steps.get_version.outputs.VERSION }}
+
+            - Automated release from tag ${{ github.ref }}
+            - Built and published to VS Code Marketplace
+
+            ### Installation
+            You can install this extension from:
+            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=YOUR_PUBLISHER.YOUR_EXTENSION_NAME)
+            - Download the VSIX file from this release and install manually
+          draft: false
+          prerelease: false
+
+      - name: Upload VSIX to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_name: extension-v${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_content_type: application/zip

@@ -1,16 +1,21 @@
 {
   "name": "git-smart-checkout",
   "author": "Valentyn Radchuk <zaknafeyn@gmail.com>",
-  "license": "MIT",
   "displayName": "Git smart checkout",
   "description": "Git checkout with automatic stash",
+  "publisher": "zaknafeyn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaknafeyn/git-smart-checkout"
+  },
+  "license": "SEE LICENSE IN LICENSE",
   "version": "0.0.1",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
-    "Other"
+    "SCM Providers"
   ],
   "activationEvents": [
     "onCommand:git-smart-checkout.checkoutTo"
@@ -33,15 +38,18 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "build-vsix": "yarn package && vsce package",
+    "publish": "yarn package && vsce publish",
+    "vscode:package": "vsce package",
+    "vscode:prepublish": "yarn package && vsce package",
+    "compile": "yarn check-types && yarn lint && node esbuild.mjs",
     "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
+    "watch:esbuild": "node esbuild.mjs --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "package": "yarn check-types && yarn lint && node esbuild.mjs --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "pretest": "yarn compile-tests && yarn compile && yarn lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext ts",
     "test": "vscode-test"

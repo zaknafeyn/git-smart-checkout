@@ -44,7 +44,9 @@ export class GitExecutor {
    **/
 
   #parseTrackData(upstreamTrack: string): TUpstreamTrack {
-    if (!upstreamTrack || upstreamTrack === '[gone]') return;
+    if (!upstreamTrack || upstreamTrack === '[gone]') {
+      return;
+    }
 
     const arr = upstreamTrack.slice(1, -1).split(',');
     if (arr.length === 1) {
@@ -202,7 +204,7 @@ export class GitExecutor {
     const stashIndex = stashes.findIndex((stash) => stash.message === stashName);
 
     // If the stash was not found, throw an error
-    if (stashIndex == -1) {
+    if (stashIndex === -1) {
       throw new Error(`No stash found`);
     }
 

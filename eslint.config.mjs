@@ -1,7 +1,7 @@
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 
-module.exports = [
+export default [
   {
     files: ['**/*.{js,ts}'],
     ignores: ['out', 'dist', '**/*.d.ts'],
@@ -18,13 +18,13 @@ module.exports = [
       '@typescript-eslint': typescriptEslint,
     },
     rules: {
-      '@typescript-eslint/naming-convention': [
-        'warn',
-        {
-          selector: 'import',
-          format: ['camelCase', 'PascalCase'],
-        },
-      ],
+      // '@typescript-eslint/naming-convention': [
+      //   'warn',
+      //   {
+      //     selector: 'import',
+      //     format: ['camelCase', 'PascalCase'],
+      //   },
+      // ],
       '@typescript-eslint/semi': 'warn',
       'curly': 'warn',
       'eqeqeq': 'warn',

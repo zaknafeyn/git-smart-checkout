@@ -286,10 +286,12 @@ export class CheckoutToCommand extends BaseCommand {
     isWorkdirHasChanges: boolean
   ) {
     try {
-      if (isWorkdirHasChanges) await git.createStash(`${AUTO_STASH_PREFIX}-${currentBranch}`, true);
+      if (isWorkdirHasChanges) {
+        await git.createStash(`${AUTO_STASH_PREFIX}-${currentBranch}`, true);
+      }
     } catch (e) {
       if (e instanceof Error) {
-        if (e.message == 'No local changes to save') {
+        if (e.message === 'No local changes to save') {
           throw new Error('No local changes to stash.');
         } else {
           throw new Error('Failed to stash the current changes.');
@@ -308,10 +310,12 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const message = `${AUTO_STASH_PREFIX}-${newBranch}`;
       const isStashWithMessageExists = await git.isStashWithMessageExists(message);
-      if (isStashWithMessageExists) await git.popStash(message);
+      if (isStashWithMessageExists) {
+        await git.popStash(message);
+      }
     } catch (e) {
       if (e instanceof Error) {
-        if (e.message == `No stash found`) {
+        if (e.message === `No stash found`) {
           throw new Error('No stash to pop on the new branch.');
         } else {
           throw new Error('Failed to pop the stash on the new branch.');
@@ -331,10 +335,12 @@ export class CheckoutToCommand extends BaseCommand {
   ) {
     const stashMessage = `${AUTO_STASH_PREFIX}-${currentBranch}-${format(Date.now(), 'yyyy-MM-ddThh:mm:ss')}`;
     try {
-      if (isWorkdirHasChanges) await git.createStash(stashMessage, true);
+      if (isWorkdirHasChanges) {
+        await git.createStash(stashMessage, true);
+      }
     } catch (e) {
       if (e instanceof Error) {
-        if (e.message == 'No local changes to save') {
+        if (e.message === 'No local changes to save') {
           throw new Error('No local changes to stash.');
         } else {
           throw new Error('Failed to stash the current changes.');
@@ -354,15 +360,19 @@ export class CheckoutToCommand extends BaseCommand {
     const operation = apply ? 'apply' : 'pop';
 
     // nothing to pop if no changes were stashed before checkout
-    if (!isWorkdirHasChanges) return;
+    if (!isWorkdirHasChanges) {
+      return;
+    }
 
     // Pop or apply the stash on the new branch
     try {
       const isStashWithMessageExists = await git.isStashWithMessageExists(stashMessage);
-      if (isStashWithMessageExists) await git.popStash(stashMessage, apply);
+      if (isStashWithMessageExists) {
+        await git.popStash(stashMessage, apply);
+      }
     } catch (e) {
       if (e instanceof Error) {
-        if (e.message == `No stash found`) {
+        if (e.message === `No stash found`) {
           throw new Error(`No stash to ${operation} on the new branch.`);
         } else {
           throw new Error(`Failed to ${operation} the stash on the new branch.`);
