@@ -3,12 +3,12 @@
   "author": "Valentyn Radchuk <zaknafeyn@gmail.com>",
   "displayName": "Git smart checkout",
   "description": "Git checkout with automatic stash",
-  "publisher": "zaknafeyn",
+  "publisher": "vradchuk",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zaknafeyn/git-smart-checkout"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "version": "0.0.1",
   "icon": "icon.png",
   "engines": {

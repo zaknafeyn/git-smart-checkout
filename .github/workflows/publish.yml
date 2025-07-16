@@ -91,6 +91,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_path: ./git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix
           asset_name: git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix
           asset_content_type: application/zip
