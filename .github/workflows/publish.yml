@@ -60,12 +60,12 @@ jobs:
           retention-days: 30
 
       - name: Publish to VS Code Marketplace
-        run: yarn vsce publish --yarn --pat ${{ secrets.VCODE_PAT }}
+        run: yarn vsce publish --yarn --pat ${{ secrets.VSCODE_PAT }}
         env:
           VSCE_PAT: ${{ secrets.VSCODE_PAT }}
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1.4
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

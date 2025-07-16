@@ -7,7 +7,6 @@ src/**
 .yarnrc
 yarn.lock
 createTag.sh
-LICENSE
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/.eslintrc.json
