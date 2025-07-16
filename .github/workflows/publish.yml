@@ -58,7 +58,7 @@ jobs:
           retention-days: 30
 
       - name: Publish to VS Code Marketplace
-        run: yarn dlx vsce publish --yarn --pat ${{ secrets.VCODE_PAT }}
+        run: yarn vsce publish --yarn --pat ${{ secrets.VCODE_PAT }}
         env:
           VSCE_PAT: ${{ secrets.VSCODE_PAT }}
 
