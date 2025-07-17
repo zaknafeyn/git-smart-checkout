@@ -1,14 +1,15 @@
 import { ExecSyncOptions } from 'child_process';
 import { execCommand } from '../../utils/execCommand';
 import { IGitRef, TUpstreamTrack } from './types';
+import { LoggingService } from '../../logging/loggingService';
 
 export class GitExecutor {
   #repositoryPath;
-  #verbose;
+  #logService;
 
-  constructor(repositoryPath: string, verbose = false) {
+  constructor(repositoryPath: string, logService: LoggingService) {
     this.#repositoryPath = repositoryPath;
-    this.#verbose = verbose;
+    this.#logService = logService;
   }
 
   // #region private
@@ -16,23 +17,18 @@ export class GitExecutor {
   async #execGitCommandWithOptions(
     command: string,
     options?: ExecSyncOptions,
-    verbose = false,
-    logger: (args: unknown) => void = console.log
   ) {
     return execCommand(
       command,
-      { cwd: this.#repositoryPath, ...options },
-      verbose || this.#verbose,
-      logger
+      this.#logService,
+      { cwd: this.#repositoryPath, ...options }
     );
   }
 
   async #execGitCommand(
     command: string,
-    verbose = false,
-    logger: (args: unknown) => void = console.log
   ) {
-    return await this.#execGitCommandWithOptions(command, {}, verbose, logger);
+    return await this.#execGitCommandWithOptions(command, {});
   }
 
   /*
@@ -65,9 +61,12 @@ export class GitExecutor {
   // #endregion private
 
   async fetchAllRemoteBranchesAndTags() {
-    const command = 'git fetch --all --tags --prune';
+    const commandFetchAllBranches = 'git fetch --all --prune';
+    // fetch all tags and overwrite local tags with remote if remote one has changed
+    const commandFetchAllTags = 'git fetch --tags --force';
 
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(commandFetchAllBranches);
+    await this.#execGitCommand(commandFetchAllTags);
   }
 
   async checkout(branchName: string) {
@@ -224,14 +223,17 @@ export class GitExecutor {
   }
 
   async isStashWithMessageExists(message: string) {
-    const command = `git stash list | grep ${message}`;
+    const command = 'git stash list --format="%gs"';
 
     try {
       const { stdout } = await this.#execGitCommand(command);
+      const stashesStrings = stdout.trim().split("\n").filter(line => line.trim() !== '');
+      const stashMessages = stashesStrings.map(msgWithPrefix => {
+        const parts = msgWithPrefix.split(': ');
+        return parts.length > 1 ? parts.slice(1).join(': ') : msgWithPrefix;
+      });
 
-      const stashByMessage = stdout.trim();
-
-      return stashByMessage.length !== 0;
+      return stashMessages.some(msg => msg === message);
     } catch {
       return false;
     }

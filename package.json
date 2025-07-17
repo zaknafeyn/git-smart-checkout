@@ -35,6 +35,28 @@
           "command": "git-smart-checkout.checkoutTo"
         }
       ]
+    },
+    "configuration": {
+      "title": "Git Smart Checkout Settings",
+      "properties": {
+        "git-smart-checkout.mode": {
+          "type": "string",
+          "enum": [
+            "Manual",
+            "Auto stash in current branch",
+            "Auto stash and pop in new branch",
+            "Auto stash and apply in new branch",
+            "No auto stash"
+          ],
+          "default": "Manual",
+          "description": "Checkout stash mode"
+        },
+        "git-smart-checkout.logging.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable logging output"
+        }
+      }
     }
   },
   "scripts": {

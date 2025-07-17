@@ -25,11 +25,25 @@ import {
   DESC_AUTO_STASH_IGNORE,
 } from './constants';
 import { TAutoStashMode } from './types';
+import { ConfigurationManager } from '../../configuration/configurationManager';
+import { LoggingService } from '../../logging/loggingService';
 
 export const LABEL_CREATE_NEW_BRANCH = `${ICON_PLUS} Create new branch...`;
 export const LABEL_CREATE_NEW_BRANCH_FROM = `${ICON_PLUS} Create new branch from...`;
 
 export class CheckoutToCommand extends BaseCommand {
+
+  // todo: add configuration handling
+  private configManager: ConfigurationManager;
+  private logService: LoggingService;
+
+  constructor(configManager: ConfigurationManager, logService: LoggingService) {
+    super();
+
+    this.configManager = configManager;
+    this.logService = logService;
+  }
+
   async execute(): Promise<void> {
     try {
       const git = await this.getGitExecutor();
@@ -63,7 +77,7 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     if (wsFolders.length === 1) {
-      return new GitExecutor(wsFolders[0].path);
+      return new GitExecutor(wsFolders[0].path, this.logService);
     }
 
     const repositoryOptions: vscode.QuickPickItem[] = wsFolders.map((wsf) => ({
@@ -81,7 +95,7 @@ export class CheckoutToCommand extends BaseCommand {
 
     const repository = wsFolders.find(({ name }) => name === selectedOption.label);
 
-    return new GitExecutor(repository!.path);
+    return new GitExecutor(repository!.path, this.logService);
   }
 
   async getSelectedOption(
@@ -242,6 +256,8 @@ export class CheckoutToCommand extends BaseCommand {
       placeHolder: 'Select auto stash mode',
     });
 
+    this.logService.info(`Selected mode: ${autoStashMode?.label}`);
+
     return autoStashMode?.label as TAutoStashMode;
   }
 
@@ -310,6 +326,7 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const message = `${AUTO_STASH_PREFIX}-${newBranch}`;
       const isStashWithMessageExists = await git.isStashWithMessageExists(message);
+      this.logService.info(`Stash is ${isStashWithMessageExists ? 'found' : 'not found'} for stash with message: '${message}'`);
       if (isStashWithMessageExists) {
         await git.popStash(message);
       }
