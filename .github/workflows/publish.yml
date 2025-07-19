@@ -80,7 +80,7 @@ jobs:
 
             ### Installation
             You can install this extension from:
-            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=YOUR_PUBLISHER.YOUR_EXTENSION_NAME)
+            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout)
             - Download the VSIX file from this release and install manually
           draft: false
           prerelease: false

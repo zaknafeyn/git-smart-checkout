@@ -18,7 +18,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:git-smart-checkout.checkoutTo"
+    "onStartupFinished",
+    "workspaceContains:.git"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -27,12 +28,25 @@
         "command": "git-smart-checkout.checkoutTo",
         "title": "Checkout to... (With Stash)",
         "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.pullWithStash",
+        "title": "Pull (With Stash)",
+        "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.switchMode",
+        "title": "Switch Mode",
+        "category": "Git"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "git-smart-checkout.checkoutTo"
+        },
+        {
+          "command": "git-smart-checkout.pullWithStash"
         }
       ]
     },
@@ -42,13 +56,18 @@
         "git-smart-checkout.mode": {
           "type": "string",
           "enum": [
-            "Manual",
+            "manual",
+            "autoStashForBranch",
+            "autoStashAndPop",
+            "autoStashAndApply"
+          ],
+          "markdownEnumDescriptions": [
+            "Select mode manually at checkout",
             "Auto stash in current branch",
             "Auto stash and pop in new branch",
-            "Auto stash and apply in new branch",
-            "No auto stash"
+            "Auto stash and apply in new branch"
           ],
-          "default": "Manual",
+          "default": "manual",
           "description": "Checkout stash mode"
         },
         "git-smart-checkout.logging.enabled": {

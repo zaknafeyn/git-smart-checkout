@@ -14,20 +14,11 @@ export class GitExecutor {
 
   // #region private
 
-  async #execGitCommandWithOptions(
-    command: string,
-    options?: ExecSyncOptions,
-  ) {
-    return execCommand(
-      command,
-      this.#logService,
-      { cwd: this.#repositoryPath, ...options }
-    );
+  async #execGitCommandWithOptions(command: string, options?: ExecSyncOptions) {
+    return execCommand(command, this.#logService, { cwd: this.#repositoryPath, ...options });
   }
 
-  async #execGitCommand(
-    command: string,
-  ) {
+  async #execGitCommand(command: string) {
     return await this.#execGitCommandWithOptions(command, {});
   }
 
@@ -181,6 +172,12 @@ export class GitExecutor {
     return stdout.trim();
   }
 
+  async pullFromRemoteBranch() {
+    const command = 'git pull';
+
+    await this.#execGitCommand(command);
+  }
+
   async popStash(stashName: string, apply = false) {
     const command = 'git --no-pager stash list --format="%gs"';
     // Get the list of stashes
@@ -227,13 +224,16 @@ export class GitExecutor {
 
     try {
       const { stdout } = await this.#execGitCommand(command);
-      const stashesStrings = stdout.trim().split("\n").filter(line => line.trim() !== '');
-      const stashMessages = stashesStrings.map(msgWithPrefix => {
+      const stashesStrings = stdout
+        .trim()
+        .split('\n')
+        .filter((line) => line.trim() !== '');
+      const stashMessages = stashesStrings.map((msgWithPrefix) => {
         const parts = msgWithPrefix.split(': ');
         return parts.length > 1 ? parts.slice(1).join(': ') : msgWithPrefix;
       });
 
-      return stashMessages.some(msg => msg === message);
+      return stashMessages.some((msg) => msg === message);
     } catch {
       return false;
     }

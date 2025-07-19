@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
-import { format } from 'date-fns';
 
 import { GitExecutor } from '../../common/git/gitExecutor';
-import { getWorkspaceFoldersFormatted } from '../../common/vscode';
 import { BaseCommand } from '../command';
 import { IGitRef } from '../../common/git/types';
 import {
@@ -27,18 +25,22 @@ import {
 import { TAutoStashMode } from './types';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
+import {
+  AUTO_STASH_MODE_APPLY,
+  AUTO_STASH_MODE_BRANCH,
+  AUTO_STASH_MODE_MANUAL,
+  AUTO_STASH_MODE_POP,
+} from '../../configuration/extensionConfig';
+import { getStashMessage } from '../utils/getStashMessage';
 
 export const LABEL_CREATE_NEW_BRANCH = `${ICON_PLUS} Create new branch...`;
 export const LABEL_CREATE_NEW_BRANCH_FROM = `${ICON_PLUS} Create new branch from...`;
 
 export class CheckoutToCommand extends BaseCommand {
-
-  // todo: add configuration handling
   private configManager: ConfigurationManager;
-  private logService: LoggingService;
 
   constructor(configManager: ConfigurationManager, logService: LoggingService) {
-    super();
+    super(logService);
 
     this.configManager = configManager;
     this.logService = logService;
@@ -67,35 +69,6 @@ export class CheckoutToCommand extends BaseCommand {
         vscode.window.showErrorMessage('Unknown error');
       }
     }
-  }
-
-  async getGitExecutor() {
-    const wsFolders = getWorkspaceFoldersFormatted();
-
-    if (!wsFolders || wsFolders.length === 0) {
-      throw new Error('There is no projects in current workspace.');
-    }
-
-    if (wsFolders.length === 1) {
-      return new GitExecutor(wsFolders[0].path, this.logService);
-    }
-
-    const repositoryOptions: vscode.QuickPickItem[] = wsFolders.map((wsf) => ({
-      label: wsf.name,
-    }));
-
-    const selectedOption = await this.showQuickPick(repositoryOptions, {
-      placeHolder: 'Choose a repository',
-      title: 'Checkout to ...',
-    });
-
-    if (!selectedOption) {
-      throw new Error('No repository selected');
-    }
-
-    const repository = wsFolders.find(({ name }) => name === selectedOption.label);
-
-    return new GitExecutor(repository!.path, this.logService);
   }
 
   async getSelectedOption(
@@ -233,6 +206,25 @@ export class CheckoutToCommand extends BaseCommand {
   }
 
   async getAutoStashMode(): Promise<TAutoStashMode | undefined> {
+    const { mode } = this.configManager.get();
+
+    if (mode === AUTO_STASH_MODE_BRANCH) {
+      return AUTO_STASH_CURRENT_BRANCH;
+    }
+
+    if (mode === AUTO_STASH_MODE_POP) {
+      return AUTO_STASH_AND_POP_IN_NEW_BRANCH;
+    }
+
+    if (mode === AUTO_STASH_MODE_APPLY) {
+      return AUTO_STASH_AND_APPLY_IN_NEW_BRANCH;
+    }
+
+    if (mode !== AUTO_STASH_MODE_MANUAL) {
+      // this means that, below code is executed only when config mode is 'manual'
+      return;
+    }
+
     const autoStashModeQuickPickItems: vscode.QuickPickItem[] = [
       {
         label: AUTO_STASH_CURRENT_BRANCH,
@@ -303,7 +295,8 @@ export class CheckoutToCommand extends BaseCommand {
   ) {
     try {
       if (isWorkdirHasChanges) {
-        await git.createStash(`${AUTO_STASH_PREFIX}-${currentBranch}`, true);
+        const stashMessage = getStashMessage(currentBranch);
+        await git.createStash(stashMessage, true);
       }
     } catch (e) {
       if (e instanceof Error) {
@@ -326,7 +319,9 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const message = `${AUTO_STASH_PREFIX}-${newBranch}`;
       const isStashWithMessageExists = await git.isStashWithMessageExists(message);
-      this.logService.info(`Stash is ${isStashWithMessageExists ? 'found' : 'not found'} for stash with message: '${message}'`);
+      this.logService.info(
+        `Stash is ${isStashWithMessageExists ? 'found' : 'not found'} for stash with message: '${message}'`
+      );
       if (isStashWithMessageExists) {
         await git.popStash(message);
       }
@@ -350,7 +345,8 @@ export class CheckoutToCommand extends BaseCommand {
     isWorkdirHasChanges: boolean,
     apply: boolean = false
   ) {
-    const stashMessage = `${AUTO_STASH_PREFIX}-${currentBranch}-${format(Date.now(), 'yyyy-MM-ddThh:mm:ss')}`;
+    const stashMessage = getStashMessage(currentBranch, true);
+
     try {
       if (isWorkdirHasChanges) {
         await git.createStash(stashMessage, true);
