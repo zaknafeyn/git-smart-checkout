@@ -82,7 +82,8 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     // Get the list of branches in current repo and show user a quick pick list
-    const branchList = await git.getAllRefListExtended();
+    const { refetchBeforeCheckout } = this.configManager.get();
+    const branchList = await git.getAllRefListExtended(refetchBeforeCheckout);
 
     const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
 

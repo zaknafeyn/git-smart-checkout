@@ -26,7 +26,7 @@ export class LoggingService implements Disposable {
       this.outputChannel.appendLine(`Data: ${JSON.stringify(data, null, 2)}`);
     }
 
-    if (Boolean(data)) {
+    if (!data) {
       console.log(formattedMessage);
     } else {
       console.log(formattedMessage, `Data: ${JSON.stringify(data, null, 2)}`);

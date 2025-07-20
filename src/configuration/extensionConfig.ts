@@ -16,6 +16,7 @@ export const AUTO_STASH_MODES = Object.values(autoStashModeConfig);
 
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
+  refetchBeforeCheckout: boolean;
   logging: {
     enabled: boolean;
   };

@@ -52,7 +52,7 @@ export class GitExecutor {
   // #endregion private
 
   async fetchAllRemoteBranchesAndTags() {
-    const commandFetchAllBranches = 'git fetch --all --prune';
+    const commandFetchAllBranches = 'git fetch --all';
     // fetch all tags and overwrite local tags with remote if remote one has changed
     const commandFetchAllTags = 'git fetch --tags --force';
 
@@ -94,7 +94,7 @@ export class GitExecutor {
     }
   }
 
-  async getAllRefListExtended(fetchRemotes = true): Promise<IGitRef[]> {
+  async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
     if (fetchRemotes) {
       await this.fetchAllRemoteBranchesAndTags();
     }

@@ -10,6 +10,7 @@ export class ConfigurationManager {
 
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
+      refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -21,6 +22,7 @@ export class ConfigurationManager {
 
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
+      refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -39,5 +41,10 @@ export class ConfigurationManager {
   public async updateLoggingEnabled(enabled: boolean): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
     await config.update('logging.enabled', enabled, ConfigurationTarget.Global);
+  }
+
+  public async updateRefetchBeforeCheckoutEnabled(enabled: boolean): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('refetchBeforeCheckout', enabled, ConfigurationTarget.Global);
   }
 }

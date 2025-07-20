@@ -74,6 +74,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable logging output"
+        },
+        "git-smart-checkout.refetchBeforeCheckout": {
+          "type": "boolean",
+          "default": false,
+          "description": "Refetch remotes each time before checkout"
         }
       }
     }

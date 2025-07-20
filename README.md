@@ -37,6 +37,13 @@ In this mode, extension creates a stash from working directory, switches to a ne
 > [!TIP]
 > stash created with this mode is not compatible with the stash created by mode `Auto stash in current branch`, this means that it want be used to automatically restore. This stash might be used for manual access if needed.
 
+> [!TIP]
+> you could set default auto stash behavior when using `Checkout to ... (With Stash)` command by changing default mode in status bar. If set to manual, you will be prompted to select auto stash mode after each checkout, otherwise selected auto stash strategy will be used by default.
+
 ### No auto stash
 
 This mode is just ordinary checkout without any auto stash functionality.
+
+## Pull with stash
+
+The extension provides a convenient **Pull with stash** feature. When you run this command, your uncommitted changes are automatically stashed before pulling updates from the remote branch. After the pull completes, your changes are restored. This ensures a smooth workflow and prevents conflicts or loss of local changes during a pull operation.

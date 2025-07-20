@@ -11,6 +11,7 @@ import { ConfigurationManager } from '../configuration/configurationManager';
 import { LoggingService } from '../logging/loggingService';
 import { EXTENSION_NAME } from '../const';
 import {
+  AUTO_STASH_MODE_MANUAL,
   AUTO_STASH_MODES,
   AUTO_STASH_MODES_DETAILS,
   TAutoStashModeConfig,
@@ -38,7 +39,13 @@ export class StatusBarManager implements Disposable {
 
     this.statusBarItem.text = `${modeDetails.icon} ${modeDetails.briefLabel}`;
     this.statusBarItem.tooltip = `${EXTENSION_NAME}\nCurrent mode: ${modeDetails.label}\nClick to switch modes`;
-    this.statusBarItem.backgroundColor = new ThemeColor('statusBarItem.warningBackground');
+
+    const statusBarColor =
+      config.mode === AUTO_STASH_MODE_MANUAL
+        ? 'statusBarItem.descriptionForeground'
+        : 'statusBarItem.warningBackground';
+
+    this.statusBarItem.backgroundColor = new ThemeColor(statusBarColor);
   }
 
   public async showModeQuickPick(): Promise<void> {
