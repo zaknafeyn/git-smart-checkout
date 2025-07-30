@@ -297,7 +297,7 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       if (isWorkdirHasChanges) {
         const stashMessage = getStashMessage(currentBranch);
-        await git.createStash(stashMessage, true);
+        await git.createStash(stashMessage);
       }
     } catch (e) {
       if (e instanceof Error) {
@@ -350,7 +350,7 @@ export class CheckoutToCommand extends BaseCommand {
 
     try {
       if (isWorkdirHasChanges) {
-        await git.createStash(stashMessage, true);
+        await git.createStash(stashMessage);
       }
     } catch (e) {
       if (e instanceof Error) {

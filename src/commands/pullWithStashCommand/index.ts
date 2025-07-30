@@ -18,16 +18,24 @@ export class PullWithStashCommand extends BaseCommand {
     const currentBranch = await git.getCurrentBranch();
     const stashMessage = getStashMessage(currentBranch, true);
     // stash
-    const isWorkdirHasChanges = await git.isWorkdirHasChanges();
-    if (isWorkdirHasChanges) {
-      await git.createStash(stashMessage, true);
+    const isWorkdirHasChangesBeforeStash = await git.isWorkdirHasChanges();
+    if (isWorkdirHasChangesBeforeStash) {
+      await git.createStash(stashMessage);
     }
 
     // pull
     await git.pullFromRemoteBranch();
 
     // pop latest stash
-    if (isWorkdirHasChanges) {
+    if (isWorkdirHasChangesBeforeStash) {
+      // check for auto generated files that running application might generate after pull
+      const isWorkdirHasChanges = await git.isWorkdirHasChanges();
+      if (isWorkdirHasChanges) {
+        // if such changes present, reset them
+        await git.resetLocalChanges();
+      }
+
+      // .. proceed to stash pop
       await git.popStash(stashMessage);
     }
   }

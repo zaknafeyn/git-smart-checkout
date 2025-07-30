@@ -84,14 +84,27 @@ export class GitExecutor {
     return stdout;
   }
 
-  async createStash(stashName: string, includeUntracked: boolean) {
-    const command = `git stash push -m "${stashName}" ${includeUntracked ? '-u' : ''}`;
+  async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked') {
+    const commandArr = [
+      `git stash push -m "${stashName}"`,
+      ...(include === 'all' ? ['-a'] : []),
+      ...(include === 'untracked' ? ['-u'] : []),
+    ];
+
+    const command = commandArr.join(' ');
 
     const { stdout } = await this.#execGitCommand(command);
 
     if (stdout.includes('No local changes to save')) {
       throw new Error('No local changes to save');
     }
+  }
+
+  async resetLocalChanges() {
+    // Discard all local changes
+    const command = 'git restore .';
+
+    await this.#execGitCommand(command);
   }
 
   async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
