@@ -46,6 +46,13 @@ export class StatusBarManager implements Disposable {
         : 'statusBarItem.warningBackground';
 
     this.statusBarItem.backgroundColor = new ThemeColor(statusBarColor);
+
+    // Show or hide based on configuration
+    if (config.showStatusBar) {
+      this.statusBarItem.show();
+    } else {
+      this.statusBarItem.hide();
+    }
   }
 
   public async showModeQuickPick(): Promise<void> {
@@ -97,7 +104,10 @@ export class StatusBarManager implements Disposable {
   }
 
   public show(): void {
-    this.statusBarItem.show();
+    const config = this.configManager.get();
+    if (config.showStatusBar) {
+      this.statusBarItem.show();
+    }
   }
 
   public hide(): void {

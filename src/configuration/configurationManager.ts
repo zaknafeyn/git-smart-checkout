@@ -11,6 +11,7 @@ export class ConfigurationManager {
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
+      showStatusBar: vscodeConfig.get('showStatusBar', true),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -23,6 +24,7 @@ export class ConfigurationManager {
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
+      showStatusBar: vscodeConfig.get('showStatusBar', true),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -46,5 +48,10 @@ export class ConfigurationManager {
   public async updateRefetchBeforeCheckoutEnabled(enabled: boolean): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
     await config.update('refetchBeforeCheckout', enabled, ConfigurationTarget.Global);
+  }
+
+  public async updateShowStatusBar(enabled: boolean): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('showStatusBar', enabled, ConfigurationTarget.Global);
   }
 }

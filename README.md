@@ -2,6 +2,8 @@
 
 Link to extension in marketplace https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Info
 
 `git-smart-checkout` is a vscode extension that adds a new command `Git: Checkout to ... (With stash)` to command palette that allows to choose stash strategy at checkout.

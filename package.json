@@ -8,9 +8,16 @@
     "type": "git",
     "url": "git+https://github.com/zaknafeyn/git-smart-checkout"
   },
+  "homepage": "https://github.com/zaknafeyn/git-smart-checkout/blob/master/README.md",
+  "keywords": [
+    "git",
+    "checkout",
+    "stash",
+    "autostash"
+  ],
   "license": "MIT",
   "version": "0.0.1",
-  "icon": "icon.png",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -79,6 +86,11 @@
           "type": "boolean",
           "default": false,
           "description": "Refetch remotes each time before checkout"
+        },
+        "git-smart-checkout.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show or hide the extension's status bar item"
         }
       }
     }

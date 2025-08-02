@@ -71,6 +71,36 @@ export class CheckoutToCommand extends BaseCommand {
     }
   }
 
+  async getBranchList(git: GitExecutor): Promise<IGitRef[]> {
+    const { refetchBeforeCheckout } = this.configManager.get();
+
+    // Only show progress if refetchBeforeCheckout is true
+    if (refetchBeforeCheckout) {
+      return await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Git Smart Checkout',
+          cancellable: true,
+        },
+        async (progress, token) => {
+          progress.report({ message: 'Fetching branch list...' });
+          progress.report({ message: 'Fetching from remotes...' });
+
+          const branchList = await git.getAllRefListExtended(refetchBeforeCheckout);
+
+          if (token.isCancellationRequested) {
+            throw new Error('Operation was cancelled');
+          }
+
+          return branchList;
+        }
+      );
+    } else {
+      // No progress needed for local-only fetching
+      return await git.getAllRefListExtended(refetchBeforeCheckout);
+    }
+  }
+
   async getSelectedOption(
     git: GitExecutor
   ): Promise<{ currentBranch: string; selection: string; branchList: IGitRef[] }> {
@@ -81,9 +111,8 @@ export class CheckoutToCommand extends BaseCommand {
       throw new Error('The current workspace is not a git repository.');
     }
 
-    // Get the list of branches in current repo and show user a quick pick list
-    const { refetchBeforeCheckout } = this.configManager.get();
-    const branchList = await git.getAllRefListExtended(refetchBeforeCheckout);
+    // Get the list of branches from the separate function
+    const branchList = await this.getBranchList(git);
 
     const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
 
