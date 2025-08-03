@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CommitList } from './CommitList';
-import styles from '../styles.module.css';
+import { CommitList } from '../CommitList';
+import styles from './PrCloneForm.module.css';
+import { Button } from '../../components/Button';
+import { DropDownButton, DropDownSelector } from '../../components/DropDownButton';
 
 interface GitHubPR {
   number: number;
@@ -131,19 +133,15 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
             onChange={(e) => setFeatureBranch(e.target.value)}
             placeholder="Feature branch name"
           />
-          <button type="button" className={styles.iconButton}>
+          <Button type="button" variant="icon">
             ⚙️
-          </button>
+          </Button>
         </div>
 
         <div className={styles.inputField}>
-          <div 
-            className={styles.targetBranchSelector}
-            onClick={handleTargetBranchClick}
-          >
-            <span>{targetBranch}</span>
-            <span className={styles.dropdownIcon}>▼</span>
-          </div>
+          <DropDownSelector onClick={handleTargetBranchClick}>
+            {targetBranch}
+          </DropDownSelector>
         </div>
 
         <div className={styles.inputField}>
@@ -163,13 +161,12 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
         />
 
         <div className={styles.actions}>
-          <button type="button" className={styles.cancelButton} onClick={onStartOver}>
+          <Button type="button" variant="secondary" onClick={onStartOver}>
             Cancel
-          </button>
-          <button type="submit" className={styles.createButton}>
+          </Button>
+          <DropDownButton type="submit">
             Create
-            <span className={styles.dropdownIcon}>▼</span>
-          </button>
+          </DropDownButton>
         </div>
       </form>
     </div>

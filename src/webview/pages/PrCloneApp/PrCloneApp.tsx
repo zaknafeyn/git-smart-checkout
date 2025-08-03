@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { PrInputForm } from './PrInputForm';
-import { PrCloneForm } from './PrCloneForm';
+import { PrInputForm } from '../PrInputForm';
+import { PrCloneForm } from '../PrCloneForm';
 
 interface GitHubPR {
   number: number;
@@ -73,6 +73,19 @@ export const PrCloneApp: React.FC = () => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (message.command === 'showPRData') {
+        // Show notification about the fetched PR
+        const prData = message.prData;
+        const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
+        
+        // Show notification for 3 seconds
+        if (typeof window !== 'undefined' && (window as any).vscode) {
+          (window as any).vscode.postMessage({
+            command: 'showNotification',
+            message: notification,
+            type: 'info'
+          });
+        }
+        
         setState({
           view: 'clone',
           prData: message.prData,

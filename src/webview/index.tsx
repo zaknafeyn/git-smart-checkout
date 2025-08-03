@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { PrCloneApp } from './components/PrCloneApp';
+import { PrCloneApp } from './pages/PrCloneApp';
 import './global.css';
 
 const container = document.getElementById('root');

@@ -86,6 +86,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         case 'cancelPRClone':
           await this.handleCancelPRClone();
           break;
+        case 'showNotification':
+          await this.handleShowNotification(message.message, message.type);
+          break;
       }
     });
   }
@@ -318,6 +321,21 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleCancelPRClone() {
     // Hide the PR Clone view by clearing the context
     await commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', false);
+  }
+
+  private async handleShowNotification(message: string, type: 'info' | 'warn' | 'error' = 'info') {
+    // Show notification using VS Code's notification system
+    switch (type) {
+      case 'info':
+        window.showInformationMessage(message);
+        break;
+      case 'warn':
+        window.showWarningMessage(message);
+        break;
+      case 'error':
+        window.showErrorMessage(message);
+        break;
+    }
   }
 
   private async createPR(targetBranch: string, featureBranch: string, description: string) {

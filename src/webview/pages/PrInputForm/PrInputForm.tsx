@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import styles from '../styles.module.css';
+import styles from './PrInputForm.module.css';
+import { Button } from '../../components/Button';
 
 interface PrInputFormProps {
   onFetchPR: (prInput: string) => void;
@@ -36,12 +37,12 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel })
         </div>
         
         <div className={styles.buttonGroup}>
-          <button type="submit" className={styles.button} disabled={!prInput.trim()}>
-            Fetch PR Data
-          </button>
-          <button type="button" className={styles.buttonSecondary} onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
+          <Button type="submit" variant="primary" disabled={!prInput.trim()}>
+            Fetch PR Data
+          </Button>
         </div>
       </form>
     </div>

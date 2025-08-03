@@ -1,0 +1,63 @@
+.dropdownButton {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: #1f883d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  outline: none;
+  transition: background-color 0.1s ease;
+}
+
+.dropdownButton:hover:not(:disabled) {
+  background-color: #1a7f37;
+}
+
+.dropdownButton:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.dropdownButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #1f883d;
+}
+
+.dropdownIcon {
+  color: inherit;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.selector {
+  flex: 1;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #24292f;
+  background: #f6f8fa;
+  border: none;
+  border-radius: 0;
+  outline: none;
+}
+
+.selector:hover {
+  background-color: #eaeef2;
+}
+
+.selector:focus {
+  background-color: #eaeef2;
+}
+
+.selectorIcon {
+  color: #656d76;
+  font-size: 12px;
+}
