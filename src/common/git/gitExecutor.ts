@@ -251,4 +251,13 @@ export class GitExecutor {
       return false;
     }
   }
+
+  async getRemoteUrl(remoteName = 'origin'): Promise<string> {
+    const { stdout } = await this.#execGitCommand(`git remote get-url ${remoteName}`);
+    return stdout.trim();
+  }
+
+  async cherryPick(commitSha: string): Promise<void> {
+    await this.#execGitCommand(`git cherry-pick ${commitSha}`);
+  }
 }

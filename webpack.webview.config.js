@@ -1,0 +1,78 @@
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+
+  return {
+    entry: './src/webview/index.tsx',
+    mode: isProduction ? 'production' : 'development',
+    devtool: isProduction ? false : 'inline-source-map',
+    output: {
+      path: path.resolve(__dirname, 'dist', 'webview'),
+      filename: isProduction ? '[name].[contenthash].js' : '[name].js',
+      clean: true,
+    },
+    resolve: {
+      extensions: ['.tsx', '.ts', '.js', '.jsx'],
+    },
+    module: {
+      rules: [
+        {
+          test: /\.tsx?$/,
+          use: {
+            loader: 'ts-loader',
+            options: {
+              configFile: path.resolve(__dirname, 'tsconfig.webview.json'),
+              transpileOnly: !isProduction,
+            },
+          },
+          exclude: /node_modules/,
+        },
+        {
+          test: /\.module\.css$/,
+          use: [
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+            {
+              loader: 'css-loader',
+              options: {
+                modules: {
+                  localIdentName: isProduction ? '[hash:base64:5]' : '[name]__[local]__[hash:base64:5]',
+                },
+              },
+            },
+          ],
+        },
+        {
+          test: /\.css$/,
+          exclude: /\.module\.css$/,
+          use: [
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+            'css-loader',
+          ],
+        },
+      ],
+    },
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: path.resolve(__dirname, 'src/webview/template.html'),
+        filename: 'index.html',
+        inject: true,
+      }),
+      ...(isProduction
+        ? [
+            new MiniCssExtractPlugin({
+              filename: '[name].[contenthash].css',
+            }),
+          ]
+        : []),
+    ],
+    externals: {
+      vscode: 'commonjs vscode',
+    },
+    performance: {
+      hints: false,
+    },
+  };
+};
