@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from './PrInputForm.module.css';
-import { Button } from '../../components/Button';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
 
 interface PrInputFormProps {
   onFetchPR: (prInput: string) => void;
@@ -24,17 +25,13 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel })
       <h2>🔄 Clone GitHub PR</h2>
       
       <form onSubmit={handleSubmit}>
-        <div className={styles.inputGroup}>
-          <label htmlFor="prInput" className={styles.label}>PR Number or URL:</label>
-          <input
-            type="text"
-            id="prInput"
-            className={styles.input}
-            value={prInput}
-            onChange={(e) => setPrInput(e.target.value)}
-            placeholder="e.g., 123 or https://github.com/owner/repo/pull/123"
-          />
-        </div>
+        <Input
+          type="text"
+          label="PR Number or URL:"
+          value={prInput}
+          onChange={(e) => setPrInput(e.target.value)}
+          placeholder="e.g., 123 or https://github.com/owner/repo/pull/123"
+        />
         
         <div className={styles.buttonGroup}>
           <Button type="button" variant="secondary" onClick={onCancel}>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { CommitList } from '../CommitList';
+import { CommitList } from '@/pages/CommitList';
 import styles from './PrCloneForm.module.css';
-import { Button } from '../../components/Button';
-import { DropDownButton, DropDownSelector } from '../../components/DropDownButton';
+import { Button } from '@/components/Button';
+import { DropDownButton, DropDownSelector } from '@/components/DropDownButton';
+import { Input } from '@/components/Input';
+import { Textarea } from '@/components/Textarea';
 
 interface GitHubPR {
   number: number;
@@ -108,7 +110,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.createTitle}>▼ CREATE</h2>
+        <h2 className={styles.createTitle}>Clone Pull Request</h2>
       </div>
       
       <div className={styles.branchInfo}>
@@ -126,16 +128,12 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.inputField}>
-          <input
+          <Input
             type="text"
-            className={styles.titleInput}
             value={featureBranch}
             onChange={(e) => setFeatureBranch(e.target.value)}
             placeholder="Feature branch name"
           />
-          <Button type="button" variant="icon">
-            ⚙️
-          </Button>
         </div>
 
         <div className={styles.inputField}>
@@ -145,8 +143,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
         </div>
 
         <div className={styles.inputField}>
-          <textarea
-            className={styles.descriptionInput}
+          <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Description"

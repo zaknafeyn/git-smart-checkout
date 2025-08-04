@@ -1,0 +1,45 @@
+.inputGroup {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.input {
+  display: block;
+  box-sizing: border-box;
+  padding: 5px;
+  width: 100%;
+  resize: vertical;
+  font-size: 13px;
+  border: 1px solid var(--vscode-dropdown-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+  border-radius: 2px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.titleInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #24292f;
+  outline: none;
+}
+
+.titleInput::placeholder {
+  color: #656d76;
+}

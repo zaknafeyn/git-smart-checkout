@@ -16,7 +16,7 @@
     "noEmit": false,
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "declaration": false,
+    "declaration": true,
     "sourceMap": true,
     "outDir": "dist/webview",
     "rootDir": "src/webview",
@@ -24,7 +24,8 @@
     "baseUrl": ".",
     "paths": {
       "*": ["node_modules/@types/*", "src/webview/types/*"]
-    }
+    },
+    "composite": true
   },
   "include": [
     "src/webview/**/*",

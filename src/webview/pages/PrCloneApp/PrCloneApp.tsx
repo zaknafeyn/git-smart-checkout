@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { PrInputForm } from '../PrInputForm';
-import { PrCloneForm } from '../PrCloneForm';
+import { PrInputForm } from '@/pages/PrInputForm';
+import { PrCloneForm } from '@/pages/PrCloneForm';
 
 interface GitHubPR {
   number: number;
