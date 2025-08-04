@@ -17,8 +17,10 @@ module.exports = (env, argv) => {
     resolve: {
       extensions: ['.tsx', '.ts', '.js', '.jsx'],
       alias: {
+        '@': path.resolve(__dirname, 'src/webview'),
         '@/components': path.resolve(__dirname, 'src/webview/components'),
         '@/pages': path.resolve(__dirname, 'src/webview/pages'),
+        '@/hooks': path.resolve(__dirname, 'src/webview/hooks'),
       },
     },
     module: {

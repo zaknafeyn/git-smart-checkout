@@ -1,36 +1,7 @@
 import React, { useState } from 'react';
 import { PrInputForm } from '@/pages/PrInputForm';
 import { PrCloneForm } from '@/pages/PrCloneForm';
-
-interface GitHubPR {
-  number: number;
-  title: string;
-  body: string;
-  head: {
-    ref: string;
-    sha: string;
-  };
-  base: {
-    ref: string;
-  };
-  html_url: string;
-}
-
-interface GitHubCommit {
-  sha: string;
-  commit: {
-    message: string;
-  };
-  parents: { sha: string }[];
-}
-
-interface AppState {
-  view: 'input' | 'clone';
-  prData?: GitHubPR;
-  commits?: GitHubCommit[];
-  branches?: string[];
-  targetBranch?: string;
-}
+import { AppState } from '@/types/dataTypes';
 
 export const PrCloneApp: React.FC = () => {
   const [state, setState] = useState<AppState>({ view: 'input' });

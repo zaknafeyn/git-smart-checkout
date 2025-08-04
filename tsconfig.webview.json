@@ -21,19 +21,16 @@
     "outDir": "dist/webview",
     "rootDir": "src/webview",
     "typeRoots": ["node_modules/@types", "src/webview/types"],
-    "baseUrl": ".",
+    "baseUrl": "src/webview",
     "paths": {
-      "*": ["node_modules/@types/*", "src/webview/types/*"]
+      "@/*": ["*"],
+      "@/components/*": ["components/*"],
+      "@/pages/*": ["pages/*"],
+      "@/hooks/*": ["hooks/*"],
+      "*": ["../node_modules/@types/*", "types/*"]
     },
     "composite": true
   },
-  "include": [
-    "src/webview/**/*",
-    "src/webview/types/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "out"
-  ]
+  "include": ["src/webview/**/*", "src/webview/types/**/*"],
+  "exclude": ["node_modules", "dist", "out"]
 }

@@ -12,28 +12,7 @@ import { LoggingService } from '../logging/loggingService';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as https from 'https';
-
-interface GitHubPR {
-  number: number;
-  title: string;
-  body: string;
-  head: {
-    ref: string;
-    sha: string;
-  };
-  base: {
-    ref: string;
-  };
-  html_url: string;
-}
-
-interface GitHubCommit {
-  sha: string;
-  commit: {
-    message: string;
-  };
-  parents: { sha: string }[];
-}
+import { GitHubCommit, GitHubPR } from '../webview/types/dataTypes';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -257,13 +236,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     try {
       const selectedBranch = await window.showQuickPick(branches, {
         placeHolder: 'Select target branch',
-        canPickMany: false
+        canPickMany: false,
       });
 
       if (selectedBranch && this.webviewView) {
         this.webviewView.webview.postMessage({
           command: 'targetBranchSelected',
-          branch: selectedBranch
+          branch: selectedBranch,
         });
       }
     } catch (error) {

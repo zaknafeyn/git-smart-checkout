@@ -1,32 +1,13 @@
 import React, { useState, useEffect } from 'react';
+
 import { CommitList } from '@/pages/CommitList';
-import styles from './PrCloneForm.module.css';
 import { Button } from '@/components/Button';
 import { DropDownButton, DropDownSelector } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
+import { GitHubPR, GitHubCommit } from '@/types/dataTypes';
 
-interface GitHubPR {
-  number: number;
-  title: string;
-  body: string;
-  head: {
-    ref: string;
-    sha: string;
-  };
-  base: {
-    ref: string;
-  };
-  html_url: string;
-}
-
-interface GitHubCommit {
-  sha: string;
-  commit: {
-    message: string;
-  };
-  parents: { sha: string }[];
-}
+import styles from './PrCloneForm.module.css';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
