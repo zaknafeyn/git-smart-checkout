@@ -46,9 +46,14 @@ export const Button: React.FC<ButtonProps> = ({
           </svg>
         </span>
       )}
-      <span className={loading ? styles.hiddenText : undefined}>
-        {children}
-      </span>
+
+      {variant === 'inputBox' && (<>{ children }</>)}
+      {variant !== 'inputBox' && (
+        <span className={loading ? styles.hiddenText : undefined}>
+          {children}
+        </span>
+      )}
+      
     </button>
   );
 };

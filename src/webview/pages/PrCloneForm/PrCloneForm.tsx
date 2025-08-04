@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 
 import { CommitList } from '@/pages/CommitList';
 import { Button } from '@/components/Button';
-import { DropDownButton, DropDownSelector } from '@/components/DropDownButton';
+import { DropDownButton } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
 import { GitHubPR, GitHubCommit } from '@/types/dataTypes';
 
 import styles from './PrCloneForm.module.css';
+import { Text } from '@/components/Text';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
@@ -91,37 +92,32 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.createTitle}>Clone Pull Request</h2>
+        <Text.Header>Clone Pull Request</Text.Header>
       </div>
       
       <div className={styles.branchInfo}>
         <div className={styles.branchRow}>
           <span className={styles.branchIcon}>🏠</span>
-          <span className={styles.branchLabel}>BASE</span>
-          <span className={styles.branchName}>{targetBranch}</span>
+          <Text.Label className={styles.branchLabel}>BASE</Text.Label>
+          <div className={styles.branchName}>
+            <Button variant="inputBox" onClick={handleTargetBranchClick}>{targetBranch}</Button>
+          </div>
         </div>
         <div className={styles.branchRow}>
           <span className={styles.branchIcon}>↪</span>
-          <span className={styles.branchLabel}>MERGE</span>
-          <span className={styles.branchName}>{featureBranch}</span>
+          <Text.Label className={styles.branchLabel}>BRANCH NAME</Text.Label>
+          <div className={styles.branchName}>
+            <Input
+              type="text"
+              value={featureBranch}
+              onChange={(e) => setFeatureBranch(e.target.value)}
+              placeholder="Feature branch name"
+            />
+          </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        <div className={styles.inputField}>
-          <Input
-            type="text"
-            value={featureBranch}
-            onChange={(e) => setFeatureBranch(e.target.value)}
-            placeholder="Feature branch name"
-          />
-        </div>
-
-        <div className={styles.inputField}>
-          <DropDownSelector onClick={handleTargetBranchClick}>
-            {targetBranch}
-          </DropDownSelector>
-        </div>
 
         <div className={styles.inputField}>
           <Textarea

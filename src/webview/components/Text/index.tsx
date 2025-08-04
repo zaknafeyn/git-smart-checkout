@@ -26,8 +26,15 @@ const Paragraph: FC<TextProps> = ({ children, className }) => {
   return <p className={style}>{children}</p>;
 };
 
+const Label: FC<TextProps> = ({ children, className }) => {
+  const style = classNames(styles.textCommon, styles.textLabel, className);
+
+  return <span className={style}>{children}</span>;
+};
+
 export const Text = {
   Paragraph,
   Header,
   SubHeader,
+  Label
 };

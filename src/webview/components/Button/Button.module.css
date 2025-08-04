@@ -11,6 +11,10 @@
   gap: 4px;
   outline: none;
   transition: background-color 0.1s ease;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .button:focus {
@@ -85,15 +89,15 @@
   justify-content: flex-start;
   height: 27px;
   padding-top: 3px;
-}
 
-.inputBox:hover:not(:disabled) {
-  background-color: var(--vscode-inputOption-hoverBackground);
-}
+  &:hover:not(:disabled) {
+    background-color: var(--vscode-inputOption-hoverBackground);
+  }
 
-.inputBox:focus {
-  outline: none;
-  border-color: var(--vscode-focusBorder);
+  &:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+  }
 }
 
 /* Loading state styles */

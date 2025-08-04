@@ -25,4 +25,10 @@
     line-height: 18px;
     white-space: pre-wrap;
   }
+
+  &.textLabel {
+    font-size: 12px;
+    white-space: pre-wrap;
+    font-weight: 400;
+  }
 }

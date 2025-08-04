@@ -20,10 +20,6 @@
 }
 
 .branchInfo {
-  background-color: #ffffff;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  padding: 16px;
   margin-bottom: 16px;
 }
 
@@ -46,16 +42,13 @@
 
 .branchLabel {
   font-size: 12px;
-  font-weight: 600;
   color: #656d76;
   min-width: 60px;
+  font-variant-caps: all-small-caps;
 }
 
 .branchName {
-  font-family:
-    ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 14px;
-  color: #0969da;
+  width: 100%;
 }
 
 .form {
