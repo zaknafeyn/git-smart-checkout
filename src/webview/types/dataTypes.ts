@@ -27,3 +27,9 @@ export interface AppState {
   branches?: string[];
   targetBranch?: string;
 }
+
+export interface CommitData {
+  sha: string;
+  message: string;
+  isMergeCommit: boolean;
+}

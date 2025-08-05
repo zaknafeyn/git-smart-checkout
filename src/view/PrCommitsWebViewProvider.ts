@@ -2,10 +2,8 @@ import {
   ExtensionContext,
   WebviewView,
   WebviewViewProvider,
-  window,
   commands,
   Uri,
-  ExtensionMode,
 } from 'vscode';
 import { LoggingService } from '../logging/loggingService';
 import * as path from 'path';

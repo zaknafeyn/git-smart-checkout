@@ -19,11 +19,3 @@ export interface GitHubCommit {
   };
   parents: { sha: string }[];
 }
-
-export interface AppState {
-  view: 'input' | 'clone';
-  prData?: GitHubPR;
-  commits?: GitHubCommit[];
-  branches?: string[];
-  targetBranch?: string;
-}

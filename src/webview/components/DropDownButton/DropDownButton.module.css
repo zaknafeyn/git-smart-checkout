@@ -1,11 +1,10 @@
 .dropdownButton {
-  padding: 8px 16px;
+  padding: 4px 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  background-color: #1f883d;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
+  font-family: var(--vscode-font-family);
+  border-radius: 2px;
+  font-size: 13px;
+  line-height: 18px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -13,9 +12,9 @@
   outline: none;
   transition: background-color 0.1s ease;
 
-  &:hover:not(:disabled) {
-    background-color: #1a7f37;
-  }
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   &:focus {
     border-color: var(--vscode-focusBorder);
@@ -24,14 +23,243 @@
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-    background-color: #1f883d;
+
+    &:hover {
+      background-color: var(--vscode-button-background);
+    }
+  }
+}
+
+.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border);
+
+  &:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+  }
+}
+
+.secondary {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-secondaryBorder);
+
+  &:hover:enabled {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+  }
+
+  &:disabled:hover {
+    background-color: var(--vscode-button-secondaryBackground);
+  }
+}
+
+.icon {
+  padding: 12px 16px;
+  background: transparent;
+  border-left: 1px solid #d0d7de;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  color: #656d76;
+  border-radius: 0;
+
+  &:hover:not(:disabled) {
+    background-color: #f6f8fa;
+  }
+
+  &:disabled:hover {
+    background-color: transparent;
+  }
+}
+
+
+.inputBox {
+  display: block;
+  box-sizing: border-box;
+  padding: 5px;
+  width: 100%;
+  font-size: 13px;
+  border: 1px solid var(--vscode-dropdown-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+  border-radius: 2px;
+  text-align: left;
+  cursor: pointer;
+  justify-content: flex-start;
+  height: 27px;
+  padding-top: 3px;
+
+  &:hover:not(:disabled) {
+    background-color: var(--vscode-inputOption-hoverBackground);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+  }
+}
+
+/* Loading state styles */
+.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.spinnerIcon {
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
+}
+
+.spinnerPath {
+  animation: spinnerDash 1.5s ease-in-out infinite;
+}
+
+.hiddenText {
+  opacity: 0.7;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinnerDash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+.dropdownContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.buttonGroup {
+  display: flex;
+}
+
+.dropdownButton {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.dropdownChevron {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  font-family: var(--vscode-font-family);
+  border-radius: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  transition: background-color 0.1s ease;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid;
+
+  &:focus {
+    border-color: var(--vscode-focusBorder);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.dropdownChevron.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border);
+
+  &:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+  }
+}
+
+.dropdownChevron.secondary {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-secondaryBorder);
+
+  &:hover:enabled {
+    background-color: var(--vscode-button-secondaryHoverBackground);
   }
 }
 
 .dropdownIcon {
   color: inherit;
   font-size: 12px;
-  margin-left: 4px;
+}
+
+.dropdownMenu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-color: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.dropdownMenuDown {
+  top: 100%;
+  margin-top: 1px;
+}
+
+.dropdownMenuUp {
+  bottom: 100%;
+  margin-bottom: 1px;
+}
+
+.dropdownItem {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-dropdown-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  display: block;
+
+  &:hover {
+    background-color: var(--vscode-list-hoverBackground);
+  }
+
+  &.selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+  }
 }
 
 .selector {

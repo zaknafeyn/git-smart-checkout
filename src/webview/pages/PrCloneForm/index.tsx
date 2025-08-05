@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/Button';
-import { DropDownButton } from '@/components/DropDownButton';
+import { DropDownButton, DropDownAction } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
 import { GitHubPR, GitHubCommit } from '@/types/dataTypes';
@@ -79,9 +79,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     onStartOver();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = (draft: boolean = false) => {
     if (!featureBranch.trim()) {
       alert('Please enter a feature branch name');
       return;
@@ -96,21 +94,35 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
       targetBranch,
       featureBranch: featureBranch.trim(),
       description,
-      selectedCommits
+      selectedCommits,
+      isDraft: draft
     });
   };
 
+  const dropdownActions: DropDownAction[] = [
+    {
+      id: 'create',
+      title: 'Create',
+      action: () => handleSubmit(false)
+    },
+    {
+      id: 'draft',
+      title: 'Draft',
+      action: () => handleSubmit(true)
+    }
+  ];
+
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <Text.Header>Clone Pull Request</Text.Header>
-        <div className={styles.prInfo}>
+      
+      <div>
+        <Text.Label className={styles.prInfo}>
           Cloning Pull Request{' '} 
-          <Link url={prData.html_url }>#{prData.number}</Link>
-        </div>
+          <Link url={prData.html_url} tooltipText={prData.title}>#{prData.number}</Link>
+        </Text.Label>
       </div>
       
-      <div className={styles.branchInfo}>
+      <div>
         <div className={styles.branchRow}>
           <span className={styles.branchIcon}>🏠</span>
           <Text.Label className={styles.branchLabel}>BASE</Text.Label>
@@ -132,7 +144,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <div className={styles.form}>
 
         <div className={styles.inputField}>
           <Textarea
@@ -148,11 +160,13 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
           <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
-          <DropDownButton type="submit">
-            Create
-          </DropDownButton>
+          <DropDownButton 
+            actions={dropdownActions}
+            defaultActionId="create"
+            popupDirection="up"
+          />
         </div>
-      </form>
+      </div>
     </div>
   );
 };

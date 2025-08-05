@@ -1,10 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PrInputForm } from '@/pages/PrInputForm';
 import { PrCloneForm } from '@/pages/PrCloneForm';
 import { AppState } from '@/types/dataTypes';
 
+const STORAGE_KEY = 'pr-clone-app-state';
+
 export const PrCloneApp: React.FC = () => {
-  const [state, setState] = useState<AppState>({ view: 'input' });
+  const [state, setState] = useState<AppState>(() => {
+    // Initialize state from localStorage on component mount
+    try {
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (error) {
+      console.warn('Failed to load saved app state:', error);
+    }
+    return { view: 'input' };
+  });
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Failed to save app state:', error);
+    }
+  }, [state]);
 
   const handleFetchPR = (prInput: string) => {
     // TODO: Extract VS Code message posting to utility function - similar pattern used in PrCloneForm/index.tsx:65 and CommitsApp/index.tsx:24
@@ -37,7 +59,14 @@ export const PrCloneApp: React.FC = () => {
   };
 
   const handleStartOver = () => {
-    setState({ view: 'input' });
+    const newState: AppState = { view: 'input' };
+    setState(newState);
+    // Clear saved state when starting over
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear saved app state:', error);
+    }
   };
 
   // TODO: Extract useEffect message handling pattern to custom hook - similar pattern used in PrCloneForm/index.tsx:58 and CommitsApp/index.tsx:42

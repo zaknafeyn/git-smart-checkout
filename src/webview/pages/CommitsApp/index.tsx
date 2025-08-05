@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 import { CommitList } from '@/pages/CommitList';
 
-interface CommitData {
-  sha: string;
-  message: string;
-  isMergeCommit: boolean;
-}
+import {CommitData} from '@/types/dataTypes';
 
 export const CommitsApp: React.FC = () => {
   const [commits, setCommits] = useState<CommitData[]>([]);
@@ -54,5 +50,3 @@ export const CommitsApp: React.FC = () => {
     </div>
   );
 };
-
-export type { CommitData };

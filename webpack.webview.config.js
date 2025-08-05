@@ -24,6 +24,7 @@ module.exports = (env, argv) => {
         '@/components': path.resolve(__dirname, 'src/webview/components'),
         '@/pages': path.resolve(__dirname, 'src/webview/pages'),
         '@/hooks': path.resolve(__dirname, 'src/webview/hooks'),
+        '@/types': path.resolve(__dirname, 'src/webview/types'),
       },
     },
     module: {
