@@ -15,6 +15,7 @@
   max-height: 300px;
   overflow-y: auto;
   border: 1px solid var(--vscode-input-border);
+  background-color: transparent;
   padding: 10px;
   margin-bottom: 15px;
 }

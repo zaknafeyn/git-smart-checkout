@@ -9,14 +9,10 @@
   margin-bottom: 20px;
 }
 
-.createTitle {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  color: #24292f;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.prInfo {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .branchInfo {
@@ -66,27 +62,6 @@
 
 .inputField:last-of-type {
   border-bottom: none;
-}
-
-.targetBranchSelector {
-  flex: 1;
-  padding: 12px 16px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: #24292f;
-  background: #f6f8fa;
-}
-
-.targetBranchSelector:hover {
-  background-color: #eaeef2;
-}
-
-.dropdownIcon {
-  color: #656d76;
-  font-size: 12px;
 }
 
 .actions {

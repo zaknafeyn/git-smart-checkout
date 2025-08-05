@@ -41,3 +41,5 @@ export const Input: React.FC<InputProps> = ({
     />
   );
 };
+
+export type { InputProps };

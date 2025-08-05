@@ -7,6 +7,7 @@ export const PrCloneApp: React.FC = () => {
   const [state, setState] = useState<AppState>({ view: 'input' });
 
   const handleFetchPR = (prInput: string) => {
+    // TODO: Extract VS Code message posting to utility function - similar pattern used in PrCloneForm/index.tsx:65 and CommitsApp/index.tsx:24
     // Send message to VS Code extension
     if (typeof window !== 'undefined' && (window as any).vscode) {
       (window as any).vscode.postMessage({
@@ -39,6 +40,7 @@ export const PrCloneApp: React.FC = () => {
     setState({ view: 'input' });
   };
 
+  // TODO: Extract useEffect message handling pattern to custom hook - similar pattern used in PrCloneForm/index.tsx:58 and CommitsApp/index.tsx:42
   // Handle messages from VS Code extension
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

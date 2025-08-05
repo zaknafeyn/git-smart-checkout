@@ -8,6 +8,7 @@ import { EXTENSION_NAME } from './const';
 import { SwitchModeCommand } from './commands/switchModeCommand';
 import { PullWithStashCommand } from './commands/pullWithStashCommand';
 import { PrCloneWebViewProvider } from './view/PrCloneWebViewProvider';
+import { PrCommitsWebViewProvider } from './view/PrCommitsWebViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "my-vscode-extension" is now active!');
@@ -18,11 +19,13 @@ export function activate(context: vscode.ExtensionContext) {
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
   const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService);
+  const prCommitsWebViewProvider = new PrCommitsWebViewProvider(context, logService);
 
   logService.info('Start...');
 
-  // Set initial context to hide PR Clone view
+  // Set initial context to hide PR Clone view and commits view
   vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', false);
+  vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', false);
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
@@ -46,6 +49,18 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // Set up communication between webviews
+  prCloneWebViewProvider.setCommitsProvider(prCommitsWebViewProvider);
+
+  // Register command to update selected commits (internal communication)
+  const updateSelectedCommitsCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.updateSelectedCommits`,
+    (selectedCommits: string[]) => {
+      // Pass selected commits to main webview
+      prCloneWebViewProvider.updateSelectedCommits(selectedCommits);
+    }
+  );
+
   // Register all commands with VS Code
   commandManager.registerAll(context);
 
@@ -63,7 +78,9 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarManager,
     logService,
     clonePullRequestCommand,
-    vscode.window.registerWebviewViewProvider('git-smart-checkout.prClone', prCloneWebViewProvider)
+    updateSelectedCommitsCommand,
+    vscode.window.registerWebviewViewProvider('git-smart-checkout.prClone', prCloneWebViewProvider),
+    vscode.window.registerWebviewViewProvider('git-smart-checkout.prCommits', prCommitsWebViewProvider)
   );
 
   // Show status bar

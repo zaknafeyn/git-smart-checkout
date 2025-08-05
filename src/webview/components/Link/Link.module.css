@@ -1,0 +1,10 @@
+.link {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration: underline;
+  }
+}

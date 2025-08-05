@@ -44,3 +44,5 @@ export const CommitList: React.FC<CommitListProps> = ({
     </div>
   );
 };
+
+export type { Commit, CommitListProps };

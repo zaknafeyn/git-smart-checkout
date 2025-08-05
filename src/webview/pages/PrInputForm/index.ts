@@ -1,1 +1,0 @@
-export { PrInputForm } from './PrInputForm';

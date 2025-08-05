@@ -29,8 +29,8 @@
     outline: 1px solid var(--vscode-focusBorder);
     outline-offset: -1px;
   }
-}
 
-.textarea::placeholder {
-  color: #656d76;
+  &::placeholder {
+    color: #656d76;
+  }
 }

@@ -47,6 +47,13 @@
           "type": "webview",
           "icon": "$(git-pull-request)",
           "when": "git-smart-checkout.showPrClone"
+        },
+        {
+          "id": "git-smart-checkout.prCommits", 
+          "name": "Commits to Cherry-pick",
+          "type": "webview",
+          "icon": "$(git-commit)",
+          "when": "git-smart-checkout.showPrCommits"
         }
       ]
     },

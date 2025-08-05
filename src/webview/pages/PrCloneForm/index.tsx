@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-import { CommitList } from '@/pages/CommitList';
 import { Button } from '@/components/Button';
 import { DropDownButton } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
@@ -9,6 +8,7 @@ import { GitHubPR, GitHubCommit } from '@/types/dataTypes';
 
 import styles from './PrCloneForm.module.css';
 import { Text } from '@/components/Text';
+import { Link } from '@/components/Link';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
@@ -45,13 +45,20 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     }
   }, [selectedTargetBranch]);
 
-  const handleCommitToggle = (sha: string) => {
-    setSelectedCommits(prev => 
-      prev.includes(sha) 
-        ? prev.filter(s => s !== sha)
-        : [...prev, sha]
-    );
-  };
+  // Listen for updates from commits webview
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.command === 'updateSelectedCommits') {
+        setSelectedCommits(message.selectedCommits || []);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
+  }, []);
 
   const handleTargetBranchClick = () => {
     if (typeof window !== 'undefined' && (window as any).vscode) {
@@ -60,6 +67,16 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
         branches: branches
       });
     }
+  };
+
+  const handleCancel = () => {
+    // Hide commits webview when canceling
+    if (typeof window !== 'undefined' && (window as any).vscode) {
+      (window as any).vscode.postMessage({
+        command: 'hideCommitsWebview'
+      });
+    }
+    onStartOver();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,16 +100,14 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     });
   };
 
-  const commitData = commits.map(commit => ({
-    sha: commit.sha,
-    message: commit.commit.message.split('\n')[0],
-    isMergeCommit: commit.parents.length > 1
-  }));
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <Text.Header>Clone Pull Request</Text.Header>
+        <div className={styles.prInfo}>
+          Cloning Pull Request{' '} 
+          <Link url={prData.html_url }>#{prData.number}</Link>
+        </div>
       </div>
       
       <div className={styles.branchInfo}>
@@ -128,14 +143,9 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
           />
         </div>
 
-        <CommitList
-          commits={commitData}
-          selectedCommits={selectedCommits}
-          onCommitToggle={handleCommitToggle}
-        />
 
         <div className={styles.actions}>
-          <Button type="button" variant="secondary" onClick={onStartOver}>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
           <DropDownButton type="submit">

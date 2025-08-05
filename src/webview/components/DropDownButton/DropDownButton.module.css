@@ -12,20 +12,20 @@
   gap: 4px;
   outline: none;
   transition: background-color 0.1s ease;
-}
 
-.dropdownButton:hover:not(:disabled) {
-  background-color: #1a7f37;
-}
+  &:hover:not(:disabled) {
+    background-color: #1a7f37;
+  }
 
-.dropdownButton:focus {
-  border-color: var(--vscode-focusBorder);
-}
+  &:focus {
+    border-color: var(--vscode-focusBorder);
+  }
 
-.dropdownButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: #1f883d;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #1f883d;
+  }
 }
 
 .dropdownIcon {
@@ -47,14 +47,14 @@
   border: none;
   border-radius: 0;
   outline: none;
-}
 
-.selector:hover {
-  background-color: #eaeef2;
-}
+  &:hover {
+    background-color: #eaeef2;
+  }
 
-.selector:focus {
-  background-color: #eaeef2;
+  &:focus {
+    background-color: #eaeef2;
+  }
 }
 
 .selectorIcon {

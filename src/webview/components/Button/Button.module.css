@@ -15,30 +15,43 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
 
-.button:focus {
-  border-color: var(--vscode-focusBorder);
+  &:focus {
+    border-color: var(--vscode-focusBorder);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+
+    &:hover {
+      background-color: var(--vscode-button-background);
+    }
+  }
 }
 
 .primary {
   background-color: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
   border-color: var(--vscode-button-border);
-}
 
-.primary:hover:not(:disabled) {
-  background-color: var(--vscode-button-hoverBackground);
+  &:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+  }
 }
 
 .secondary {
   background-color: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border-color: var(--vscode-button-secondaryBorder);
-}
 
-.secondary:hover:enabled {
-  background-color: var(--vscode-button-secondaryHoverBackground);
+  &:hover:enabled {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+  }
+
+  &:disabled:hover {
+    background-color: var(--vscode-button-secondaryBackground);
+  }
 }
 
 .icon {
@@ -50,28 +63,16 @@
   border-bottom: none;
   color: #656d76;
   border-radius: 0;
+
+  &:hover:not(:disabled) {
+    background-color: #f6f8fa;
+  }
+
+  &:disabled:hover {
+    background-color: transparent;
+  }
 }
 
-.icon:hover:not(:disabled) {
-  background-color: #f6f8fa;
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.button:disabled:hover {
-  background-color: var(--vscode-button-background);
-}
-
-.secondary:disabled:hover {
-  background-color: var(--vscode-button-secondaryBackground);
-}
-
-.icon:disabled:hover {
-  background-color: transparent;
-}
 
 .inputBox {
   display: block;

@@ -12,11 +12,13 @@ import { LoggingService } from '../logging/loggingService';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as https from 'https';
-import { GitHubCommit, GitHubPR } from '../webview/types/dataTypes';
+import { GitHubCommit, GitHubPR } from '../types/dataTypes';
+import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private git?: GitExecutor;
+  private commitsProvider?: PrCommitsWebViewProvider;
 
   constructor(
     private context: ExtensionContext,
@@ -64,6 +66,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
           break;
         case 'cancelPRClone':
           await this.handleCancelPRClone();
+          break;
+        case 'hideCommitsWebview':
+          await this.handleHideCommitsWebview();
           break;
         case 'showNotification':
           await this.handleShowNotification(message.message, message.type);
@@ -261,6 +266,29 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       commits,
       branches,
     });
+
+    // Show the commits webview now that PR data is loaded
+    commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', true);
+
+    // Also update the commits webview
+    if (this.commitsProvider) {
+      this.commitsProvider.updateCommits(commits);
+    }
+  }
+
+  public setCommitsProvider(commitsProvider: PrCommitsWebViewProvider) {
+    this.commitsProvider = commitsProvider;
+  }
+
+  public updateSelectedCommits(selectedCommits: string[]) {
+    if (!this.webviewView) {
+      return;
+    }
+
+    this.webviewView.webview.postMessage({
+      command: 'updateSelectedCommits',
+      selectedCommits,
+    });
   }
 
   private async handleClonePR(data: any) {
@@ -298,8 +326,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async handleCancelPRClone() {
-    // Hide the PR Clone view by clearing the context
+    // Hide both PR Clone view and commits view by clearing the context
     await commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', false);
+    await commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', false);
+  }
+
+  private async handleHideCommitsWebview() {
+    // Hide only the commits webview
+    await commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', false);
   }
 
   private async handleShowNotification(message: string, type: 'info' | 'warn' | 'error' = 'info') {

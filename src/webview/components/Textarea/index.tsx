@@ -37,3 +37,5 @@ export const Textarea: React.FC<TextareaProps> = ({
     />
   );
 };
+
+export type { TextareaProps };

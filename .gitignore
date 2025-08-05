@@ -10,3 +10,4 @@ coverage/
 **/*.map
 .vscode-test-web/
 post-log.json
+*.tsbuildinfo

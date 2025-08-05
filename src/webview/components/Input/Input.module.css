@@ -23,13 +23,14 @@
   color: var(--vscode-input-foreground);
   font-family: var(--vscode-font-family);
   border-radius: 2px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+  }
 }
 
-.input:focus {
-  outline: none;
-  border-color: var(--vscode-focusBorder);
-}
-
+/* TODO: Consider extracting flex input styles to shared CSS class - similar pattern in DropDownButton.module.css:38 */
 .titleInput {
   flex: 1;
   padding: 12px 16px;
@@ -38,8 +39,8 @@
   font-size: 14px;
   color: #24292f;
   outline: none;
-}
 
-.titleInput::placeholder {
-  color: #656d76;
+  &::placeholder {
+    color: #656d76;
+  }
 }
