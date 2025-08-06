@@ -8,7 +8,7 @@ import { EXTENSION_NAME } from './const';
 import { SwitchModeCommand } from './commands/switchModeCommand';
 import { PullWithStashCommand } from './commands/pullWithStashCommand';
 import { PrCloneWebViewProvider } from './view/PrCloneWebViewProvider';
-import { PrCommitsWebViewProvider } from './view/PrCommitsWebViewProvider';
+import { PrCommitsTreeProvider } from './view/PrCommitsTreeProvider';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "my-vscode-extension" is now active!');
@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
   const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService);
-  const prCommitsWebViewProvider = new PrCommitsWebViewProvider(context, logService);
+  const prCommitsTreeProvider = new PrCommitsTreeProvider(context, logService);
 
   logService.info('Start...');
 
@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Set up communication between webviews
-  prCloneWebViewProvider.setCommitsProvider(prCommitsWebViewProvider);
+  prCloneWebViewProvider.setCommitsProvider(prCommitsTreeProvider);
 
   // Register command to update selected commits (internal communication)
   const updateSelectedCommitsCommand = vscode.commands.registerCommand(
@@ -58,6 +58,16 @@ export function activate(context: vscode.ExtensionContext) {
     (selectedCommits: string[]) => {
       // Pass selected commits to main webview
       prCloneWebViewProvider.updateSelectedCommits(selectedCommits);
+    }
+  );
+
+  // Register command to toggle commit selection in tree view
+  const toggleCommitCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.toggleCommit`,
+    (item: any) => {
+      if (item && item.id) {
+        prCommitsTreeProvider.handleCommitToggle(item.id);
+      }
     }
   );
 
@@ -79,8 +89,9 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     clonePullRequestCommand,
     updateSelectedCommitsCommand,
+    toggleCommitCommand,
     vscode.window.registerWebviewViewProvider('git-smart-checkout.prClone', prCloneWebViewProvider),
-    vscode.window.registerWebviewViewProvider('git-smart-checkout.prCommits', prCommitsWebViewProvider)
+    vscode.window.createTreeView('git-smart-checkout.prCommits', { treeDataProvider: prCommitsTreeProvider, showCollapseAll: true, canSelectMany: false })
   );
 
   // Show status bar

@@ -27,6 +27,7 @@
       "@/components/*": ["components/*"],
       "@/pages/*": ["pages/*"],
       "@/hooks/*": ["hooks/*"],
+      "@/types/*": ["types/*"],
       "*": ["../node_modules/@types/*", "types/*"]
     },
     "composite": true

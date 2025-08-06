@@ -5,38 +5,26 @@ import {
   window,
   commands,
   Uri,
-  authentication,
 } from 'vscode';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { LoggingService } from '../logging/loggingService';
+import { GitHubClient } from '../common/api/ghClient';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as https from 'https';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
-import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
+import { PrCommitsTreeProvider } from './PrCommitsTreeProvider';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private git?: GitExecutor;
-  private commitsProvider?: PrCommitsWebViewProvider;
+  private commitsProvider?: PrCommitsTreeProvider;
+  private ghClient?: GitHubClient;
 
   constructor(
     private context: ExtensionContext,
     private loggingService: LoggingService
   ) {}
 
-  private async getGitHubToken(): Promise<string | undefined> {
-    try {
-      const session = await authentication.getSession('github', ['repo'], { createIfNone: true });
-      return session.accessToken;
-    } catch (error) {
-      this.loggingService.error(`Failed to get GitHub authentication: ${error}`);
-      window.showWarningMessage(
-        'GitHub authentication failed. Some features may not work properly.'
-      );
-      return undefined;
-    }
-  }
 
   resolveWebviewView(webviewView: WebviewView) {
     this.webviewView = webviewView;
@@ -99,11 +87,18 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         throw new Error('Could not determine GitHub repository information');
       }
 
-      const prData = await this.fetchPRData(repoInfo.owner, repoInfo.repo, prNumber);
-      const commits = await this.fetchPRCommits(repoInfo.owner, repoInfo.repo, prNumber);
+      // Initialize GitHub client with repo info
+      this.ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+
+      const prData = await this.ghClient.fetchPullRequest(prNumber);
+      const commits = await this.ghClient.fetchPullRequestCommits(prNumber);
+      
+      // Fetch detailed information for each commit including files
+      const detailedCommits = await this.ghClient.fetchCommitsDetails(commits);
+      
       const branches = await this.getBranches(git);
 
-      this.updateWebviewWithPRData(prData, commits, branches);
+      this.updateWebviewWithPRData(prData, detailedCommits, branches);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
       window.showErrorMessage(
@@ -139,93 +134,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     return null;
   }
 
-  private async fetchPRData(owner: string, repo: string, prNumber: number): Promise<GitHubPR> {
-    const token = await this.getGitHubToken();
 
-    return new Promise((resolve, reject) => {
-      const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`;
-      const headers: { [key: string]: string } = {
-        'User-Agent': 'git-smart-checkout-vscode-extension',
-        Accept: 'application/vnd.github.v3+json',
-      };
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
-      const options = { headers };
-
-      https
-        .get(url, options, (res) => {
-          let data = '';
-
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-
-          res.on('end', () => {
-            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-              try {
-                resolve(JSON.parse(data));
-              } catch (error) {
-                reject(new Error(`Failed to parse JSON: ${error}`));
-              }
-            } else {
-              reject(new Error(`GitHub API error: ${res.statusCode} ${res.statusMessage}`));
-            }
-          });
-        })
-        .on('error', (error) => {
-          reject(new Error(`Request error: ${error.message}`));
-        });
-    });
-  }
-
-  private async fetchPRCommits(
-    owner: string,
-    repo: string,
-    prNumber: number
-  ): Promise<GitHubCommit[]> {
-    const token = await this.getGitHubToken();
-
-    return new Promise((resolve, reject) => {
-      const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/commits`;
-      const headers: { [key: string]: string } = {
-        'User-Agent': 'git-smart-checkout-vscode-extension',
-        Accept: 'application/vnd.github.v3+json',
-      };
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const options = { headers };
-
-      https
-        .get(url, options, (res) => {
-          let data = '';
-
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-
-          res.on('end', () => {
-            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-              try {
-                resolve(JSON.parse(data));
-              } catch (error) {
-                reject(new Error(`Failed to parse JSON: ${error}`));
-              }
-            } else {
-              reject(new Error(`GitHub API error: ${res.statusCode} ${res.statusMessage}`));
-            }
-          });
-        })
-        .on('error', (error) => {
-          reject(new Error(`Request error: ${error.message}`));
-        });
-    });
-  }
 
   private async getBranches(git: GitExecutor): Promise<string[]> {
     try {
@@ -267,16 +178,16 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       branches,
     });
 
-    // Show the commits webview now that PR data is loaded
-    commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', true);
-
     // Also update the commits webview
     if (this.commitsProvider) {
       this.commitsProvider.updateCommits(commits);
     }
+
+    // Show the commits webview now that PR data is loaded
+    commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', true);
   }
 
-  public setCommitsProvider(commitsProvider: PrCommitsWebViewProvider) {
+  public setCommitsProvider(commitsProvider: PrCommitsTreeProvider) {
     this.commitsProvider = commitsProvider;
   }
 
@@ -352,16 +263,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async createPR(targetBranch: string, featureBranch: string, description: string) {
-    const git = await this.initGit();
-    const repoInfo = await this.getRepoInfo(git);
-
-    if (!repoInfo) {
-      throw new Error('Could not determine repository information');
+    if (!this.ghClient) {
+      throw new Error('GitHub client not initialized');
     }
 
     await commands.executeCommand('git.push');
 
-    const prUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/compare/${targetBranch}...${featureBranch}?expand=1&body=${encodeURIComponent(description)}`;
+    const prUrl = this.ghClient.createPullRequestUrl(targetBranch, featureBranch, description);
     await commands.executeCommand('vscode.open', prUrl);
   }
 

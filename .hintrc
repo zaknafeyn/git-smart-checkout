@@ -17,6 +17,8 @@
     "defaults",
     "not ie 11",
     "not and_ff <= 126",
-    "not firefox <= 126"
+    "not firefox <= 126",
+    "not ios_saf <= 17.5",
+    "not safari <= 17.5"
   ]
 }

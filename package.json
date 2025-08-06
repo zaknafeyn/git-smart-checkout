@@ -51,7 +51,7 @@
         {
           "id": "git-smart-checkout.prCommits", 
           "name": "Commits to Cherry-pick",
-          "type": "webview",
+          "type": "tree",
           "icon": "$(git-commit)",
           "when": "git-smart-checkout.showPrCommits"
         }
@@ -81,6 +81,11 @@
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
         }
+      },
+      {
+        "command": "git-smart-checkout.toggleCommit",
+        "title": "Toggle Commit Selection",
+        "category": "Git"
       }
     ],
     "menus": {
@@ -93,6 +98,12 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "git-smart-checkout.toggleCommit",
+          "when": "view == git-smart-checkout.prCommits && viewItem == commit"
         }
       ]
     },

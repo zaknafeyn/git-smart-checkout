@@ -8,7 +8,6 @@ module.exports = (env, argv) => {
   return {
     entry: {
       main: './src/webview/index.tsx',
-      commits: './src/webview/commits.tsx',
     },
     mode: isProduction ? 'production' : 'development',
     devtool: isProduction ? false : 'inline-source-map',
@@ -69,12 +68,6 @@ module.exports = (env, argv) => {
         template: path.resolve(__dirname, 'src/webview/template.html'),
         filename: 'index.html',
         chunks: ['main'],
-        inject: true,
-      }),
-      new HtmlWebpackPlugin({
-        template: path.resolve(__dirname, 'src/webview/commits-template.html'),
-        filename: 'commits.html',
-        chunks: ['commits'],
         inject: true,
       }),
       ...(isProduction
