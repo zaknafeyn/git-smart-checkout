@@ -183,4 +183,8 @@ export class PrCommitsTreeProvider implements TreeDataProvider<CommitTreeItem | 
   public getSelectedCommits(): string[] {
     return this.selectedCommits;
   }
+
+  public getCommits(): GitHubCommit[] {
+    return this.commits;
+  }
 }

@@ -14,7 +14,9 @@
       "Bash(yarn install)",
       "Bash(timeout:*)",
       "Bash(yarn build-webview:*)",
-      "Bash(yarn check-types-webview:*)"
+      "Bash(yarn check-types-webview:*)",
+      "WebFetch(domain:code.visualstudio.com)",
+      "Bash(yarn compile)"
     ],
     "deny": []
   },

@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
-import { CommandManager } from './commands/commandManager';
+
 import { CheckoutToCommand } from './commands/checkoutToCommand';
-import { LoggingService } from './logging/loggingService';
-import { ConfigurationManager } from './configuration/configurationManager';
-import { StatusBarManager } from './statusBar/statusBarManager';
-import { EXTENSION_NAME } from './const';
-import { SwitchModeCommand } from './commands/switchModeCommand';
+import { CommandManager } from './commands/commandManager';
 import { PullWithStashCommand } from './commands/pullWithStashCommand';
+import { SwitchModeCommand } from './commands/switchModeCommand';
+import { ConfigurationManager } from './configuration/configurationManager';
+import { EXTENSION_NAME } from './const';
+import { LoggingService } from './logging/loggingService';
+import { StatusBarManager } from './statusBar/statusBarManager';
 import { PrCloneWebViewProvider } from './view/PrCloneWebViewProvider';
 import { PrCommitsTreeProvider } from './view/PrCommitsTreeProvider';
 
@@ -77,6 +78,36 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // Register command to copy commits to clipboard
+  const copyCommitsToClipboardCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.copyCommitsToClipboard`,
+    async () => {
+      try {
+        const commits = prCommitsTreeProvider.getCommits();
+        if (commits.length === 0) {
+          vscode.window.showInformationMessage('No commits available to copy');
+          return;
+        }
+
+        const commitLines = commits.map((commit: any) => {
+          const isBackMerge = commit.parents.length > 1;
+          const prefix = isBackMerge ? 'B' : 'C';
+          const description = commit.commit.message.split('\n')[0];
+          return `${prefix}: ${commit.sha} - ${description}`;
+        });
+
+        const clipboardContent = commitLines.join('\n');
+        await vscode.env.clipboard.writeText(clipboardContent);
+        
+        vscode.window.showInformationMessage(`Copied ${commits.length} commits to clipboard`);
+        logService.info(`Copied ${commits.length} commits to clipboard`);
+      } catch (error) {
+        logService.error(`Failed to copy commits to clipboard: ${error}`);
+        vscode.window.showErrorMessage(`Failed to copy commits to clipboard: ${error}`);
+      }
+    }
+  );
+
   // Register all commands with VS Code
   commandManager.registerAll(context);
 
@@ -96,6 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
     clonePullRequestCommand,
     updateSelectedCommitsCommand,
     toggleCommitCommand,
+    copyCommitsToClipboardCommand,
     vscode.window.registerWebviewViewProvider('git-smart-checkout.prClone', prCloneWebViewProvider),
     vscode.window.createTreeView('git-smart-checkout.prCommits', { treeDataProvider: prCommitsTreeProvider, showCollapseAll: true, canSelectMany: false })
   );

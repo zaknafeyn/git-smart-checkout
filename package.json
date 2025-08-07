@@ -86,6 +86,12 @@
         "command": "git-smart-checkout.toggleCommit",
         "title": "Toggle Commit Selection",
         "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.copyCommitsToClipboard",
+        "title": "Copy Commits to Clipboard",
+        "category": "Git",
+        "icon": "$(copy)"
       }
     ],
     "menus": {
@@ -98,6 +104,13 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "git-smart-checkout.copyCommitsToClipboard",
+          "when": "view == git-smart-checkout.prCommits",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
