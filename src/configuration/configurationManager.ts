@@ -12,6 +12,7 @@ export class ConfigurationManager {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
+      defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -25,6 +26,7 @@ export class ConfigurationManager {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
+      defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },

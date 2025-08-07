@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-
 import { Button } from '@/components/Button';
-import { DropDownButton, DropDownAction } from '@/components/DropDownButton';
+import { DropDownAction, DropDownButton } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
+import { Link } from '@/components/Link';
+import { Text } from '@/components/Text';
 import { Textarea } from '@/components/Textarea';
-import { GitHubPR, GitHubCommit } from '@/types/dataTypes';
+import { useLogger } from '@/hooks';
+import { GitHubCommit, GitHubPR } from '@/types/dataTypes';
+import React, { useEffect, useState } from 'react';
 
 import styles from './PrCloneForm.module.css';
-import { Text } from '@/components/Text';
-import { Link } from '@/components/Link';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
@@ -17,6 +17,8 @@ interface PrCloneFormProps {
   onClonePR: (data: any) => void;
   onStartOver: () => void;
   selectedTargetBranch?: string;
+  defaultTargetBranch?: string;
+  isCloning: boolean;
 }
 
 export const PrCloneForm: React.FC<PrCloneFormProps> = ({
@@ -25,13 +27,23 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   branches,
   onClonePR,
   onStartOver,
-  selectedTargetBranch
+  selectedTargetBranch,
+  defaultTargetBranch,
+  isCloning
 }) => {
-  const [targetBranch, setTargetBranch] = useState(prData.head.ref || branches[0] || 'main');
+  const [targetBranch, setTargetBranch] = useState(() => {
+    // Use defaultTargetBranch from settings if provided and not empty, otherwise fallback
+    if (defaultTargetBranch && defaultTargetBranch.trim()) {
+      return defaultTargetBranch;
+    }
+    return prData.head.ref || branches[0] || 'main';
+  });
   const [featureBranch, setFeatureBranch] = useState(`${prData.head.ref}_clone`);
   const [description, setDescription] = useState(prData.body || '');
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
 
+  const logger = useLogger(false);
+  
   useEffect(() => {
     const nonMergeCommits = commits
       .filter(commit => commit.parents.length <= 1)
@@ -61,6 +73,8 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   }, []);
 
   const handleTargetBranchClick = () => {
+    if (isCloning) return; // Prevent action during cloning
+    
     if (typeof window !== 'undefined' && (window as any).vscode) {
       (window as any).vscode.postMessage({
         command: 'selectTargetBranch',
@@ -70,6 +84,8 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   };
 
   const handleCancel = () => {
+    if (isCloning) return; // Prevent cancel during cloning
+    
     // Hide commits webview when canceling
     if (typeof window !== 'undefined' && (window as any).vscode) {
       (window as any).vscode.postMessage({
@@ -80,12 +96,17 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   };
 
   const handleSubmit = (draft: boolean = false) => {
+    if (isCloning) return; // Prevent submit during cloning
+    
     if (!featureBranch.trim()) {
+      // TODO: remove alert and send command to vscode host to error show notification
       alert('Please enter a feature branch name');
       return;
     }
     
+    logger.log(`selectedCommits.length = ${selectedCommits.length}`);
     if (selectedCommits.length === 0) {
+      // TODO: remove alert and send command to vscode host to error show notification
       alert('Please select at least one commit');
       return;
     }
@@ -127,7 +148,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
           <span className={styles.branchIcon}>🏠</span>
           <Text.Label className={styles.branchLabel}>BASE</Text.Label>
           <div className={styles.branchName}>
-            <Button variant="inputBox" onClick={handleTargetBranchClick}>{targetBranch}</Button>
+            <Button variant="inputBox" onClick={handleTargetBranchClick} disabled={isCloning}>{targetBranch}</Button>
           </div>
         </div>
         <div className={styles.branchRow}>
@@ -139,6 +160,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
               value={featureBranch}
               onChange={(e) => setFeatureBranch(e.target.value)}
               placeholder="Feature branch name"
+              disabled={isCloning}
             />
           </div>
         </div>
@@ -152,18 +174,20 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Description"
             rows={10}
+            disabled={isCloning}
           />
         </div>
 
 
         <div className={styles.actions}>
-          <Button type="button" variant="secondary" onClick={handleCancel}>
+          <Button type="button" variant="secondary" onClick={handleCancel} disabled={isCloning}>
             Cancel
           </Button>
           <DropDownButton 
             actions={dropdownActions}
             defaultActionId="create"
             popupDirection="up"
+            loading={isCloning}
           />
         </div>
       </div>

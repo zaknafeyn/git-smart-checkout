@@ -1,14 +1,6 @@
-import {
-  ExtensionContext,
-  TreeDataProvider,
-  TreeItem,
-  TreeItemCollapsibleState,
-  ThemeIcon,
-  commands,
-  EventEmitter,
-  Event,
-  Uri,
-} from 'vscode';
+import { commands, Event, EventEmitter, ExtensionContext, ThemeIcon, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+
+import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubCommit, GitHubCommitFile } from '../types/dataTypes';
 
@@ -177,7 +169,7 @@ export class PrCommitsTreeProvider implements TreeDataProvider<CommitTreeItem | 
 
   private sendSelectedCommits() {
     // Send selected commits to main webview
-    commands.executeCommand('git-smart-checkout.updateSelectedCommits', this.selectedCommits);
+    commands.executeCommand(`${EXTENSION_NAME}.updateSelectedCommits`, this.selectedCommits);
   }
 
   public getSelectedCommits(): string[] {
@@ -186,5 +178,21 @@ export class PrCommitsTreeProvider implements TreeDataProvider<CommitTreeItem | 
 
   public getCommits(): GitHubCommit[] {
     return this.commits;
+  }
+
+  public selectAllCommits() {
+    // Select all commits (including merge commits)
+    this.selectedCommits = this.commits.map(commit => commit.sha);
+    this.savePersistedState();
+    this._onDidChangeTreeData.fire();
+    this.sendSelectedCommits();
+  }
+
+  public deselectAllCommits() {
+    // Deselect all commits
+    this.selectedCommits = [];
+    this.savePersistedState();
+    this._onDidChangeTreeData.fire();
+    this.sendSelectedCommits();
   }
 }

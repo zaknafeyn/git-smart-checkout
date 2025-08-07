@@ -1,10 +1,12 @@
 import * as https from 'https';
 import { authentication } from 'vscode';
-import { GitHubPR, GitHubCommit, GitHubCommitFile } from '../../types/dataTypes';
+
+import { EXTENSION_NAME } from '../../const';
+import { GitHubCommit, GitHubCommitFile, GitHubPR } from '../../types/dataTypes';
 
 export class GitHubClient {
   private static readonly BASE_URL = 'https://api.github.com';
-  private static readonly USER_AGENT = 'git-smart-checkout-vscode-extension';
+  private static readonly USER_AGENT = `${EXTENSION_NAME}-vscode-extension`;
 
   constructor(
     private readonly owner: string,
@@ -20,7 +22,7 @@ export class GitHubClient {
     }
   }
 
-  private async makeRequest<T>(endpoint: string): Promise<T> {
+  private async makeRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
     const token = await this.getAuthToken();
     const url = `${GitHubClient.BASE_URL}${endpoint}`;
     
@@ -33,10 +35,17 @@ export class GitHubClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    return new Promise((resolve, reject) => {
-      const options = { headers };
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+    }
 
-      https.get(url, options, (res) => {
+    return new Promise((resolve, reject) => {
+      const options = { 
+        method,
+        headers 
+      };
+
+      const req = https.request(url, options, (res) => {
         let data = '';
 
         res.on('data', (chunk) => {
@@ -51,12 +60,20 @@ export class GitHubClient {
               reject(new Error(`Failed to parse JSON response: ${error}`));
             }
           } else {
-            reject(new Error(`GitHub API error: ${res.statusCode} ${res.statusMessage || 'Unknown error'}`));
+            reject(new Error(`GitHub API error: ${res.statusCode} ${res.statusMessage || 'Unknown error'}\nResponse: ${data}`));
           }
         });
-      }).on('error', (error) => {
+      });
+
+      req.on('error', (error) => {
         reject(new Error(`Request error: ${error.message}`));
       });
+
+      if (body) {
+        req.write(JSON.stringify(body));
+      }
+
+      req.end();
     });
   }
 
@@ -136,5 +153,27 @@ export class GitHubClient {
     description: string
   ): string {
     return `https://github.com/${this.owner}/${this.repo}/compare/${targetBranch}...${featureBranch}?expand=1&body=${encodeURIComponent(description)}`;
+  }
+
+  /**
+   * Create a new pull request
+   */
+  public async createPullRequest(
+    title: string,
+    body: string,
+    head: string,
+    base: string,
+    isDraft: boolean = false
+  ): Promise<GitHubPR> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/pulls`;
+    const requestBody = {
+      title,
+      body,
+      head,
+      base,
+      draft: isDraft
+    };
+    
+    return this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
   }
 }

@@ -19,14 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
   const configManager = new ConfigurationManager();
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
-  const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService);
+  const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService, configManager);
   const prCommitsTreeProvider = new PrCommitsTreeProvider(context, logService);
 
   logService.info('Start...');
 
   // Set initial context to hide PR Clone view and commits view
-  vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', false);
-  vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', false);
+  vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, false);
+  vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, false);
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
@@ -44,10 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
     `${EXTENSION_NAME}.clonePullRequest`,
     () => {
       // Show the PR Clone view by setting the context
-      vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', true);
+      vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, true);
       logService.info('... test log msg');
       // Show the Git Smart Checkout activity bar
-      vscode.commands.executeCommand('workbench.view.extension.git-smart-checkout');
+      vscode.commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
       // TODO: change this to clear state at the moment of the first mount of App.tsx
       setTimeout(() => {
         // Wait until app fully initialized and clear webview state to start fresh
@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         const commits = prCommitsTreeProvider.getCommits();
         if (commits.length === 0) {
-          vscode.window.showInformationMessage('No commits available to copy');
+          await vscode.window.showInformationMessage('No commits available to copy', 'OK');
           return;
         }
 
@@ -99,12 +99,30 @@ export function activate(context: vscode.ExtensionContext) {
         const clipboardContent = commitLines.join('\n');
         await vscode.env.clipboard.writeText(clipboardContent);
         
-        vscode.window.showInformationMessage(`Copied ${commits.length} commits to clipboard`);
+        await vscode.window.showInformationMessage(`Copied ${commits.length} commits to clipboard`, 'OK');
         logService.info(`Copied ${commits.length} commits to clipboard`);
       } catch (error) {
         logService.error(`Failed to copy commits to clipboard: ${error}`);
-        vscode.window.showErrorMessage(`Failed to copy commits to clipboard: ${error}`);
+        await vscode.window.showErrorMessage(`Failed to copy commits to clipboard: ${error}`, 'OK');
       }
+    }
+  );
+
+  // Register command to select all commits
+  const selectAllCommitsCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.selectAllCommits`,
+    () => {
+      prCommitsTreeProvider.selectAllCommits();
+      logService.info('Selected all commits');
+    }
+  );
+
+  // Register command to deselect all commits
+  const deselectAllCommitsCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.deselectAllCommits`,
+    () => {
+      prCommitsTreeProvider.deselectAllCommits();
+      logService.info('Deselected all commits');
     }
   );
 
@@ -128,8 +146,11 @@ export function activate(context: vscode.ExtensionContext) {
     updateSelectedCommitsCommand,
     toggleCommitCommand,
     copyCommitsToClipboardCommand,
-    vscode.window.registerWebviewViewProvider('git-smart-checkout.prClone', prCloneWebViewProvider),
-    vscode.window.createTreeView('git-smart-checkout.prCommits', { treeDataProvider: prCommitsTreeProvider, showCollapseAll: true, canSelectMany: false })
+    selectAllCommitsCommand,
+    deselectAllCommitsCommand,
+    prCloneWebViewProvider,
+    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prClone`, prCloneWebViewProvider),
+    vscode.window.createTreeView(`${EXTENSION_NAME}.prCommits`, { treeDataProvider: prCommitsTreeProvider, showCollapseAll: true, canSelectMany: false })
   );
 
   // Show status bar

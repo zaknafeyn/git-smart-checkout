@@ -35,6 +35,8 @@ export interface AppState {
   commits?: GitHubCommit[];
   branches?: string[];
   targetBranch?: string;
+  defaultTargetBranch?: string;
+  isCloning?: boolean;
 }
 
 export interface CommitData {

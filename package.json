@@ -92,6 +92,18 @@
         "title": "Copy Commits to Clipboard",
         "category": "Git",
         "icon": "$(copy)"
+      },
+      {
+        "command": "git-smart-checkout.selectAllCommits",
+        "title": "Select All Commits",
+        "category": "Git",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "git-smart-checkout.deselectAllCommits",
+        "title": "Deselect All Commits",
+        "category": "Git",
+        "icon": "$(close-all)"
       }
     ],
     "menus": {
@@ -108,15 +120,25 @@
       ],
       "view/title": [
         {
+          "command": "git-smart-checkout.selectAllCommits",
+          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-smart-checkout.deselectAllCommits",
+          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
+          "group": "navigation@2"
+        },
+        {
           "command": "git-smart-checkout.copyCommitsToClipboard",
-          "when": "view == git-smart-checkout.prCommits",
-          "group": "navigation"
+          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
         {
           "command": "git-smart-checkout.toggleCommit",
-          "when": "view == git-smart-checkout.prCommits && viewItem == commit"
+          "when": "view == git-smart-checkout.prCommits && viewItem == commit && !git-smart-checkout.isCloning"
         }
       ]
     },
@@ -149,6 +171,11 @@
           "type": "boolean",
           "default": false,
           "description": "Refetch remotes each time before checkout"
+        },
+        "git-smart-checkout.defaultTargetBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Default target branch for PR cloning. Leave empty to use the first available branch."
         },
         "git-smart-checkout.showStatusBar": {
           "type": "boolean",

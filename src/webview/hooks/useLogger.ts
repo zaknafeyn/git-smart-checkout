@@ -23,20 +23,22 @@ export const useLogger = (logToConsole = true): TUseLoggerResponse => {
     
     if (!logToConsole) {return;}
 
+    const logMessage = `[Webview]: ${message}`;
+
     // Also log to browser console for development
     switch (level) {
       case 'error':
-        console.error(`[WebView] ${message}`);
+        console.error(logMessage);
         break;
       case 'warn':
-        console.warn(`[WebView] ${message}`);
+        console.warn(logMessage);
         break;
       case 'debug':
-        console.debug(`[WebView] ${message}`);
+        console.debug(logMessage);
         break;
       case 'info':
       default:
-        console.info(`[WebView] ${message}`);
+        console.info(logMessage);
         break;
     }
   }, []);

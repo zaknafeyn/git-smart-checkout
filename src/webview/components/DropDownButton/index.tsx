@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useLogger } from '@/hooks';
+import React, { useEffect, useRef, useState } from 'react';
+
 import styles from './DropDownButton.module.css';
 
 export interface DropDownAction {
@@ -31,6 +33,8 @@ export const DropDownButton: React.FC<DropDownButtonProps> = ({
   const [selectedAction, setSelectedAction] = useState<DropDownAction | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const logger = useLogger(false);
+
   useEffect(() => {
     const defaultAction = defaultActionId 
       ? actions.find(action => action.id === defaultActionId)
@@ -56,6 +60,7 @@ export const DropDownButton: React.FC<DropDownButtonProps> = ({
   };
 
   const handleDropdownClick = (e: React.MouseEvent) => {
+    logger.info('Click on drop down');
     e.stopPropagation();
     if (!disabled && !loading) {
       setIsOpen(!isOpen);

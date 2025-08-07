@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import styles from './PrInputForm.module.css';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { useLoadingState } from '@/hooks/useLoadingState';
 import { Text } from '@/components/Text';
+import { useLogger } from '@/hooks';
+import { useLoadingState } from '@/hooks/useLoadingState';
+import React, { useState } from 'react';
+
+import styles from './PrInputForm.module.css';
 
 interface PrInputFormProps {
   onFetchPR: (prInput: string) => void;
@@ -15,7 +17,10 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel })
   const [prInput, setPrInput] = useState('6');
   const loadPullRequestData = useLoadingState();
 
+  const logger = useLogger();
+
   const handleSubmit = (e: React.FormEvent) => {
+    logger.info('Fetching PR data ...')
     e.preventDefault();
     if (!prInput.trim()) {
       alert('Please enter a PR number or URL');

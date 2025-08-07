@@ -18,6 +18,7 @@ export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   refetchBeforeCheckout: boolean;
   showStatusBar: boolean;
+  defaultTargetBranch: string;
   logging: {
     enabled: boolean;
   };

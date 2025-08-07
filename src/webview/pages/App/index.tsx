@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { PrInputForm } from '@/pages/PrInputForm';
-import { PrCloneForm } from '@/pages/PrCloneForm';
-import { AppState } from '@/types/dataTypes';
 import { useLogger } from '@/hooks';
+import { PrCloneForm } from '@/pages/PrCloneForm';
+import { PrInputForm } from '@/pages/PrInputForm';
+import { AppState } from '@/types/dataTypes';
+import React, { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'pr-clone-app-state';
 
@@ -63,7 +63,7 @@ export const App: React.FC = () => {
   };
 
   const handleStartOver = () => {
-    logger.info(`Starting over ...`);
+    logger.info('Starting over ...');
     const newState: AppState = { view: 'input' };
     setState(newState);
     // Clear saved state when starting over
@@ -100,7 +100,8 @@ export const App: React.FC = () => {
           view: 'clone',
           prData: message.prData,
           commits: message.commits,
-          branches: message.branches
+          branches: message.branches,
+          defaultTargetBranch: message.defaultTargetBranch
         });
       } else if (message.command === 'targetBranchSelected') {
         setState(prev => ({
@@ -110,6 +111,11 @@ export const App: React.FC = () => {
       } else if (message.command === 'clearState') {
         // Clear state and localStorage when commanded by extension
         handleStartOver();
+      } else if (message.command === 'updateLoadingState') {
+        setState(prev => ({
+          ...prev,
+          isCloning: message.isLoading
+        }));
       }
     };
 
@@ -128,6 +134,8 @@ export const App: React.FC = () => {
         onClonePR={handleClonePR}
         onStartOver={handleStartOver}
         selectedTargetBranch={state.targetBranch}
+        defaultTargetBranch={state.defaultTargetBranch}
+        isCloning={state.isCloning || false}
       />
     );
   }

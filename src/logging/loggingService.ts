@@ -1,4 +1,5 @@
 import { Disposable, OutputChannel, window } from 'vscode';
+
 import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
 
