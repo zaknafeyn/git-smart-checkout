@@ -27,6 +27,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
 
   resolveWebviewView(webviewView: WebviewView) {
+    
+    this.loggingService.info('...Resolve webview');
     this.webviewView = webviewView;
 
     const extensionUri = this.context.extensionUri;
@@ -60,6 +62,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
           break;
         case 'showNotification':
           await this.handleShowNotification(message.message, message.type);
+          break;
+        case 'log':
+          this.handleWebviewLog(message.level, message.message);
           break;
       }
     });
@@ -134,10 +139,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     return null;
   }
 
-
-
-
-
   private async getBranches(git: GitExecutor): Promise<string[]> {
     try {
       const refs = await git.getAllRefListExtended(false);
@@ -202,6 +203,27 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     });
   }
 
+  public clearState() {
+
+    if (!this.webviewView) {
+      return;
+    }
+
+    this.loggingService.info('...clear state command invoked...');
+
+    // Hide the commits tree view
+    commands.executeCommand('setContext', 'git-smart-checkout.showPrCommits', false);
+
+    // Clear commits data from the tree provider
+    if (this.commitsProvider) {
+      this.commitsProvider.updateCommits([]);
+    }
+
+    this.webviewView.webview.postMessage({
+      command: 'clearState',
+    });
+  }
+
   private async handleClonePR(data: any) {
     try {
       const git = await this.initGit();
@@ -258,6 +280,27 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         break;
       case 'error':
         window.showErrorMessage(message);
+        break;
+    }
+  }
+
+  private handleWebviewLog(level: 'info' | 'warn' | 'error' | 'debug', message: string) {
+    // Forward webview log messages to extension logging service
+    const logMessage = `[WebView] ${message}`;
+    
+    switch (level) {
+      case 'error':
+        this.loggingService.error(logMessage);
+        break;
+      case 'warn':
+        this.loggingService.warn(logMessage);
+        break;
+      case 'debug':
+        this.loggingService.debug(logMessage);
+        break;
+      case 'info':
+      default:
+        this.loggingService.info(logMessage);
         break;
     }
   }

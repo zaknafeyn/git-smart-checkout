@@ -2,19 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { PrInputForm } from '@/pages/PrInputForm';
 import { PrCloneForm } from '@/pages/PrCloneForm';
 import { AppState } from '@/types/dataTypes';
+import { useLogger } from '@/hooks';
 
 const STORAGE_KEY = 'pr-clone-app-state';
 
-export const PrCloneApp: React.FC = () => {
+export const App: React.FC = () => {
+  const logger = useLogger(false);
+  
   const [state, setState] = useState<AppState>(() => {
     // Initialize state from localStorage on component mount
     try {
       const savedState = localStorage.getItem(STORAGE_KEY);
+      logger.debug(`Loading saved app state: ${savedState?.substring(0, 25)}...`);
       if (savedState) {
         return JSON.parse(savedState);
       }
     } catch (error) {
-      console.warn('Failed to load saved app state:', error);
+      logger.warn(`Failed to load saved app state: ${error}`);
     }
     return { view: 'input' };
   });
@@ -24,7 +28,7 @@ export const PrCloneApp: React.FC = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
-      console.warn('Failed to save app state:', error);
+      logger.warn(`Failed to save app state: ${error}`);
     }
   }, [state]);
 
@@ -59,13 +63,15 @@ export const PrCloneApp: React.FC = () => {
   };
 
   const handleStartOver = () => {
+    logger.info(`Starting over ...`);
     const newState: AppState = { view: 'input' };
     setState(newState);
     // Clear saved state when starting over
     try {
+      logger.info(`Clearing app state from localStorage: ${STORAGE_KEY}`);
       localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.warn('Failed to clear saved app state:', error);
+      logger.warn(`Failed to clear saved app state: ${error}`);
     }
   };
 
@@ -78,6 +84,8 @@ export const PrCloneApp: React.FC = () => {
         // Show notification about the fetched PR
         const prData = message.prData;
         const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
+        
+        logger.info(`Successfully fetched PR data: #${prData.number} - ${prData.title}`);
         
         // Show notification for 3 seconds
         if (typeof window !== 'undefined' && (window as any).vscode) {
@@ -99,6 +107,9 @@ export const PrCloneApp: React.FC = () => {
           ...prev,
           targetBranch: message.branch
         }));
+      } else if (message.command === 'clearState') {
+        // Clear state and localStorage when commanded by extension
+        handleStartOver();
       }
     };
 

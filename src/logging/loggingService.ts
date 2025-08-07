@@ -26,10 +26,25 @@ export class LoggingService implements Disposable {
       this.outputChannel.appendLine(`Data: ${JSON.stringify(data, null, 2)}`);
     }
 
+    const logMethod = (() => {
+      switch (level) {
+        case 'error':
+          return console.error;
+        case 'warn':
+          return console.warn;
+        case 'info':
+          return console.info;
+        case 'debug':
+          return console.debug;
+        default:
+          return console.log;
+      }
+    })();
+
     if (!data) {
-      console.log(formattedMessage);
+      logMethod(formattedMessage);
     } else {
-      console.log(formattedMessage, `Data: ${JSON.stringify(data, null, 2)}`);
+      logMethod(formattedMessage, `Data: ${JSON.stringify(data, null, 2)}`);
     }
   }
 

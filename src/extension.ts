@@ -44,8 +44,14 @@ export function activate(context: vscode.ExtensionContext) {
     () => {
       // Show the PR Clone view by setting the context
       vscode.commands.executeCommand('setContext', 'git-smart-checkout.showPrClone', true);
+      logService.info('... test log msg');
       // Show the Git Smart Checkout activity bar
       vscode.commands.executeCommand('workbench.view.extension.git-smart-checkout');
+      // TODO: change this to clear state at the moment of the first mount of App.tsx
+      setTimeout(() => {
+        // Wait until app fully initialized and clear webview state to start fresh
+        prCloneWebViewProvider.clearState();
+      }, 250);
     }
   );
 
