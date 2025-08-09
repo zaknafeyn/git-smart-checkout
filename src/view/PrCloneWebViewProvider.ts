@@ -9,12 +9,12 @@ import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
-import { PrCommitsTreeProvider } from './PrCommitsTreeProvider';
+import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private git?: GitExecutor;
-  private commitsProvider?: PrCommitsTreeProvider;
+  private commitsProvider?: PrCommitsWebViewProvider;
   private ghClient?: GitHubClient;
   private prCloneService?: PrCloneService;
   private currentPrData?: GitHubPR;
@@ -236,7 +236,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, true);
   }
 
-  public setCommitsProvider(commitsProvider: PrCommitsTreeProvider) {
+  public setCommitsProvider(commitsProvider: PrCommitsWebViewProvider) {
     this.commitsProvider = commitsProvider;
   }
 
@@ -260,12 +260,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
     this.loggingService.info('...clear state command invoked...');
 
-    // Hide the commits tree view
+    // Hide the commits webview
     commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, false);
 
-    // Clear commits data from the tree provider
+    // Clear commits data from the webview provider
     if (this.commitsProvider) {
-      this.commitsProvider.updateCommits([]);
+      this.commitsProvider.clearState();
     }
 
     this.webviewView.webview.postMessage({
@@ -370,7 +370,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       isLoading,
     });
 
-    // Update tree view context to disable/enable interactions
+    // Update commits webview loading state
+    if (this.commitsProvider) {
+      this.commitsProvider.updateLoadingState(isLoading);
+    }
+
+    // Update context to disable/enable interactions
     commands.executeCommand('setContext', `${EXTENSION_NAME}.isCloning`, isLoading);
   }
 

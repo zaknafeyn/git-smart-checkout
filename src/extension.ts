@@ -9,7 +9,7 @@ import { EXTENSION_NAME } from './const';
 import { LoggingService } from './logging/loggingService';
 import { StatusBarManager } from './statusBar/statusBarManager';
 import { PrCloneWebViewProvider } from './view/PrCloneWebViewProvider';
-import { PrCommitsTreeProvider } from './view/PrCommitsTreeProvider';
+import { PrCommitsWebViewProvider } from './view/PrCommitsWebViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "my-vscode-extension" is now active!');
@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
   const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService, configManager);
-  const prCommitsTreeProvider = new PrCommitsTreeProvider(context, logService);
+  const prCommitsWebViewProvider = new PrCommitsWebViewProvider(context, logService);
 
   logService.info('Start...');
 
@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Set up communication between webviews
-  prCloneWebViewProvider.setCommitsProvider(prCommitsTreeProvider);
+  prCloneWebViewProvider.setCommitsProvider(prCommitsWebViewProvider);
 
   // Register command to update selected commits (internal communication)
   const updateSelectedCommitsCommand = vscode.commands.registerCommand(
@@ -68,61 +68,22 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // Register command to toggle commit selection in tree view
-  const toggleCommitCommand = vscode.commands.registerCommand(
-    `${EXTENSION_NAME}.toggleCommit`,
-    (item: any) => {
-      if (item && item.id) {
-        prCommitsTreeProvider.handleCommitToggle(item.id);
+
+  // Register command to handle notifications from WebView (used by commits webview)
+  const showNotificationCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.showNotification`,
+    async (message: string, type: 'info' | 'warn' | 'error' = 'info') => {
+      switch (type) {
+        case 'info':
+          await vscode.window.showInformationMessage(message, 'OK');
+          break;
+        case 'warn':
+          await vscode.window.showWarningMessage(message, 'OK');
+          break;
+        case 'error':
+          await vscode.window.showErrorMessage(message, 'OK');
+          break;
       }
-    }
-  );
-
-  // Register command to copy commits to clipboard
-  const copyCommitsToClipboardCommand = vscode.commands.registerCommand(
-    `${EXTENSION_NAME}.copyCommitsToClipboard`,
-    async () => {
-      try {
-        const commits = prCommitsTreeProvider.getCommits();
-        if (commits.length === 0) {
-          await vscode.window.showInformationMessage('No commits available to copy', 'OK');
-          return;
-        }
-
-        const commitLines = commits.map((commit: any) => {
-          const isBackMerge = commit.parents.length > 1;
-          const prefix = isBackMerge ? 'B' : 'C';
-          const description = commit.commit.message.split('\n')[0];
-          return `${prefix}: ${commit.sha} - ${description}`;
-        });
-
-        const clipboardContent = commitLines.join('\n');
-        await vscode.env.clipboard.writeText(clipboardContent);
-        
-        await vscode.window.showInformationMessage(`Copied ${commits.length} commits to clipboard`, 'OK');
-        logService.info(`Copied ${commits.length} commits to clipboard`);
-      } catch (error) {
-        logService.error(`Failed to copy commits to clipboard: ${error}`);
-        await vscode.window.showErrorMessage(`Failed to copy commits to clipboard: ${error}`, 'OK');
-      }
-    }
-  );
-
-  // Register command to select all commits
-  const selectAllCommitsCommand = vscode.commands.registerCommand(
-    `${EXTENSION_NAME}.selectAllCommits`,
-    () => {
-      prCommitsTreeProvider.selectAllCommits();
-      logService.info('Selected all commits');
-    }
-  );
-
-  // Register command to deselect all commits
-  const deselectAllCommitsCommand = vscode.commands.registerCommand(
-    `${EXTENSION_NAME}.deselectAllCommits`,
-    () => {
-      prCommitsTreeProvider.deselectAllCommits();
-      logService.info('Deselected all commits');
     }
   );
 
@@ -144,13 +105,11 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     clonePullRequestCommand,
     updateSelectedCommitsCommand,
-    toggleCommitCommand,
-    copyCommitsToClipboardCommand,
-    selectAllCommitsCommand,
-    deselectAllCommitsCommand,
+    showNotificationCommand,
     prCloneWebViewProvider,
+    prCommitsWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prClone`, prCloneWebViewProvider),
-    vscode.window.createTreeView(`${EXTENSION_NAME}.prCommits`, { treeDataProvider: prCommitsTreeProvider, showCollapseAll: true, canSelectMany: false })
+    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prCommits`, prCommitsWebViewProvider)
   );
 
   // Show status bar

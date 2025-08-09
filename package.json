@@ -51,7 +51,7 @@
         {
           "id": "git-smart-checkout.prCommits", 
           "name": "Commits to Cherry-pick",
-          "type": "tree",
+          "type": "webview",
           "icon": "$(git-commit)",
           "when": "git-smart-checkout.showPrCommits"
         }
@@ -81,29 +81,6 @@
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
         }
-      },
-      {
-        "command": "git-smart-checkout.toggleCommit",
-        "title": "Toggle Commit Selection",
-        "category": "Git"
-      },
-      {
-        "command": "git-smart-checkout.copyCommitsToClipboard",
-        "title": "Copy Commits to Clipboard",
-        "category": "Git",
-        "icon": "$(copy)"
-      },
-      {
-        "command": "git-smart-checkout.selectAllCommits",
-        "title": "Select All Commits",
-        "category": "Git",
-        "icon": "$(check-all)"
-      },
-      {
-        "command": "git-smart-checkout.deselectAllCommits",
-        "title": "Deselect All Commits",
-        "category": "Git",
-        "icon": "$(close-all)"
       }
     ],
     "menus": {
@@ -116,29 +93,6 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "git-smart-checkout.selectAllCommits",
-          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
-          "group": "navigation@1"
-        },
-        {
-          "command": "git-smart-checkout.deselectAllCommits",
-          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
-          "group": "navigation@2"
-        },
-        {
-          "command": "git-smart-checkout.copyCommitsToClipboard",
-          "when": "view == git-smart-checkout.prCommits && !git-smart-checkout.isCloning",
-          "group": "navigation@3"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "git-smart-checkout.toggleCommit",
-          "when": "view == git-smart-checkout.prCommits && viewItem == commit && !git-smart-checkout.isCloning"
         }
       ]
     },

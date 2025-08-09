@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
@@ -17,11 +17,13 @@ export const useLogger = (logToConsole = true): TUseLoggerResponse => {
       (window as any).vscode.postMessage({
         command: 'log',
         level: level,
-        message: message
+        message: message,
       });
     }
-    
-    if (!logToConsole) {return;}
+
+    if (!logToConsole) {
+      return;
+    }
 
     const logMessage = `[Webview]: ${message}`;
 
@@ -48,5 +50,9 @@ export const useLogger = (logToConsole = true): TUseLoggerResponse => {
   const error = useCallback((message: string) => log(message, 'error'), [log]);
   const debug = useCallback((message: string) => log(message, 'debug'), [log]);
 
-  return { log, info, warn, error, debug };
+  const logger = useMemo(
+    () => ({ log, info, warn, error, debug }),
+    [log, info, warn, error, debug]
+  );
+  return logger;
 };

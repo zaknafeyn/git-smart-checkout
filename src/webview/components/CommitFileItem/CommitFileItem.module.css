@@ -1,0 +1,64 @@
+.fileItem {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.fileItem:last-child {
+  border-bottom: none;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.statusIndicator {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.statusAdded {
+  background-color: var(--vscode-gitDecoration-addedResourceForeground);
+  color: var(--vscode-editor-background);
+}
+
+.statusModified {
+  background-color: var(--vscode-gitDecoration-modifiedResourceForeground);
+  color: var(--vscode-editor-background);
+}
+
+.statusRemoved {
+  background-color: var(--vscode-gitDecoration-deletedResourceForeground);
+  color: var(--vscode-editor-background);
+}
+
+.statusRenamed {
+  background-color: var(--vscode-gitDecoration-renamedResourceForeground);
+  color: var(--vscode-editor-background);
+}
+
+.fileName {
+  flex: 1;
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-foreground);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileStats {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  flex-shrink: 0;
+}
