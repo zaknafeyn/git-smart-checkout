@@ -28,16 +28,23 @@ export const CommitFileItem: React.FC<CommitFileItemProps> = ({ file }) => {
     }
   };
 
-  const getStatsString = (): string => {
-    const parts = [];
-    if (file.additions > 0) {parts.push(`+${file.additions}`);}
-    if (file.deletions > 0) {parts.push(`-${file.deletions}`);}
-    return parts.join(' ');
+  const renderStats = () => {
+    if (file.additions === 0 && file.deletions === 0) return null;
+    
+    return (
+      <span className={styles.fileStats}>
+        {file.additions > 0 && (
+          <span className={styles.additions}>+{file.additions}</span>
+        )}
+        {file.deletions > 0 && (
+          <span className={styles.deletions}>-{file.deletions}</span>
+        )}
+      </span>
+    );
   };
 
   const statusChar = getStatusChar(file.status);
   const statusColor = getStatusColor(file.status);
-  const stats = getStatsString();
 
   return (
     <div className={styles.fileItem}>
@@ -46,9 +53,7 @@ export const CommitFileItem: React.FC<CommitFileItemProps> = ({ file }) => {
           {statusChar}
         </span>
         <span className={styles.fileName}>{file.filename}</span>
-        {stats && (
-          <span className={styles.fileStats}>{stats}</span>
-        )}
+        {renderStats()}
       </div>
     </div>
   );

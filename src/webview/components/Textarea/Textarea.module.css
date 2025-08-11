@@ -31,6 +31,6 @@
   }
 
   &::placeholder {
-    color: #656d76;
+    color: var(--vscode-input-placeholderForeground);
   }
 }

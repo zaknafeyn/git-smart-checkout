@@ -110,14 +110,23 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
       alert('Please select at least one commit');
       return;
     }
+
+    // Show confirmation modal
+    const confirmationMessage = `Creating a clone of PR ${prData.number} - ${prData.title}. This operation will create a new branch ${featureBranch.trim()}, cherry pick selected commits and open a PR to branch ${targetBranch}. Do you want to proceed?`;
     
-    onClonePR({
-      targetBranch,
-      featureBranch: featureBranch.trim(),
-      description,
-      selectedCommits,
-      isDraft: draft
-    });
+    if (typeof window !== 'undefined' && (window as any).vscode) {
+      (window as any).vscode.postMessage({
+        command: 'showConfirmationDialog',
+        message: confirmationMessage,
+        data: {
+          targetBranch,
+          featureBranch: featureBranch.trim(),
+          description,
+          selectedCommits,
+          isDraft: draft
+        }
+      });
+    }
   };
 
   const dropdownActions: DropDownAction[] = [

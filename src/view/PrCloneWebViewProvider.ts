@@ -1,6 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { commands, ExtensionContext, Uri, WebviewView, WebviewViewProvider, window, workspace } from 'vscode';
+import {
+  commands,
+  ExtensionContext,
+  Uri,
+  WebviewView,
+  WebviewViewProvider,
+  window,
+  workspace,
+} from 'vscode';
 
 import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
@@ -26,9 +34,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     private configurationManager: ConfigurationManager
   ) {}
 
-
   resolveWebviewView(webviewView: WebviewView) {
-    
     this.loggingService.info('...Resolve webview');
     this.webviewView = webviewView;
 
@@ -68,6 +74,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         case 'log':
           this.handleWebviewLog(message.level, message.message);
           break;
+        case 'showConfirmationDialog':
+          await this.handleShowConfirmationDialog(message.message, message.data);
+          break;
       }
     });
   }
@@ -98,16 +107,16 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     if (!this.prCloneService) {
       const git = await this.initGit();
       await this.initGitHubClient();
-      
+
       if (!this.ghClient) {
         throw new Error('GitHub client not initialized');
       }
-      
+
       const workspaceFolders = workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
         throw new Error('No workspace folder found');
       }
-      
+
       this.prCloneService = new PrCloneService(
         this.ghClient,
         this.loggingService,
@@ -131,12 +140,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
       const prData = await this.ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
-      
+
       const commits = await this.ghClient.fetchPullRequestCommits(prNumber);
-      
+
       // Fetch detailed information for each commit including files
       const detailedCommits = await this.ghClient.fetchCommitsDetails(commits);
-      
+
       const branches = await this.getBranches(git);
 
       this.updateWebviewWithPRData(prData, detailedCommits, branches);
@@ -214,7 +223,11 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     const defaultTargetBranch = config.defaultTargetBranch || 'main';
 
     // Validate that the default target branch exists in available branches
-    if (defaultTargetBranch && defaultTargetBranch.trim() && !branches.includes(defaultTargetBranch)) {
+    if (
+      defaultTargetBranch &&
+      defaultTargetBranch.trim() &&
+      !branches.includes(defaultTargetBranch)
+    ) {
       this.handleInvalidDefaultBranch(defaultTargetBranch, branches);
       return;
     }
@@ -253,7 +266,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   public clearState() {
-
     if (!this.webviewView) {
       return;
     }
@@ -300,7 +312,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
       // Use the new PrCloneService to handle the complex workflow
       await this.prCloneService.clonePR(prCloneData);
-
     } catch (error) {
       this.loggingService.error(`Failed to clone PR: ${error}`);
       await window.showErrorMessage(
@@ -340,23 +351,31 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private async handleInvalidDefaultBranch(defaultTargetBranch: string, availableBranches: string[]) {
-    this.loggingService.error(`Default target branch '${defaultTargetBranch}' does not exist in available branches: ${availableBranches.join(', ')}`);
-    
+  private async handleInvalidDefaultBranch(
+    defaultTargetBranch: string,
+    availableBranches: string[]
+  ) {
+    this.loggingService.error(
+      `Default target branch '${defaultTargetBranch}' does not exist in available branches: ${availableBranches.join(', ')}`
+    );
+
     // Hide the activity bar and webviews
     await commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, false);
     await commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, false);
-    
+
     // Show dismissible error notification with settings button
     const openSettingsAction = 'Open Settings';
     const selectedAction = await window.showErrorMessage(
       `Default target branch '${defaultTargetBranch}' does not exist in your repository. Available branches: ${availableBranches.join(', ')}. Please update the extension settings.`,
       openSettingsAction
     );
-    
+
     if (selectedAction === openSettingsAction) {
       // Open extension settings
-      await commands.executeCommand('workbench.action.openSettings', `${EXTENSION_NAME}.defaultTargetBranch`);
+      await commands.executeCommand(
+        'workbench.action.openSettings',
+        `${EXTENSION_NAME}.defaultTargetBranch`
+      );
     }
   }
 
@@ -379,11 +398,25 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     commands.executeCommand('setContext', `${EXTENSION_NAME}.isCloning`, isLoading);
   }
 
+  private async handleShowConfirmationDialog(message: string, data: any) {
+    const confirmAction = 'Proceed';
+
+    const selectedAction = await window.showInformationMessage(
+      message,
+      { modal: true },
+      confirmAction
+    );
+
+    if (selectedAction === confirmAction) {
+      await this.handleClonePR(data);
+    }
+  }
+
   private handleWebviewLog(level: 'info' | 'warn' | 'error' | 'debug', message: string) {
     // Forward webview log messages to extension logging service
     const logMessage = `[WebView] ${message}`;
     console.log('Message to log: ', message);
-    
+
     switch (level) {
       case 'error':
         this.loggingService.error(logMessage);

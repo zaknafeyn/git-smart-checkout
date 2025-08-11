@@ -31,6 +31,7 @@ export class PrCloneService {
 
   async clonePR(data: PrCloneData): Promise<void> {
     let tempPath: string | undefined;
+    let createdBranchName: string | undefined;
     this.loggingService.debug('Start cloning PR ...');
 
     try {
@@ -56,6 +57,7 @@ export class PrCloneService {
             data.featureBranch,
             data.targetBranch
           );
+          createdBranchName = finalBranchName;
 
           // Step 4: Cherry-pick commits
           progress.report({ message: 'Cherry-picking selected commits...' });
@@ -91,6 +93,21 @@ export class PrCloneService {
       );
     } catch (error) {
       this.loggingService.error(`PR cloning failed: ${error}`);
+      
+      // Clean up created branch if it exists and operation failed
+      if (createdBranchName && this.tempWorkspacePath) {
+        try {
+          this.loggingService.info(`Cleaning up created branch: ${createdBranchName}`);
+          await execCommand(
+            `git branch -D ${createdBranchName}`,
+            this.loggingService,
+            { cwd: this.tempWorkspacePath }
+          );
+        } catch (cleanupError) {
+          this.loggingService.warn(`Failed to cleanup branch ${createdBranchName}: ${cleanupError}`);
+        }
+      }
+      
       await window.showErrorMessage(
         `Failed to clone PR: ${error instanceof Error ? error.message : error}`,
         'OK'
@@ -253,7 +270,7 @@ export class PrCloneService {
     isDraft: boolean
   ): Promise<GitHubPR> {
     const originalPrUrl = originalPr.html_url;
-    const prBody = `${description}\n\nCloned from: ${originalPrUrl}`;
+    const prBody = `${description}\n\n[Cloned from PR #${originalPr.number}](${originalPrUrl})`;
 
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(

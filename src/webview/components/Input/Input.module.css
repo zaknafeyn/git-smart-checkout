@@ -37,10 +37,10 @@
   border: none;
   background: transparent;
   font-size: 14px;
-  color: #24292f;
+  color: var(--vscode-foreground);
   outline: none;
 
   &::placeholder {
-    color: #656d76;
+    color: var(--vscode-descriptionForeground);
   }
 }

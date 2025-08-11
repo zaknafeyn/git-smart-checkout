@@ -21,6 +21,9 @@ export const CommitItem: React.FC<CommitItemProps> = ({
   const hasFiles = commit.files && commit.files.length > 0;
   const isMergeCommit = commit.parents.length > 1;
   const commitMessage = commit.commit.message.split('\n')[0];
+  const fullCommitMessage = commit.commit.message;
+  
+  // TODO: Consider extracting commit message truncation logic to shared utility - similar pattern in other commit display components
 
   const handleToggleSelection = () => {
     if (isCloning) return;
@@ -51,16 +54,20 @@ export const CommitItem: React.FC<CommitItemProps> = ({
           onClick={handleToggleExpand}
         >
           <div className={styles.commitMessageRow}>
-            <span className={styles.commitIcon}>📝</span>
-            <span className={styles.commitMessage}>{commitMessage}</span>
+            <span 
+              className={styles.commitMessage} 
+              title={fullCommitMessage}
+            >
+              {commitMessage}
+            </span>
             {isMergeCommit && (
               <span className={styles.mergeLabel}>MERGE</span>
             )}
-            {hasFiles && (
+            {/* {hasFiles && (
               <span className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}>
                 ▶
               </span>
-            )}
+            )} */}
           </div>
           
           <div className={styles.commitMeta}>
@@ -72,6 +79,12 @@ export const CommitItem: React.FC<CommitItemProps> = ({
             )}
           </div>
         </div>
+
+        {hasFiles && (
+          <span className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}>
+            ▶
+          </span>
+        )}
       </div>
 
       {isExpanded && hasFiles && commit.files && (

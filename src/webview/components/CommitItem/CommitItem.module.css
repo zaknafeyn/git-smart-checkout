@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px;
+  padding: 0 12px;
 }
 
 .checkboxContainer {
@@ -50,11 +50,6 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.commitIcon {
-  font-size: 14px;
-  flex-shrink: 0;
 }
 
 .commitMessage {

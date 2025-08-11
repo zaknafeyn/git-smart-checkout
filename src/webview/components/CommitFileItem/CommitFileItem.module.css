@@ -12,6 +12,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  padding-left: 12px;
 }
 
 .statusIndicator {
@@ -57,8 +58,17 @@
 }
 
 .fileStats {
-  color: var(--vscode-descriptionForeground);
+  display: flex;
+  gap: 4px;
   font-size: 12px;
   font-family: var(--vscode-editor-font-family, monospace);
   flex-shrink: 0;
+}
+
+.additions {
+  color: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.deletions {
+  color: var(--vscode-gitDecoration-deletedResourceForeground);
 }
