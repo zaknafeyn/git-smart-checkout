@@ -13,8 +13,7 @@ interface PrInputFormProps {
 }
 
 export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel }) => {
-  //todo: remove default value
-  const [prInput, setPrInput] = useState('6');
+  const [prInput, setPrInput] = useState('');
   const loadPullRequestData = useLoadingState();
 
   const logger = useLogger();
