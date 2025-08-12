@@ -89,6 +89,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       }
       this.git = new GitExecutor(workspaceFolders[0].uri.fsPath, this.loggingService);
     }
+
     return this.git;
   }
 
@@ -117,11 +118,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         throw new Error('No workspace folder found');
       }
 
-      this.prCloneService = new PrCloneService(
-        this.ghClient,
-        this.loggingService,
-        workspaceFolders[0].uri.fsPath
-      );
+      this.prCloneService = new PrCloneService(git, this.ghClient, this.loggingService);
     }
   }
 
@@ -314,9 +311,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       await this.prCloneService.clonePR(prCloneData);
     } catch (error) {
       this.loggingService.error(`Failed to clone PR: ${error}`);
-      await window.showErrorMessage(
-        `Failed to clone PR: ${error instanceof Error ? error.message : error}`,
-        'OK'
+      window.showErrorMessage(
+        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
       );
     } finally {
       // Clear loading state

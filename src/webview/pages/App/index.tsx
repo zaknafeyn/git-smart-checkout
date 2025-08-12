@@ -80,43 +80,51 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
-      if (message.command === 'showPRData') {
-        // Show notification about the fetched PR
-        const prData = message.prData;
-        const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
-        
-        logger.info(`Successfully fetched PR data: #${prData.number} - ${prData.title}`);
-        
-        // Show notification for 3 seconds
-        if (typeof window !== 'undefined' && (window as any).vscode) {
-          (window as any).vscode.postMessage({
-            command: 'showNotification',
-            message: notification,
-            type: 'info'
+
+      switch (true) {
+        case message.command === 'showPRData':
+          // Show notification about the fetched PR
+          const prData = message.prData;
+          const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
+          
+          logger.info(`Successfully fetched PR data: #${prData.number} - ${prData.title}`);
+          
+          // Show notification for 3 seconds
+          if (typeof window !== 'undefined' && (window as any).vscode) {
+            (window as any).vscode.postMessage({
+              command: 'showNotification',
+              message: notification,
+              type: 'info'
+            });
+          }
+          
+          setState({
+            view: 'clone',
+            prData: message.prData,
+            commits: message.commits,
+            branches: message.branches,
+            defaultTargetBranch: message.defaultTargetBranch
           });
-        }
-        
-        setState({
-          view: 'clone',
-          prData: message.prData,
-          commits: message.commits,
-          branches: message.branches,
-          defaultTargetBranch: message.defaultTargetBranch
-        });
-      } else if (message.command === 'targetBranchSelected') {
-        setState(prev => ({
-          ...prev,
-          targetBranch: message.branch
-        }));
-      } else if (message.command === 'clearState') {
-        // Clear state and localStorage when commanded by extension
-        handleStartOver();
-      } else if (message.command === 'updateLoadingState') {
-        setState(prev => ({
-          ...prev,
-          isCloning: message.isLoading
-        }));
-      }
+          break;
+        case message.command === 'targetBranchSelected':
+          setState(prev => ({
+            ...prev,
+            targetBranch: message.branch
+          }));
+          break;
+        case message.command === 'clearState':
+          // Clear state and localStorage when commanded by extension
+          handleStartOver();
+          break;
+        case message.command === 'updateLoadingState':
+          setState(prev => ({
+            ...prev,
+            isCloning: message.isLoading
+          }));
+          break;
+        default:
+          break;
+      };
     };
 
     if (typeof window !== 'undefined') {

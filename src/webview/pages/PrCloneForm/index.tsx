@@ -39,7 +39,16 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     return prData.head.ref || branches[0] || 'main';
   });
   const [featureBranch, setFeatureBranch] = useState(`${prData.head.ref}_clone`);
-  const [description, setDescription] = useState(prData.body || '');
+  const [description, setDescription] = useState(() => {
+    
+    const result = [
+      `[Cloned from PR #${prData.number}](${prData.html_url})`,
+      "",
+      prData.body || ''
+    ]
+
+    return result.join("\n");
+  });
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
 
   const logger = useLogger(false);

@@ -1,14 +1,13 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { env, ProgressLocation, Uri, window } from 'vscode';
+import { CancellationToken, commands, env, ProgressLocation, Uri, window } from 'vscode';
 
 import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
-import { execCommand } from '../utils/execCommand';
 
 export interface PrCloneData {
   prData: GitHubPR;
@@ -19,15 +18,22 @@ export interface PrCloneData {
   isDraft: boolean;
 }
 
+const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
+
 export class PrCloneService {
   private tempWorkspacePath?: string;
   private tempGit?: GitExecutor;
 
   constructor(
+    private git: GitExecutor,
     private ghClient: GitHubClient,
-    private loggingService: LoggingService,
-    private mainRepoPath: string
+    private loggingService: LoggingService
   ) {}
+
+  // async openMergeEditorFor(filePath: Uri) {
+  //   // await commands.executeCommand('vscode.openMergeEditor', filePath);
+  //   await commands.executeCommand('_open.mergeEditor', filePath);
+  // }
 
   async clonePR(data: PrCloneData): Promise<void> {
     let tempPath: string | undefined;
@@ -39,78 +45,103 @@ export class PrCloneService {
         {
           location: ProgressLocation.Notification,
           title: `Cloning PR #${data.prData.number}`,
-          //todo: handle cancelling with cancel token below
           cancellable: true,
         },
         async (progress, token) => {
-          // Step 1: Create temporary worktree
-          progress.report({ message: 'Creating temporary worktree...' });
-          tempPath = await this.createTempWorktree(data.targetBranch);
+          try {
+            // Step 1: Create temporary worktree
+            progress.report({ message: 'Creating temporary worktree...' });
+            tempPath = await this.createTempWorktree(data.targetBranch);
 
-          // Step 2: Pull all branches
-          progress.report({ message: 'Fetching latest branches...' });
-          await this.fetchAllBranches();
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
 
-          // Step 3: Create and validate branch name
-          progress.report({ message: 'Creating feature branch...' });
-          const finalBranchName = await this.createUniqueFeatureBranch(
-            data.featureBranch,
-            data.targetBranch
-          );
-          createdBranchName = finalBranchName;
+            // Step 2: Pull all branches
+            progress.report({ message: 'Fetching latest branches...' });
+            await this.fetchAllBranches();
 
-          // Step 4: Cherry-pick commits
-          progress.report({ message: 'Cherry-picking selected commits...' });
-          await this.cherryPickCommits(data.selectedCommits);
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
 
-          // Step 5: Push branch to GitHub
-          progress.report({ message: 'Pushing branch to GitHub...' });
-          await this.pushBranchToGitHub(finalBranchName);
+            // Step 3: Create and validate branch name
+            progress.report({ message: 'Creating feature branch...' });
+            const finalBranchName = await this.createUniqueFeatureBranch(
+              data.featureBranch,
+              data.targetBranch
+            );
+            createdBranchName = finalBranchName;
 
-          // Step 6: Create PR
-          progress.report({ message: 'Creating pull request...' });
-          const newPr = await this.createGitHubPR(
-            data.prData,
-            finalBranchName,
-            data.targetBranch,
-            data.description,
-            data.isDraft
-          );
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
 
-          // Step 7: Show success notification
-          const openAction = await window.showInformationMessage(
-            `PR #${newPr.number} created successfully!`,
-            'Open'
-          );
+            // Step 4: Cherry-pick commits
+            progress.report({ message: 'Cherry-picking selected commits...' });
+            await this.cherryPickCommits(data.selectedCommits, token);
 
-          if (openAction === 'Open') {
-            await env.openExternal(Uri.parse(newPr.html_url));
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 5: Push branch to GitHub
+            progress.report({ message: 'Pushing branch to GitHub...' });
+            await this.tempGit?.pushBranchToGitHub(finalBranchName);
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 6: Create PR
+            progress.report({ message: 'Creating pull request...' });
+            const newPr = await this.createGitHubPR(
+              data.prData,
+              finalBranchName,
+              data.targetBranch,
+              data.description,
+              data.isDraft
+            );
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 7: Show success notification
+            const openAction = await window.showInformationMessage(
+              `PR #${newPr.number} created successfully!`,
+              'Open'
+            );
+
+            if (openAction === 'Open') {
+              await env.openExternal(Uri.parse(newPr.html_url));
+            }
+
+            // Step 8: Hide activity bar
+            await this.hideActivityBar();
+          } catch (error) {
+            progress.report({ message: 'Error occurred during PR cloning, reverting changes ...' });
+            throw error;
           }
-
-          // Step 8: Hide activity bar
-          await this.hideActivityBar();
         }
       );
     } catch (error) {
       this.loggingService.error(`PR cloning failed: ${error}`);
-      
+
       // Clean up created branch if it exists and operation failed
       if (createdBranchName && this.tempWorkspacePath) {
         try {
           this.loggingService.info(`Cleaning up created branch: ${createdBranchName}`);
-          await execCommand(
-            `git branch -D ${createdBranchName}`,
-            this.loggingService,
-            { cwd: this.tempWorkspacePath }
-          );
+          await this.tempGit?.deleteLocalBranch(createdBranchName);
         } catch (cleanupError) {
-          this.loggingService.warn(`Failed to cleanup branch ${createdBranchName}: ${cleanupError}`);
+          this.loggingService.warn(
+            `Failed to cleanup branch ${createdBranchName}: ${cleanupError}`
+          );
         }
       }
-      
-      await window.showErrorMessage(
-        `Failed to clone PR: ${error instanceof Error ? error.message : error}`,
-        'OK'
+
+      window.showErrorMessage(
+        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
       );
     } finally {
       // Step 9: Cleanup temp worktree
@@ -122,17 +153,12 @@ export class PrCloneService {
 
   private async createTempWorktree(targetBranch: string): Promise<string> {
     const tempDir = os.tmpdir();
-    const workspaceName = `pr-clone-${Date.now()}`;
+    const workspaceName = `${TEMP_WORKDIR_PREFIX}-${Date.now()}`;
     const tempPath = path.join(tempDir, workspaceName);
 
     this.loggingService.info(`Creating temp worktree at: ${tempPath}`);
 
-    // Use execCommand utility to execute git worktree command in the main repository
-    await execCommand(
-      `git worktree add "${tempPath}" ${targetBranch} --force`,
-      this.loggingService,
-      { cwd: this.mainRepoPath }
-    );
+    await this.git.worktreeAdd(tempPath, targetBranch);
 
     this.tempWorkspacePath = tempPath;
     this.tempGit = new GitExecutor(tempPath, this.loggingService);
@@ -160,55 +186,26 @@ export class PrCloneService {
     let suffix = 1;
 
     // Check if branch already exists
-    while (await this.branchExists(branchName)) {
+    while (await this.tempGit.branchExist(branchName)) {
       branchName = `${baseBranchName}_${suffix}`;
       suffix++;
     }
 
     // Show notification if suffix was added
     if (suffix > 1) {
-      await window.showInformationMessage(
-        `Branch name '${baseBranchName}' already exists. Using '${branchName}' instead.`,
-        'OK'
+      window.showInformationMessage(
+        `Branch name '${baseBranchName}' already exists. Using '${branchName}' instead.`
       );
     }
 
     await this.tempGit.createBranch(branchName, targetBranch);
-    await this.tempGit.checkout(branchName);
+    // await this.tempGit.checkout(branchName);
     this.loggingService.info(`Created feature branch: ${branchName}`);
 
     return branchName;
   }
 
-  private async branchExists(branchName: string): Promise<boolean> {
-    if (!this.tempGit) {
-      return false;
-    }
-
-    try {
-      const tempWorkspacePath = this.tempWorkspacePath || '';
-      await execCommand(
-        `git show-ref --verify --quiet refs/heads/${branchName}`,
-        this.loggingService,
-        { cwd: tempWorkspacePath }
-      );
-      return true;
-    } catch {
-      try {
-        const tempWorkspacePath = this.tempWorkspacePath || '';
-        await execCommand(
-          `git show-ref --verify --quiet refs/remotes/origin/${branchName}`,
-          this.loggingService,
-          { cwd: tempWorkspacePath }
-        );
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  }
-
-  private async cherryPickCommits(commitShas: string[]): Promise<void> {
+  private async cherryPickCommits(commitShas: string[], token: CancellationToken): Promise<void> {
     if (!this.tempGit) {
       throw new Error('Temporary git workspace not initialized');
     }
@@ -218,20 +215,7 @@ export class PrCloneService {
     // Sort commits by creation date to ensure proper chronological order
     // Get commit details to access creation dates
     const commitDetails = await Promise.all(
-      commitShas.map(async (sha) => {
-        try {
-          const { stdout } = await execCommand(
-            `git show --format="%ct" --no-patch ${sha}`,
-            this.loggingService,
-            { cwd: this.tempWorkspacePath }
-          );
-          const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
-          return { sha, timestamp };
-        } catch (error) {
-          this.loggingService.warn(`Could not get timestamp for commit ${sha}: ${error}`);
-          return { sha, timestamp: 0 };
-        }
-      })
+      commitShas.map(async (sha) => this.tempGit!.getCommitTimestamp(sha))
     );
 
     // Sort by timestamp (creation date) in ascending order (oldest first)
@@ -242,24 +226,21 @@ export class PrCloneService {
     this.loggingService.info('Cherry-picking commits in chronological order:', sortedCommits);
 
     for (const commitSha of sortedCommits) {
+      if (token.isCancellationRequested) {
+        throw new Error('Cancel operation');
+      }
+
       try {
         await this.tempGit.cherryPick(commitSha);
+
         this.loggingService.info(`Cherry-picked commit: ${commitSha}`);
       } catch (error) {
+        // const uri = Uri.joinPath(Uri.parse(this.tempWorkspacePath || ''), 'README.md');
+        // await this.openMergeEditorFor(uri);
+
         throw new Error(`Failed to cherry-pick commit ${commitSha}: ${error}`);
       }
     }
-  }
-
-  private async pushBranchToGitHub(branchName: string): Promise<void> {
-    if (!this.tempGit || !this.tempWorkspacePath) {
-      throw new Error('Temporary git workspace not initialized');
-    }
-
-    await execCommand(`git push -u origin ${branchName}`, this.loggingService, {
-      cwd: this.tempWorkspacePath,
-    });
-    this.loggingService.info(`Pushed branch to GitHub: ${branchName}`);
   }
 
   private async createGitHubPR(
@@ -269,8 +250,7 @@ export class PrCloneService {
     description: string,
     isDraft: boolean
   ): Promise<GitHubPR> {
-    const originalPrUrl = originalPr.html_url;
-    const prBody = `${description}\n\n[Cloned from PR #${originalPr.number}](${originalPrUrl})`;
+    const prBody = description;
 
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(
@@ -285,16 +265,6 @@ export class PrCloneService {
     return newPr;
   }
 
-  private async getPRUrl(prNumber: number): Promise<string> {
-    if (prNumber === 0) {
-      // Return the repository URL as a fallback
-      const repoInfo = this.ghClient.getRepoInfo();
-      return `https://github.com/${repoInfo.owner}/${repoInfo.repo}/pulls`;
-    }
-    const pr = await this.ghClient.fetchPullRequest(prNumber);
-    return pr.html_url;
-  }
-
   private async hideActivityBar(): Promise<void> {
     const { commands } = await import('vscode');
     await commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, false);
@@ -307,9 +277,7 @@ export class PrCloneService {
   ): Promise<void> {
     try {
       this.loggingService.info(`Cleaning up temp worktree: ${tempPath}`);
-      await execCommand(`git worktree remove "${tempPath}" --force`, this.loggingService, {
-        cwd: this.mainRepoPath,
-      });
+      await this.git.worktreeRemove(tempPath);
 
       // Ensure directory is removed if it still exists
       if (fs.existsSync(tempPath)) {
@@ -318,76 +286,32 @@ export class PrCloneService {
 
       // Clean up other temporary worktrees if enabled
       if (cleanUpOtherTempWorktrees) {
-        await this.cleanupOtherTempWorktrees(tempPath);
+        await this.cleanupOtherTempWorktrees();
       }
     } catch (error) {
       this.loggingService.warn(`Failed to cleanup temp worktree: ${error}`);
     }
   }
 
-  private async cleanupOtherTempWorktrees(currentTempPath: string): Promise<void> {
+  private async cleanupOtherTempWorktrees(): Promise<void> {
     try {
       const tempDir = os.tmpdir();
-      this.loggingService.info(`Checking for other temp worktrees in: ${tempDir}`);
-
-      // List all directories in temp directory that match our pattern
-      const entries = fs.readdirSync(tempDir, { withFileTypes: true });
-      const prCloneDirs = entries
-        .filter((entry) => entry.isDirectory() && entry.name.startsWith('pr-clone-'))
-        .map((entry) => path.join(tempDir, entry.name))
-        .filter((dirPath) => dirPath !== currentTempPath); // Exclude the current temp path
-
-      if (prCloneDirs.length === 0) {
-        this.loggingService.info('No other temp worktrees found');
-        return;
-      }
-
-      this.loggingService.info(
-        `Found ${prCloneDirs.length} other temp worktrees to clean up: ${prCloneDirs.join(', ')}`
-      );
 
       // Get list of all git worktrees
-      let allWorktrees: string[] = [];
-      try {
-        const { stdout } = await execCommand('git worktree list --porcelain', this.loggingService, {
-          cwd: this.mainRepoPath,
-        });
+      const allWorktrees: string[] = await this.git.worktreeList(true);
+      const tempWorktrees = allWorktrees.filter((worktree) => {
+        return (
+          fs.lstatSync(worktree).isDirectory() &&
+          worktree.includes(tempDir) &&
+          worktree.includes(TEMP_WORKDIR_PREFIX)
+        );
+      });
+      const tempWorktreesPromises = tempWorktrees.map((worktree) =>
+        this.git.worktreeRemove(worktree)
+      );
 
-        allWorktrees = stdout
-          .split('\n')
-          .filter((line) => line.startsWith('worktree '))
-          .map((line) => line.replace('worktree ', '').trim());
-      } catch (error) {
-        this.loggingService.warn(`Failed to get worktree list: ${error}`);
-      }
-
-      // Clean up each temp directory
-      for (const dirPath of prCloneDirs) {
-        try {
-          // Check if it's still a registered git worktree
-          const isWorktree = allWorktrees.includes(dirPath);
-
-          if (isWorktree) {
-            // Remove from git worktree list
-            try {
-              await execCommand(`git worktree remove "${dirPath}" --force`, this.loggingService, {
-                cwd: this.mainRepoPath,
-              });
-              this.loggingService.info(`Removed git worktree: ${dirPath}`);
-            } catch (error) {
-              this.loggingService.warn(`Failed to remove git worktree ${dirPath}: ${error}`);
-            }
-          }
-
-          // Remove directory if it still exists
-          if (fs.existsSync(dirPath)) {
-            fs.rmSync(dirPath, { recursive: true, force: true });
-            this.loggingService.info(`Removed temp directory: ${dirPath}`);
-          }
-        } catch (error) {
-          this.loggingService.warn(`Failed to cleanup temp worktree ${dirPath}: ${error}`);
-        }
-      }
+      // remove all worktrees crated by extension
+      await Promise.all(tempWorktreesPromises);
     } catch (error) {
       this.loggingService.warn(`Failed to cleanup other temp worktrees: ${error}`);
     }

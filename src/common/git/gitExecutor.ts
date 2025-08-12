@@ -1,7 +1,8 @@
 import { ExecSyncOptions } from 'child_process';
+
+import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
 import { IGitRef, TUpstreamTrack } from './types';
-import { LoggingService } from '../../logging/loggingService';
 
 export class GitExecutor {
   #repositoryPath;
@@ -259,5 +260,81 @@ export class GitExecutor {
 
   async cherryPick(commitSha: string): Promise<void> {
     await this.#execGitCommand(`git cherry-pick ${commitSha}`);
+  }
+
+  async deleteLocalBranch(branchName: string) {
+    const { stdout } = await this.#execGitCommand(`git branch -D ${branchName}`);
+
+    return stdout.trim();
+  }
+
+  async worktreeList(muteError = false) {
+    const command = 'git worktree list --porcelain';
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+
+      return stdout
+        .split('\n')
+        .filter((line) => line.startsWith('worktree '))
+        .map((line) => line.replace('worktree ', '').trim());
+    } catch (error) {
+      if (muteError) {
+        return [];
+      }
+
+      throw new Error(`Failed to get worktree list: ${error}`);
+    }
+  }
+
+  async worktreeRemove(workTreePath: string, force = true) {
+    const command = `git worktree remove "${workTreePath}" ${force ? '--force' : ''}`;
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async worktreeAdd(workTreePath: string, targetBranch: string) {
+    const command = `git worktree add "${workTreePath}" ${targetBranch} --force`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async branchExist(branchName: string) {
+    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
+    const commandRemote = `git show-ref --verify --quiet refs/remotes/origin/${branchName}`;
+
+    try {
+      await this.#execGitCommand(command);
+      return true;
+    } catch (error) {
+      //verify remote branch
+      try {
+        await this.#execGitCommand(commandRemote);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  async pushBranchToGitHub(branchName: string): Promise<void> {
+    const command = `git push -u origin ${branchName}`;
+
+    await this.#execGitCommand(command);
+  }
+
+  async getCommitTimestamp(sha: string) {
+    const command = `git show --format="%ct" --no-patch ${sha}`;
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+      const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
+      return { sha, timestamp };
+    } catch (error) {
+      return { sha, timestamp: 0 };
+    }
   }
 }
