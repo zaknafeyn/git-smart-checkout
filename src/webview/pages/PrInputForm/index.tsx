@@ -5,7 +5,7 @@ import { useLogger } from '@/hooks';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import React, { useState } from 'react';
 
-import styles from './PrInputForm.module.css';
+import styles from './module.css';
 
 interface PrInputFormProps {
   onFetchPR: (prInput: string) => void;

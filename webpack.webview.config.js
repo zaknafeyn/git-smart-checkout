@@ -41,7 +41,7 @@ module.exports = (env, argv) => {
           exclude: /node_modules/,
         },
         {
-          test: /\.module\.css$/,
+          test: /module\.css$/,
           use: [
             isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
             {
@@ -56,7 +56,7 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.css$/,
-          exclude: /\.module\.css$/,
+          exclude: /module\.css$/,
           use: [
             isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
             'css-loader',

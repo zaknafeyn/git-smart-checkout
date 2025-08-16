@@ -4,10 +4,14 @@ import { PrInputForm } from '@/pages/PrInputForm';
 import { AppState } from '@/types/dataTypes';
 import React, { useEffect, useState } from 'react';
 
+import { WebviewCommand } from '@/types/commands';
+import { useSendMessage } from '@/hooks/useSendMessage';
+
 const STORAGE_KEY = 'pr-clone-app-state';
 
 export const App: React.FC = () => {
   const logger = useLogger(false);
+  const sendMessage = useSendMessage();
   
   const [state, setState] = useState<AppState>(() => {
     // Initialize state from localStorage on component mount
@@ -33,33 +37,17 @@ export const App: React.FC = () => {
   }, [state]);
 
   const handleFetchPR = (prInput: string) => {
-    // TODO: Extract VS Code message posting to utility function - similar pattern used in PrCloneForm/index.tsx:65 and CommitsApp/index.tsx:24
-    // Send message to VS Code extension
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'fetchPR',
-        prInput: prInput
-      });
-    }
+    sendMessage(WebviewCommand.FETCH_PR, { prInput } )
   };
 
   const handleClonePR = (data: any) => {
     // Send message to VS Code extension
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'clonePR',
-        data: data
-      });
-    }
+    sendMessage(WebviewCommand.CLONE_PR, { data });
   };
 
   const handleCancel = () => {
     // Send message to VS Code extension to close activity bar and hide webview
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'cancelPRClone'
-      });
-    }
+    sendMessage(WebviewCommand.CANCEL_PR_CLONE);
   };
 
   const handleStartOver = () => {
@@ -75,14 +63,13 @@ export const App: React.FC = () => {
     }
   };
 
-  // TODO: Extract useEffect message handling pattern to custom hook - similar pattern used in PrCloneForm/index.tsx:58 and CommitsApp/index.tsx:42
   // Handle messages from VS Code extension
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
 
       switch (true) {
-        case message.command === 'showPRData':
+        case message.command === WebviewCommand.SHOW_PR_DATA:
           // Show notification about the fetched PR
           const prData = message.prData;
           const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
@@ -92,7 +79,7 @@ export const App: React.FC = () => {
           // Show notification for 3 seconds
           if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
-              command: 'showNotification',
+              command: WebviewCommand.SHOW_NOTIFICATION,
               message: notification,
               type: 'info'
             });
@@ -106,17 +93,17 @@ export const App: React.FC = () => {
             defaultTargetBranch: message.defaultTargetBranch
           });
           break;
-        case message.command === 'targetBranchSelected':
+        case message.command === WebviewCommand.TARGET_BRANCH_SELECTED:
           setState(prev => ({
             ...prev,
             targetBranch: message.branch
           }));
           break;
-        case message.command === 'clearState':
+        case message.command === WebviewCommand.CLEAR_STATE:
           // Clear state and localStorage when commanded by extension
           handleStartOver();
           break;
-        case message.command === 'updateLoadingState':
+        case message.command === WebviewCommand.UPDATE_LOADING_STATE:
           setState(prev => ({
             ...prev,
             isCloning: message.isLoading

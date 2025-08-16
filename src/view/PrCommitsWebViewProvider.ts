@@ -5,6 +5,7 @@ import { commands, env, ExtensionContext, Uri, WebviewView, WebviewViewProvider 
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubCommit } from '../types/dataTypes';
+import { WebviewCommand } from '../types/webviewCommands';
 
 export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -67,24 +68,24 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
       this.loggingService.debug(`[CommitsWebView] received command: ${JSON.stringify(message)}`);
       
       switch (message.command) {
-        case 'toggleCommit':
+        case WebviewCommand.TOGGLE_COMMIT:
           await this.handleToggleCommit(message.sha);
           break;
-        case 'selectAllCommits':
+        case WebviewCommand.SELECT_ALL_COMMITS:
           await this.handleSelectAllCommits();
           break;
-        case 'deselectAllCommits':
+        case WebviewCommand.DESELECT_ALL_COMMITS:
           await this.handleDeselectAllCommits();
           break;
-        case 'copyCommitsToClipboard':
+        case WebviewCommand.COPY_COMMITS_TO_CLIPBOARD:
           await this.handleCopyCommitsToClipboard();
           break;
-        case 'webviewReady':
+        case WebviewCommand.WEBVIEW_READY:
           // Webview is ready, send current state to restore previous selection
           this.loggingService.debug('Webview ready, sending current state for restoration');
           this.sendCommitsToWebview();
           break;
-        case 'log':
+        case WebviewCommand.LOG:
           this.handleWebviewLog(message.level, message.message);
           break;
       }
@@ -209,7 +210,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     
     try {
       this.webviewView.webview.postMessage({
-        command: 'updateCommits',
+        command: WebviewCommand.UPDATE_COMMITS,
         commits: this.commits,
         selectedCommits: this.selectedCommits,
         isCloning: this.isCloning

@@ -2,7 +2,7 @@ import { CommitItem } from '@/components/CommitItem';
 import { GitHubCommit } from '@/types/dataTypes';
 import React from 'react';
 
-import styles from './CommitsList.module.css';
+import styles from './module.css';
 
 interface CommitsListProps {
   commits: GitHubCommit[];

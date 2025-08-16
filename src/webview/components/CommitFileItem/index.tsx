@@ -1,7 +1,7 @@
 import { GitHubCommitFile } from '@/types/dataTypes';
 import React from 'react';
 
-import styles from './CommitFileItem.module.css';
+import styles from './module.css';
 
 interface CommitFileItemProps {
   file: GitHubCommitFile;

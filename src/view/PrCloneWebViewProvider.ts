@@ -17,6 +17,7 @@ import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
+import { WebviewCommand } from '../types/webviewCommands';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
@@ -53,28 +54,28 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (message) => {
       console.log(`[<<<< ]: received command: ${JSON.stringify(message)}`);
       switch (message.command) {
-        case 'fetchPR':
+        case WebviewCommand.FETCH_PR:
           await this.handleFetchPR(message.prInput);
           break;
-        case 'clonePR':
+        case WebviewCommand.CLONE_PR:
           await this.handleClonePR(message.data);
           break;
-        case 'selectTargetBranch':
+        case WebviewCommand.SELECT_TARGET_BRANCH:
           await this.handleSelectTargetBranch(message.branches);
           break;
-        case 'cancelPRClone':
+        case WebviewCommand.CANCEL_PR_CLONE:
           await this.handleCancelPRClone();
           break;
-        case 'hideCommitsWebview':
+        case WebviewCommand.HIDE_COMMITS_WEBVIEW:
           await this.handleHideCommitsWebview();
           break;
-        case 'showNotification':
+        case WebviewCommand.SHOW_NOTIFICATION:
           await this.handleShowNotification(message.message, message.type);
           break;
-        case 'log':
+        case WebviewCommand.LOG:
           this.handleWebviewLog(message.level, message.message);
           break;
-        case 'showConfirmationDialog':
+        case WebviewCommand.SHOW_CONFIRMATION_DIALOG:
           await this.handleShowConfirmationDialog(message.message, message.data);
           break;
       }
@@ -201,7 +202,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
       if (selectedBranch && this.webviewView) {
         this.webviewView.webview.postMessage({
-          command: 'targetBranchSelected',
+          command: WebviewCommand.TARGET_BRANCH_SELECTED,
           branch: selectedBranch,
         });
       }
@@ -230,7 +231,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     this.webviewView.webview.postMessage({
-      command: 'showPRData',
+      command: WebviewCommand.SHOW_PR_DATA,
       prData,
       commits,
       branches,
@@ -257,7 +258,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     this.webviewView.webview.postMessage({
-      command: 'updateSelectedCommits',
+      command: WebviewCommand.UPDATE_SELECTED_COMMITS,
       selectedCommits,
     });
   }
@@ -278,7 +279,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     this.webviewView.webview.postMessage({
-      command: 'clearState',
+      command: WebviewCommand.CLEAR_STATE,
     });
   }
 
@@ -381,7 +382,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     this.webviewView.webview.postMessage({
-      command: 'updateLoadingState',
+      command: WebviewCommand.UPDATE_LOADING_STATE,
       isLoading,
     });
 

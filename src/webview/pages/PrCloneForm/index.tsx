@@ -8,7 +8,10 @@ import { useLogger } from '@/hooks';
 import { GitHubCommit, GitHubPR } from '@/types/dataTypes';
 import React, { useEffect, useState } from 'react';
 
-import styles from './PrCloneForm.module.css';
+import { WebviewCommand } from '@/types/commands';
+
+import styles from './module.css';
+import { useSendMessage } from '@/hooks/useSendMessage';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
@@ -40,7 +43,6 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   });
   const [featureBranch, setFeatureBranch] = useState(`${prData.head.ref}_clone`);
   const [description, setDescription] = useState(() => {
-    
     const result = [
       `[Cloned from PR #${prData.number}](${prData.html_url})`,
       "",
@@ -52,6 +54,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
 
   const logger = useLogger(false);
+  const sendMessage = useSendMessage();
   
   useEffect(() => {
     const nonMergeCommits = commits
@@ -70,7 +73,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
-      if (message.command === 'updateSelectedCommits') {
+      if (message.command === WebviewCommand.UPDATE_SELECTED_COMMITS) {
         setSelectedCommits(message.selectedCommits || []);
       }
     };
@@ -84,23 +87,14 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   const handleTargetBranchClick = () => {
     if (isCloning) return; // Prevent action during cloning
     
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'selectTargetBranch',
-        branches: branches
-      });
-    }
+    sendMessage(WebviewCommand.SELECT_TARGET_BRANCH, { branches });
   };
 
   const handleCancel = () => {
     if (isCloning) return; // Prevent cancel during cloning
-    
-    // Hide commits webview when canceling
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'hideCommitsWebview'
-      });
-    }
+
+    sendMessage(WebviewCommand.HIDE_COMMITS_WEBVIEW);
+
     onStartOver();
   };
 
@@ -108,14 +102,12 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     if (isCloning) return; // Prevent submit during cloning
     
     if (!featureBranch.trim()) {
-      // TODO: remove alert and send command to vscode host to error show notification
       alert('Please enter a feature branch name');
       return;
     }
     
     logger.log(`selectedCommits.length = ${selectedCommits.length}`);
     if (selectedCommits.length === 0) {
-      // TODO: remove alert and send command to vscode host to error show notification
       alert('Please select at least one commit');
       return;
     }
@@ -123,19 +115,16 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     // Show confirmation modal
     const confirmationMessage = `Creating a clone of PR ${prData.number} - ${prData.title}. This operation will create a new branch ${featureBranch.trim()}, cherry pick selected commits and open a PR to branch ${targetBranch}. Do you want to proceed?`;
     
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'showConfirmationDialog',
-        message: confirmationMessage,
-        data: {
-          targetBranch,
-          featureBranch: featureBranch.trim(),
-          description,
-          selectedCommits,
-          isDraft: draft
-        }
-      });
-    }
+    sendMessage(WebviewCommand.SHOW_CONFIRMATION_DIALOG, {
+      message: confirmationMessage,
+      data: {
+        targetBranch,
+        featureBranch: featureBranch.trim(),
+        description,
+        selectedCommits,
+        isDraft: draft
+      }
+    })
   };
 
   const dropdownActions: DropDownAction[] = [

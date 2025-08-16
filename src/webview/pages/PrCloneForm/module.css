@@ -20,10 +20,10 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
-}
 
-.branchRow:last-child {
-  margin-bottom: 0;
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .branchIcon {
@@ -56,12 +56,13 @@
   border-bottom: 1px solid var(--vscode-widget-border);
   position: relative;
   height: 100%;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
 }
 
-.inputField:last-of-type {
-  border-bottom: none;
-}
-
+/* TODO: Consider extracting button group layout pattern to shared CSS class - similar pattern in PrInputForm/module.css:2-5 */
 .actions {
   display: flex;
   justify-content: space-between;

@@ -3,10 +3,10 @@
   border-radius: 4px;
   transition: background-color 0.2s ease;
   border-color: var(--vscode-list-hoverBackground);
-}
 
-.commitItem:hover {
-  background-color: var(--vscode-list-hoverBackground);
+  &:hover {
+    background-color: var(--vscode-list-hoverBackground);
+  }
 }
 
 .commitHeader {

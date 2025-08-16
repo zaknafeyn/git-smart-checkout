@@ -4,6 +4,7 @@
   flex-direction: column;
 }
 
+/* TODO: Consider extracting label styles to shared CSS class - identical styling in Input/module.css:8-12 */
 .label {
   display: block;
   margin-bottom: 5px;
@@ -11,6 +12,7 @@
   color: var(--vscode-foreground);
 }
 
+/* TODO: Consider extracting base input styles to shared CSS class - similar base styling in Input/module.css:16-32 */
 .textarea {
   display: block;
   box-sizing: border-box;

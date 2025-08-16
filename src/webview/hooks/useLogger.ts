@@ -1,5 +1,8 @@
 import { useCallback, useMemo } from 'react';
 
+import { WebviewCommand } from '@/types/commands';
+import { useSendMessage } from './useSendMessage';
+
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export type TUseLoggerResponse = {
@@ -11,15 +14,14 @@ export type TUseLoggerResponse = {
 };
 
 export const useLogger = (logToConsole = true): TUseLoggerResponse => {
+  const sendMessage = useSendMessage();
+
   const log = useCallback((message: string, level: LogLevel = 'info') => {
     // Send log message to VS Code extension
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      (window as any).vscode.postMessage({
-        command: 'log',
-        level: level,
-        message: message,
-      });
-    }
+    sendMessage(WebviewCommand.LOG, {
+      level,
+      message,
+    });
 
     if (!logToConsole) {
       return;

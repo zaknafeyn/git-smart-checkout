@@ -1,7 +1,9 @@
 import { useLogger } from '@/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 
-import styles from './DropDownButton.module.css';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+
+import styles from './module.css';
 
 export interface DropDownAction {
   id: string;
@@ -94,24 +96,7 @@ export const DropDownButton: React.FC<DropDownButtonProps> = ({
           onClick={handleMainClick}
           {...props}
         >
-          {loading && (
-            <span className={styles.spinner} aria-hidden="true">
-              <svg className={styles.spinnerIcon} viewBox="0 0 24 24">
-                <circle
-                  className={styles.spinnerPath}
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray="31.416"
-                  strokeDashoffset="31.416"
-                />
-              </svg>
-            </span>
-          )}
+          {loading && <LoadingSpinner />}
 
           {variant === 'inputBox' && (<>{selectedAction?.title}</>)}
           {variant !== 'inputBox' && (

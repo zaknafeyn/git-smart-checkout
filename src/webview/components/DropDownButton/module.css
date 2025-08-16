@@ -1,3 +1,4 @@
+/* TODO: Extract common button styles to shared CSS class - duplicated in Button/module.css:1-31 */
 .dropdownButton {
   padding: 4px 12px;
   border: 1px solid transparent;
@@ -30,6 +31,7 @@
   }
 }
 
+/* TODO: Extract button variant styles to shared CSS class - duplicated in Button/module.css:33-55 */
 .primary {
   background-color: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
@@ -74,6 +76,7 @@
 }
 
 
+/* TODO: Extract inputBox styles to shared CSS class - duplicated in Button/module.css:77-102 */
 .inputBox {
   display: block;
   box-sizing: border-box;
@@ -107,49 +110,8 @@
   pointer-events: none;
 }
 
-.spinner {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 8px;
-}
-
-.spinnerIcon {
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
-}
-
-.spinnerPath {
-  animation: spinnerDash 1.5s ease-in-out infinite;
-}
-
 .hiddenText {
   opacity: 0.7;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes spinnerDash {
-  0% {
-    stroke-dasharray: 1, 150;
-    stroke-dashoffset: 0;
-  }
-  50% {
-    stroke-dasharray: 90, 150;
-    stroke-dashoffset: -35;
-  }
-  100% {
-    stroke-dasharray: 90, 150;
-    stroke-dashoffset: -124;
-  }
 }
 
 .dropdownContainer {
@@ -254,11 +216,6 @@
 
   &:hover {
     background-color: var(--vscode-list-hoverBackground);
-  }
-
-  &.selected {
-    background-color: var(--vscode-list-activeSelectionBackground);
-    color: var(--vscode-list-activeSelectionForeground);
   }
 }
 

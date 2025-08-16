@@ -1,7 +1,7 @@
 import { FC, ReactNode } from "react";
 import classNames from "classnames";
 
-import styles from './Link.module.css'
+import styles from './module.css';
 
 interface LinkProps {
   children: ReactNode,

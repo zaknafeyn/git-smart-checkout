@@ -1,8 +1,9 @@
 import { CommitFileItem } from '@/components/CommitFileItem';
 import { GitHubCommit } from '@/types/dataTypes';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
-import styles from './CommitItem.module.css';
+import styles from './module.css';
+import { extractCommitInfo } from '@/utils/extractCommitInfo';
 
 interface CommitItemProps {
   commit: GitHubCommit;
@@ -18,12 +19,8 @@ export const CommitItem: React.FC<CommitItemProps> = ({
   onToggle
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const hasFiles = commit.files && commit.files.length > 0;
-  const isMergeCommit = commit.parents.length > 1;
-  const commitMessage = commit.commit.message.split('\n')[0];
-  const fullCommitMessage = commit.commit.message;
-  
-  // TODO: Consider extracting commit message truncation logic to shared utility - similar pattern in other commit display components
+
+  const { hasFiles, isMergeCommit, commitMessage, fullCommitMessage } = useMemo(() => extractCommitInfo(commit), [commit])
 
   const handleToggleSelection = () => {
     if (isCloning) return;
@@ -63,11 +60,6 @@ export const CommitItem: React.FC<CommitItemProps> = ({
             {isMergeCommit && (
               <span className={styles.mergeLabel}>MERGE</span>
             )}
-            {/* {hasFiles && (
-              <span className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}>
-                ▶
-              </span>
-            )} */}
           </div>
           
           <div className={styles.commitMeta}>

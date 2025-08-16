@@ -4,7 +4,10 @@ import { useLogger } from '@/hooks';
 import { GitHubCommit } from '@/types/dataTypes';
 import React, { useCallback, useEffect, useState } from 'react';
 
-import styles from './CommitsApp.module.css';
+import { WebviewCommand } from '@/types/commands';
+
+import styles from './module.css';
+import { useSendMessage } from '@/hooks/useSendMessage';
 
 interface CommitsAppState {
   commits: GitHubCommit[];
@@ -14,22 +17,13 @@ interface CommitsAppState {
 
 export const CommitsApp: React.FC = () => {
   const logger = useLogger(false);
+  const sendMessage = useSendMessage()
   
   const [state, setState] = useState<CommitsAppState>({
     commits: [],
     selectedCommits: [],
     isCloning: false
   });
-
-  const sendMessage = useCallback((command: string, data?: any) => {
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      logger.debug(`Sending command: ${command}`);
-      (window as any).vscode.postMessage({
-        command,
-        ...data
-      });
-    }
-  }, [logger]);
 
   const handleToggleCommit = (sha: string) => {
     if (state.isCloning) {
@@ -38,7 +32,7 @@ export const CommitsApp: React.FC = () => {
     }
     
     logger.info(`Toggling commit: ${sha}`);
-    sendMessage('toggleCommit', { sha });
+    sendMessage(WebviewCommand.TOGGLE_COMMIT, { sha });
   };
 
   const handleSelectAllCommits = () => {
@@ -48,7 +42,7 @@ export const CommitsApp: React.FC = () => {
     }
     
     logger.info('Selecting all commits');
-    sendMessage('selectAllCommits');
+    sendMessage(WebviewCommand.SELECT_ALL_COMMITS);
   };
 
   const handleDeselectAllCommits = () => {
@@ -58,12 +52,12 @@ export const CommitsApp: React.FC = () => {
     }
     
     logger.info('Deselecting all commits');
-    sendMessage('deselectAllCommits');
+    sendMessage(WebviewCommand.DESELECT_ALL_COMMITS);
   };
 
   const handleCopyCommitsToClipboard = () => {
     logger.info('Copying commits to clipboard');
-    sendMessage('copyCommitsToClipboard');
+    sendMessage(WebviewCommand.COPY_COMMITS_TO_CLIPBOARD);
   };
 
   // Handle messages from VS Code extension
@@ -72,7 +66,7 @@ export const CommitsApp: React.FC = () => {
       const message = event.data;
       logger.debug(`Received message: ${message.command}`);
       
-      if (message.command === 'updateCommits') {
+      if (message.command === WebviewCommand.UPDATE_COMMITS) {
         setState({
           commits: message.commits || [],
           selectedCommits: message.selectedCommits || [],
@@ -85,7 +79,7 @@ export const CommitsApp: React.FC = () => {
       window.addEventListener('message', handleMessage);
       
       // Signal that webview is ready to receive state
-      sendMessage('webviewReady');
+      sendMessage(WebviewCommand.WEBVIEW_READY);
       
       return () => window.removeEventListener('message', handleMessage);
     }

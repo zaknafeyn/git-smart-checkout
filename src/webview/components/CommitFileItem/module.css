@@ -1,10 +1,10 @@
 .fileItem {
   padding: 8px 12px;
   border-bottom: 1px solid var(--vscode-widget-border);
-}
 
-.fileItem:last-child {
-  border-bottom: none;
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .fileInfo {
