@@ -98,7 +98,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     onStartOver();
   };
 
-  const handleSubmit = (draft: boolean = false) => {
+  const handleSubmit = (isDraft: boolean = false) => {
     if (isCloning) return; // Prevent submit during cloning
     
     if (!featureBranch.trim()) {
@@ -113,16 +113,19 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     }
 
     // Show confirmation modal
-    const confirmationMessage = `Creating a clone of PR ${prData.number} - ${prData.title}. This operation will create a new branch ${featureBranch.trim()}, cherry pick selected commits and open a PR to branch ${targetBranch}. Do you want to proceed?`;
+    const isDraftPr = isDraft ? " draft " : " ";
+    const confirmationMessage = `Creating a${isDraftPr}clone of PR ${prData.number} "${prData.title}". Do you want to proceed?`;
+    const confirmationDetails = `This operation will create a new branch "${featureBranch.trim()}", cherry pick selected commits and open a PR to branch "${targetBranch}"`;
     
     sendMessage(WebviewCommand.SHOW_CONFIRMATION_DIALOG, {
       message: confirmationMessage,
+      details: confirmationDetails,
       data: {
         targetBranch,
         featureBranch: featureBranch.trim(),
         description,
         selectedCommits,
-        isDraft: draft
+        isDraft
       }
     })
   };

@@ -72,18 +72,17 @@ export const App: React.FC = () => {
         case message.command === WebviewCommand.SHOW_PR_DATA:
           // Show notification about the fetched PR
           const prData = message.prData;
-          const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
           
           logger.info(`Successfully fetched PR data: #${prData.number} - ${prData.title}`);
+
+          // const notification = `✅ PR Fetched: #${prData.number} "${prData.title}" from branch "${prData.head.ref}"`;
           
-          // Show notification for 3 seconds
-          if (typeof window !== 'undefined' && (window as any).vscode) {
-            (window as any).vscode.postMessage({
-              command: WebviewCommand.SHOW_NOTIFICATION,
-              message: notification,
-              type: 'info'
-            });
-          }
+          // // Show notification
+          // sendMessage(WebviewCommand.SHOW_NOTIFICATION, {
+          //   message: notification,
+          //   type: 'info',
+          //   items: ["OK"]
+          // });
           
           setState({
             view: 'clone',

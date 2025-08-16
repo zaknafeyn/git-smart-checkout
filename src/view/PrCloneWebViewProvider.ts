@@ -3,6 +3,7 @@ import * as path from 'path';
 import {
   commands,
   ExtensionContext,
+  ProgressLocation,
   Uri,
   WebviewView,
   WebviewViewProvider,
@@ -70,13 +71,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
           await this.handleHideCommitsWebview();
           break;
         case WebviewCommand.SHOW_NOTIFICATION:
-          await this.handleShowNotification(message.message, message.type);
+          await this.handleShowNotification(message.message, message.type, message.items);
           break;
         case WebviewCommand.LOG:
           this.handleWebviewLog(message.level, message.message);
           break;
         case WebviewCommand.SHOW_CONFIRMATION_DIALOG:
-          await this.handleShowConfirmationDialog(message.message, message.data);
+          await this.handleShowConfirmationDialog(message.message, message.details, message.data);
           break;
       }
     });
@@ -333,18 +334,20 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     await commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, false);
   }
 
-  private async handleShowNotification(message: string, type: 'info' | 'warn' | 'error' = 'info') {
+  private async handleShowNotification(
+    message: string,
+    type: 'info' | 'warn' | 'error' = 'info',
+    items: string[] = []
+  ) {
     // Show notification using VS Code's notification system with OK button to make them dismissible
+
     switch (type) {
       case 'info':
-        await window.showInformationMessage(message, 'OK');
-        break;
+        return window.showInformationMessage(message, ...items);
       case 'warn':
-        await window.showWarningMessage(message, 'OK');
-        break;
+        return window.showWarningMessage(message, ...items);
       case 'error':
-        await window.showErrorMessage(message, 'OK');
-        break;
+        return window.showErrorMessage(message, ...items);
     }
   }
 
@@ -395,12 +398,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     commands.executeCommand('setContext', `${EXTENSION_NAME}.isCloning`, isLoading);
   }
 
-  private async handleShowConfirmationDialog(message: string, data: any) {
+  private async handleShowConfirmationDialog(message: string, details: string, data: any) {
     const confirmAction = 'Proceed';
 
     const selectedAction = await window.showInformationMessage(
       message,
-      { modal: true },
+      { modal: true, detail: details },
       confirmAction
     );
 

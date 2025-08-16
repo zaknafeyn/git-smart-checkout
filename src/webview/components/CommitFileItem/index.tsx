@@ -11,6 +11,8 @@ export const CommitFileItem: React.FC<CommitFileItemProps> = ({ file }) => {
   const getStatusChar = (status: string): string => {
     switch (status) {
       case 'added': return 'A';
+      case 'changed': return 'T';
+      case 'copied': return 'C';
       case 'modified': return 'M';
       case 'removed': return 'D';
       case 'renamed': return 'R';
@@ -21,9 +23,12 @@ export const CommitFileItem: React.FC<CommitFileItemProps> = ({ file }) => {
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'added': return styles.statusAdded;
+      case "changed":
+      case "copied":
       case 'modified': return styles.statusModified;
       case 'removed': return styles.statusRemoved;
       case 'renamed': return styles.statusRenamed;
+      
       default: return styles.statusModified;
     }
   };
