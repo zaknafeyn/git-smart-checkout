@@ -225,22 +225,34 @@ export class PrCloneService {
 
     this.loggingService.info('Cherry-picking commits in chronological order:', sortedCommits);
 
-    for (const commitSha of sortedCommits) {
-      if (token.isCancellationRequested) {
-        throw new Error('Cancel operation');
-      }
-
-      try {
-        await this.tempGit.cherryPick(commitSha);
-
-        this.loggingService.info(`Cherry-picked commit: ${commitSha}`);
-      } catch (error) {
-        // const uri = Uri.joinPath(Uri.parse(this.tempWorkspacePath || ''), 'README.md');
-        // await this.openMergeEditorFor(uri);
-
-        throw new Error(`Failed to cherry-pick commit ${commitSha}: ${error}`);
-      }
+    if (token.isCancellationRequested) {
+      throw new Error('Cancel operation');
     }
+
+    try {
+      await this.tempGit.cherryPick(sortedCommits);
+    } catch (error) {
+      throw new Error(
+        `Failed to cherry-pick commit${sortedCommits.length > 1 ? 's' : ''}: ${error}`
+      );
+    }
+
+    // for (const commitSha of sortedCommits) {
+    //   if (token.isCancellationRequested) {
+    //     throw new Error('Cancel operation');
+    //   }
+
+    //   try {
+    //     await this.tempGit.cherryPick(commitSha);
+
+    //     this.loggingService.info(`Cherry-picked commit: ${commitSha}`);
+    //   } catch (error) {
+    //     // const uri = Uri.joinPath(Uri.parse(this.tempWorkspacePath || ''), 'README.md');
+    //     // await this.openMergeEditorFor(uri);
+
+    //     throw new Error(`Failed to cherry-pick commit ${commitSha}: ${error}`);
+    //   }
+    // }
   }
 
   private async createGitHubPR(

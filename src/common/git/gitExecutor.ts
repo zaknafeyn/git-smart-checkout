@@ -50,6 +50,24 @@ export class GitExecutor {
     return [ahead, behind];
   }
 
+  async #checkLocalBranchExists(branchName: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/heads/${branchName}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async #checkRemoteBranchExists(branchName: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // #endregion private
 
   async fetchAllRemoteBranchesAndTags() {
@@ -62,13 +80,26 @@ export class GitExecutor {
   }
 
   async checkout(branchName: string) {
-    const command = `git checkout ${branchName}`;
+    // Check if it's a remote branch that doesn't have a local counterpart
+    const localBranchExists = await this.#checkLocalBranchExists(branchName);
+    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
 
-    const { stdout } = await this.#execGitCommand(command);
-
-    return stdout;
+    if (!localBranchExists && remoteBranchExists) {
+      // Create a local tracked branch for the remote branch
+      const command = `git checkout -b ${branchName} origin/${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    } else {
+      // Regular checkout for existing local branches
+      const command = `git checkout ${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    }
   }
 
+  /**
+   * @deprecated consider using checkout with string parameter
+   */
   async checkoutBranch(branch: IGitRef) {
     const command = `git checkout ${branch.name} ${branch.remote ? `${branch.fullName}` : ''}`;
 
@@ -258,8 +289,9 @@ export class GitExecutor {
     return stdout.trim();
   }
 
-  async cherryPick(commitSha: string): Promise<void> {
-    await this.#execGitCommand(`git cherry-pick ${commitSha}`);
+  async cherryPick(commitSha: string | string[]): Promise<void> {
+    const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
+    await this.#execGitCommand(`git cherry-pick ${commits}`);
   }
 
   async deleteLocalBranch(branchName: string) {

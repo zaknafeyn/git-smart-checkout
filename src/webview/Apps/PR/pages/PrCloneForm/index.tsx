@@ -84,6 +84,17 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isCloning) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isCloning]);
+
   const handleTargetBranchClick = () => {
     if (isCloning) return; // Prevent action during cloning
     

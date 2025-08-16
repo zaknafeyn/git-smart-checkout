@@ -64,7 +64,7 @@ export class CheckoutToCommand extends BaseCommand {
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message;
-        message && await vscode.window.showErrorMessage(message, 'OK');
+        message && (await vscode.window.showErrorMessage(message, 'OK'));
       } else {
         await vscode.window.showErrorMessage('Unknown error', 'OK');
       }

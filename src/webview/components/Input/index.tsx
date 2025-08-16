@@ -6,13 +6,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   variant?: 'default' | 'title';
 }
 
-export const Input: React.FC<InputProps> = ({ 
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ 
   label, 
   variant = 'default', 
   className,
   id,
   ...props 
-}) => {
+}, ref) => {
   const inputId = id || `input-${Math.random().toString(36).substring(2, 11)}`;
   const inputClassName = variant === 'title' 
     ? `${styles.titleInput} ${className || ''}` 
@@ -26,6 +26,7 @@ export const Input: React.FC<InputProps> = ({
         </label>
         <input
           {...props}
+          ref={ref}
           id={inputId}
           className={inputClassName.trim()}
         />
@@ -36,10 +37,11 @@ export const Input: React.FC<InputProps> = ({
   return (
     <input
       {...props}
+      ref={ref}
       id={inputId}
       className={inputClassName.trim()}
     />
   );
-};
+});
 
 export type { InputProps };
