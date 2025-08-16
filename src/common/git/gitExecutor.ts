@@ -79,6 +79,12 @@ export class GitExecutor {
     await this.#execGitCommand(commandFetchAllTags);
   }
 
+  async fetchSpecificBranch(branchName: string, remoteName = 'origin') {
+    const command = `git fetch ${remoteName} ${branchName}:refs/remotes/${remoteName}/${branchName}`;
+
+    await this.#execGitCommand(command);
+  }
+
   async checkout(branchName: string) {
     // Check if it's a remote branch that doesn't have a local counterpart
     const localBranchExists = await this.#checkLocalBranchExists(branchName);

@@ -140,6 +140,16 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       const prData = await this.ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
 
+      // Fetch the latest changes for the PR's specific branch
+      this.loggingService.info(`Fetching latest changes for PR branch: ${prData.head.ref}`);
+      try {
+        await git.fetchSpecificBranch(prData.head.ref);
+        this.loggingService.info(`Successfully fetched latest changes for branch: ${prData.head.ref}`);
+      } catch (fetchError) {
+        this.loggingService.warn(`Failed to fetch latest changes for branch ${prData.head.ref}: ${fetchError}`);
+        // Continue with PR fetching even if fetch fails
+      }
+
       const commits = await this.ghClient.fetchPullRequestCommits(prNumber);
 
       // Fetch detailed information for each commit including files
