@@ -1,6 +1,6 @@
 import { useLogger } from '@/hooks';
-import { PrCloneForm } from '@/pages/PrCloneForm';
-import { PrInputForm } from '@/pages/PrInputForm';
+import { PrCloneForm } from '@/Apps/PR/pages/PrCloneForm';
+import { PrInputForm } from '@/Apps/PR/pages/PrInputForm';
 import { AppState } from '@/types/dataTypes';
 import React, { useEffect, useState } from 'react';
 
