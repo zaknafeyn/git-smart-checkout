@@ -17,20 +17,9 @@
       "Bash(yarn check-types-webview:*)",
       "WebFetch(domain:code.visualstudio.com)",
       "Bash(yarn compile)",
-      "Bash(grep:*)",
-      "Bash(yarn add:*)",
-      "Bash(for dir in /Users/valentineradchuk/Dev/sandbox/git-smart-checkout/src/webview/components/*/)",
-      "Bash(do)",
-      "Bash(if [ ! -f \"$dir/index.tsx\" ])",
-      "Bash(then)",
-      "Bash(echo:*)",
-      "Bash(fi)",
-      "Bash(done)",
-      "Bash(true)",
-      "Bash(yarn build-all)"
+      "Bash(grep:*)"
     ],
-    "deny": [],
-    "defaultMode": "acceptEdits"
+    "deny": []
   },
   "enableAllProjectMcpServers": false,
   "hooks": {

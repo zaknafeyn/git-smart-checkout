@@ -1,29 +1,26 @@
-import { SimpleGit, simpleGit, StatusResult, LogResult, BranchSummary } from 'simple-git';
+import { ExecException, ExecSyncOptions } from 'child_process';
 
 import { LoggingService } from '../../logging/loggingService';
+import { execCommand } from '../../utils/execCommand';
 import { IGitRef, TUpstreamTrack } from './types';
 
 export class GitExecutor {
-  #git: SimpleGit;
-  #logService: LoggingService;
+  #repositoryPath;
+  #logService;
 
   constructor(repositoryPath: string, logService: LoggingService) {
-    this.#git = simpleGit(repositoryPath);
+    this.#repositoryPath = repositoryPath;
     this.#logService = logService;
   }
 
   // #region private
 
-  async #logAndExecute<T>(operation: string, gitOperation: () => Promise<T>): Promise<T> {
-    this.#logService.debug(`Executing git operation: ${operation}`);
-    try {
-      const result = await gitOperation();
-      this.#logService.debug(`Git operation completed: ${operation}`);
-      return result;
-    } catch (error) {
-      this.#logService.error(`Git operation failed: ${operation}, error: ${error}`);
-      throw error;
-    }
+  async #execGitCommandWithOptions(command: string, options?: ExecSyncOptions) {
+    return execCommand(command, this.#logService, { cwd: this.#repositoryPath, ...options });
+  }
+
+  async #execGitCommand(command: string) {
+    return await this.#execGitCommandWithOptions(command, {});
   }
 
   /*
@@ -55,8 +52,8 @@ export class GitExecutor {
 
   async #checkLocalBranchExists(branchName: string): Promise<boolean> {
     try {
-      const branches = await this.#git.branch(['--list', branchName]);
-      return branches.all.length > 0;
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/heads/${branchName}`);
+      return true;
     } catch {
       return false;
     }
@@ -64,8 +61,8 @@ export class GitExecutor {
 
   async #checkRemoteBranchExists(branchName: string): Promise<boolean> {
     try {
-      const branches = await this.#git.branch(['-r', '--list', `origin/${branchName}`]);
-      return branches.all.length > 0;
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`);
+      return true;
     } catch {
       return false;
     }
@@ -73,377 +70,376 @@ export class GitExecutor {
 
   // #endregion private
 
-  async fetchAllRemoteBranchesAndTags(): Promise<void> {
-    return this.#logAndExecute('fetch all remotes and tags', async () => {
-      await this.#git.fetch(['--all']);
-      await this.#git.fetch(['--tags', '--force']);
-    });
+  async fetchAllRemoteBranchesAndTags() {
+    const commandFetchAllBranches = 'git fetch --all';
+    // fetch all tags and overwrite local tags with remote if remote one has changed
+    const commandFetchAllTags = 'git fetch --tags --force';
+
+    await this.#execGitCommand(commandFetchAllBranches);
+    await this.#execGitCommand(commandFetchAllTags);
   }
 
-  async fetchSpecificBranch(branchName: string, remoteName = 'origin'): Promise<void> {
-    return this.#logAndExecute(`fetch ${remoteName}/${branchName}`, async () => {
-      await this.#git.fetch(remoteName, branchName);
-    });
+  async fetchSpecificBranch(branchName: string, remoteName = 'origin') {
+    const command = `git fetch ${remoteName} ${branchName}:refs/remotes/${remoteName}/${branchName}`;
+
+    await this.#execGitCommand(command);
   }
 
-  async pullCurrentBranch(): Promise<void> {
-    return this.#logAndExecute('pull current branch', async () => {
-      await this.#git.pull();
-    });
+  async pullCurrentBranch() {
+    const command = 'git pull';
+
+    await this.#execGitCommand(command);
   }
 
   async createUniqueFeatureBranch(baseBranchName: string, sourceBranch: string): Promise<string> {
-    return this.#logAndExecute(`create unique branch from ${baseBranchName}`, async () => {
-      let branchName = baseBranchName;
-      let suffix = 1;
+    let branchName = baseBranchName;
+    let suffix = 1;
 
-      // Check if branch already exists
-      while (await this.branchExist(branchName)) {
-        branchName = `${baseBranchName}_${suffix}`;
-        suffix++;
-      }
+    // Check if branch already exists
+    while (await this.branchExist(branchName)) {
+      branchName = `${baseBranchName}_${suffix}`;
+      suffix++;
+    }
 
-      await this.createBranch(branchName, sourceBranch);
-      return branchName;
-    });
+    await this.createBranch(branchName, sourceBranch);
+    return branchName;
   }
 
-  async checkout(branchName: string): Promise<string> {
-    return this.#logAndExecute(`checkout ${branchName}`, async () => {
-      // Check if it's a remote branch that doesn't have a local counterpart
-      const localBranchExists = await this.#checkLocalBranchExists(branchName);
-      const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
-      
-      if (!localBranchExists && remoteBranchExists) {
-        // Create a local tracked branch for the remote branch
-        await this.#git.checkout(['-b', branchName, `origin/${branchName}`]);
-      } else {
-        // Regular checkout for existing local branches
-        await this.#git.checkout(branchName);
-      }
-      
-      return `Switched to branch '${branchName}'`;
-    });
+  async checkout(branchName: string) {
+    // Check if it's a remote branch that doesn't have a local counterpart
+    const localBranchExists = await this.#checkLocalBranchExists(branchName);
+    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
+
+    if (!localBranchExists && remoteBranchExists) {
+      // Create a local tracked branch for the remote branch
+      const command = `git checkout -b ${branchName} origin/${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    } else {
+      // Regular checkout for existing local branches
+      const command = `git checkout ${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    }
   }
 
   /**
    * @deprecated consider using checkout with string parameter
    */
-  async checkoutBranch(branch: IGitRef): Promise<string> {
-    return this.#logAndExecute(`checkout branch ${branch.name}`, async () => {
-      if (branch.remote) {
-        await this.#git.checkout([branch.name, branch.fullName]);
-      } else {
-        await this.#git.checkout(branch.name);
-      }
-      return `Switched to branch '${branch.name}'`;
-    });
+  async checkoutBranch(branch: IGitRef) {
+    const command = `git checkout ${branch.name} ${branch.remote ? `${branch.fullName}` : ''}`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
   }
 
-  async createBranch(branchName: string, sourceBranch?: string): Promise<string> {
-    return this.#logAndExecute(`create branch ${branchName}`, async () => {
-      if (sourceBranch) {
-        await this.#git.checkout(['-b', branchName, sourceBranch]);
-      } else {
-        await this.#git.checkout(['-b', branchName]);
-      }
-      return `Created and switched to branch '${branchName}'`;
-    });
+  async createBranch(branchName: string, sourceBranch: string | undefined = undefined) {
+    const command = `git checkout -b ${branchName} ${sourceBranch ? sourceBranch : ''}`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
   }
 
-  async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked'): Promise<void> {
-    return this.#logAndExecute(`create stash ${stashName}`, async () => {
-      const options = ['push', '-m', stashName];
-      
-      if (include === 'all') {
-        options.push('-a');
-      } else if (include === 'untracked') {
-        options.push('-u');
-      }
+  async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked') {
+    const commandArr = [
+      `git stash push -m "${stashName}"`,
+      ...(include === 'all' ? ['-a'] : []),
+      ...(include === 'untracked' ? ['-u'] : []),
+    ];
 
-      const result = await this.#git.stash(options);
-      
-      if (result && result.includes('No local changes to save')) {
-        throw new Error('No local changes to save');
-      }
-    });
+    const command = commandArr.join(' ');
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    if (stdout.includes('No local changes to save')) {
+      throw new Error('No local changes to save');
+    }
   }
 
-  async resetLocalChanges(): Promise<void> {
-    return this.#logAndExecute('reset local changes', async () => {
-      await this.#git.raw(['restore', '.']);
-    });
+  async resetLocalChanges() {
+    // Discard all local changes
+    const command = 'git restore .';
+
+    await this.#execGitCommand(command);
   }
 
   async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
-    return this.#logAndExecute('get all refs extended', async () => {
-      if (fetchRemotes) {
-        await this.fetchAllRemoteBranchesAndTags();
-      }
+    if (fetchRemotes) {
+      await this.fetchAllRemoteBranchesAndTags();
+    }
 
-      // Get branches
-      const branchSummary = await this.#git.branch(['-a', '--sort=-committerdate']);
-      const branches: IGitRef[] = [];
+    const SEPARATOR = '|';
+    const command = `git for-each-ref --sort -committerdate --format="%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)" refs/heads refs/remotes refs/tags`;
+    const { stdout: branchesOutput } = await this.#execGitCommand(command);
 
-      // Process local branches
-      for (const [branchName, branchInfo] of Object.entries(branchSummary.branches)) {
-        if (branchName.startsWith('remotes/')) {
-          // Remote branch
-          const remoteParts = branchName.replace('remotes/', '').split('/');
-          const [remote, ...nameParts] = remoteParts;
-          const name = nameParts.join('/');
-          
-          branches.push({
-            name,
+    // Split the output into lines and remove leading/trailing whitespace
+    const branches = branchesOutput
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        /**
+         * parse remote branches like:
+         * refs/heads/feature/add-extension-and-refactoring|8aaf984|Minor fixes|unixTimeStamp|1 2
+         * refs/remotes/origin/feature/add-extension-and-refactoring|8aaf984|Minor fixes
+         * refs/tags/v1.2.3|8aaf984|Minor fixes
+         * */
+
+        const [
+          ref,
+          hash,
+          dereferredHash,
+          committerDate,
+          dereferredCommitterDate,
+          comment,
+          dereferredComment,
+          upstreamTrack,
+          authorName,
+          dereferredAuthorName,
+        ] = line.split(SEPARATOR);
+
+        const parsedUpstreamTrack = this.#parseTrackData(upstreamTrack);
+
+        const branchArr = ref.split('/');
+        const [_, refType, ...other] = branchArr;
+
+        const common: Partial<IGitRef> = {
+          authorName: authorName ? authorName : dereferredAuthorName,
+          hash: dereferredHash ? dereferredHash : hash,
+          comment: dereferredComment ? dereferredComment : comment,
+          fullName: other.join('/'),
+          committerDate: dereferredCommitterDate ? dereferredCommitterDate : committerDate,
+          upstreamTrack,
+          parsedUpstreamTrack,
+        };
+
+        if (refType.toLowerCase() === 'remotes') {
+          const [remote, ...rest] = other;
+
+          return {
             remote,
-            fullName: name,
-            hash: branchInfo.commit,
-            comment: branchInfo.label || '',
-            authorName: '',
-            committerDate: '',
-            upstreamTrack: '',
-            parsedUpstreamTrack: undefined,
-          });
-        } else {
-          // Local branch
-          branches.push({
-            name: branchName,
-            fullName: branchName,
-            hash: branchInfo.commit,
-            comment: branchInfo.label || '',
-            authorName: '',
-            committerDate: '',
-            upstreamTrack: '',
-            parsedUpstreamTrack: undefined,
-            isTag: false,
-          });
+            name: rest.join('/'),
+            ...common,
+          } as IGitRef;
         }
-      }
 
-      // Get tags
-      const tags = await this.#git.tags();
-      for (const tagName of tags.all) {
-        const tagInfo = await this.#git.show([tagName, '--format=%H|%s', '--no-patch']);
-        const [hash, comment] = tagInfo.split('|');
-        
-        branches.push({
-          name: tagName,
-          fullName: tagName,
-          hash: hash || '',
-          comment: comment || '',
-          authorName: '',
-          committerDate: '',
-          upstreamTrack: '',
-          parsedUpstreamTrack: undefined,
-          isTag: true,
-        });
-      }
-
-      return branches.sort((a, b) => (b.committerDate || '').localeCompare(a.committerDate || ''));
-    });
-  }
-
-  async getCurrentBranch(): Promise<string> {
-    return this.#logAndExecute('get current branch', async () => {
-      const status = await this.#git.status();
-      return status.current || '';
-    });
-  }
-
-  async pullFromRemoteBranch(): Promise<void> {
-    return this.#logAndExecute('pull from remote branch', async () => {
-      await this.#git.pull();
-    });
-  }
-
-  async popStash(stashName: string, apply = false): Promise<void> {
-    return this.#logAndExecute(`${apply ? 'apply' : 'pop'} stash ${stashName}`, async () => {
-      // Get the list of stashes
-      const stashList = await this.#git.stashList();
-      
-      // Find the index of the stash we want to pop
-      const stashIndex = stashList.all.findIndex((stash) => {
-        const message = stash.message.split(': ')[1] || stash.message;
-        return message === stashName;
+        return {
+          name: other.join('/'),
+          isTag: refType.toLowerCase() === 'tags',
+          ...common,
+        } as IGitRef;
       });
 
-      // If the stash was not found, throw an error
-      if (stashIndex === -1) {
-        throw new Error('No stash found');
-      }
-
-      if (apply) {
-        await this.#git.stash(['apply', `stash@{${stashIndex}}`]);
-      } else {
-        await this.#git.stash(['pop', `stash@{${stashIndex}}`]);
-      }
-    });
+    return branches;
   }
 
-  async isWorkdirHasChanges(): Promise<boolean> {
-    return this.#logAndExecute('check if workdir has changes', async () => {
-      const status = await this.#git.status();
-      return status.files.length > 0;
-    });
+  async getCurrentBranch() {
+    const command = 'git branch --show-current';
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout.trim();
   }
 
-  async isStashWithMessageExists(message: string): Promise<boolean> {
-    return this.#logAndExecute(`check if stash exists: ${message}`, async () => {
-      try {
-        const stashList = await this.#git.stashList();
-        return stashList.all.some((stash) => {
-          const stashMessage = stash.message.split(': ')[1] || stash.message;
-          return stashMessage === message;
-        });
-      } catch {
-        return false;
-      }
+  async pullFromRemoteBranch() {
+    const command = 'git pull';
+
+    await this.#execGitCommand(command);
+  }
+
+  async popStash(stashName: string, apply = false) {
+    const command = 'git --no-pager stash list --format="%gs"';
+    // Get the list of stashes
+    const { stdout: stdoutGitStashList } = await this.#execGitCommand(command);
+
+    // Split the output into lines
+    const stashesStrings = stdoutGitStashList.split('\n').filter((line) => line.trim() !== '');
+
+    // Create a mapping of index to stash message
+    const stashes = stashesStrings.map((message, index) => {
+      // Remove the "On <branch>: " prefix
+      const formattedMessage = message.split(': ')[1];
+      return {
+        index,
+        message: formattedMessage,
+      };
     });
+
+    // Find the index of the stash we want to pop
+    const stashIndex = stashes.findIndex((stash) => stash.message === stashName);
+
+    // If the stash was not found, throw an error
+    if (stashIndex === -1) {
+      throw new Error(`No stash found`);
+    }
+
+    const popStashCommand = `git stash ${apply ? 'apply' : 'pop'} stash@{${stashIndex}}`;
+
+    // Pop the stash
+    await this.#execGitCommand(popStashCommand);
+  }
+
+  async isWorkdirHasChanges() {
+    const command = 'git status --porcelain';
+
+    const { stdout } = await this.#execGitCommand(command);
+    const uncommittedChanges = stdout.trim();
+
+    return uncommittedChanges.length !== 0;
+  }
+
+  async isStashWithMessageExists(message: string) {
+    const command = 'git stash list --format="%gs"';
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+      const stashesStrings = stdout
+        .trim()
+        .split('\n')
+        .filter((line) => line.trim() !== '');
+      const stashMessages = stashesStrings.map((msgWithPrefix) => {
+        const parts = msgWithPrefix.split(': ');
+        return parts.length > 1 ? parts.slice(1).join(': ') : msgWithPrefix;
+      });
+
+      return stashMessages.some((msg) => msg === message);
+    } catch {
+      return false;
+    }
   }
 
   async getRemoteUrl(remoteName = 'origin'): Promise<string> {
-    return this.#logAndExecute(`get remote URL for ${remoteName}`, async () => {
-      const remotes = await this.#git.getRemotes(true);
-      const remote = remotes.find(r => r.name === remoteName);
-      return remote?.refs?.fetch || '';
-    });
+    const { stdout } = await this.#execGitCommand(`git remote get-url ${remoteName}`);
+    return stdout.trim();
   }
 
-  async getConflictedFiles(): Promise<string[]> {
-    return this.#logAndExecute('get conflicted files', async () => {
-      const status = await this.#git.status();
-      return status.conflicted;
-    });
+  async getConflictedFiles() {
+    const command = 'git diff --name-only --diff-filter=U';
+
+    const { stdout } = await this.#execGitCommand(command);
+    const conflictedFiles = stdout.trim().split('\n').filter(Boolean);
+    return conflictedFiles;
   }
 
   async cherryPick(
     commitSha: string | string[],
     parseError = false
   ): Promise<{ conflicts: boolean } | void> {
-    const commits = Array.isArray(commitSha) ? commitSha : [commitSha];
-    return this.#logAndExecute(`cherry-pick ${commits.join(', ')}`, async () => {
-      try {
-        await this.#git.raw(['cherry-pick', ...commits]);
-      } catch (error) {
-        if (!parseError) {
-          throw error;
-        }
-
-        // Check if it's a conflict
-        const status = await this.#git.status();
-        if (status.conflicted.length > 0) {
-          return { conflicts: true };
-        }
-        
+    const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
+    try {
+      await this.#execGitCommand(`git cherry-pick ${commits}`);
+    } catch (error) {
+      if (!parseError) {
         throw error;
       }
-    });
+
+      const e = error as ExecException & { stdout: string; stderr: string };
+      // exit code meaning for cherry-pick command: (0 = success, 1 = conflict, other = fatal error).
+
+      if (e.code === 1) {
+        return {
+          conflicts: true,
+        };
+      }
+    }
   }
 
   async cherryPickContinue(): Promise<void> {
-    return this.#logAndExecute('cherry-pick continue', async () => {
-      await this.#git.raw(['cherry-pick', '--continue']);
-    });
+    await this.#execGitCommand('git cherry-pick --continue');
   }
 
   async cherryPickAbort(): Promise<void> {
-    return this.#logAndExecute('cherry-pick abort', async () => {
-      await this.#git.raw(['cherry-pick', '--abort']);
-    });
+    await this.#execGitCommand('git cherry-pick --abort');
   }
 
   async cherryPickSkip(): Promise<void> {
-    return this.#logAndExecute('cherry-pick skip', async () => {
-      await this.#git.raw(['cherry-pick', '--skip']);
-    });
+    await this.#execGitCommand('git cherry-pick --skip');
   }
 
   async isCherryPickInProgress(): Promise<boolean> {
-    return this.#logAndExecute('check if cherry-pick in progress', async () => {
+    try {
+      const { stdout } = await this.#execGitCommand('git status --porcelain=v1');
+      return stdout.includes('You are currently cherry-picking');
+    } catch {
+      return false;
+    }
+  }
+
+  async deleteLocalBranch(branchName: string) {
+    const { stdout } = await this.#execGitCommand(`git branch -D ${branchName}`);
+
+    return stdout.trim();
+  }
+
+  async worktreeList(muteError = false) {
+    const command = 'git worktree list --porcelain';
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+
+      return stdout
+        .split('\n')
+        .filter((line) => line.startsWith('worktree '))
+        .map((line) => line.replace('worktree ', '').trim());
+    } catch (error) {
+      if (muteError) {
+        return [];
+      }
+
+      throw new Error(`Failed to get worktree list: ${error}`);
+    }
+  }
+
+  async worktreeRemove(workTreePath: string, force = true) {
+    const command = `git worktree remove "${workTreePath}" ${force ? '--force' : ''}`;
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async worktreeAdd(workTreePath: string, targetBranch: string) {
+    const command = `git worktree add "${workTreePath}" ${targetBranch} --force`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async branchExist(branchName: string) {
+    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
+    const commandRemote = `git show-ref --verify --quiet refs/remotes/origin/${branchName}`;
+
+    try {
+      await this.#execGitCommand(command);
+      return true;
+    } catch (error) {
+      //verify remote branch
       try {
-        const status = await this.#git.status();
-        return status.current?.includes('cherry-picking') || false;
+        await this.#execGitCommand(commandRemote);
+        return true;
       } catch {
         return false;
       }
-    });
-  }
-
-  async deleteLocalBranch(branchName: string): Promise<string> {
-    return this.#logAndExecute(`delete local branch ${branchName}`, async () => {
-      await this.#git.deleteLocalBranch(branchName, true);
-      return `Deleted branch ${branchName}`;
-    });
-  }
-
-  async worktreeList(muteError = false): Promise<string[]> {
-    return this.#logAndExecute('list worktrees', async () => {
-      try {
-        const result = await this.#git.raw(['worktree', 'list', '--porcelain']);
-        return result
-          .split('\n')
-          .filter((line: string) => line.startsWith('worktree '))
-          .map((line: string) => line.replace('worktree ', '').trim());
-      } catch (error) {
-        if (muteError) {
-          return [];
-        }
-        throw new Error(`Failed to get worktree list: ${error}`);
-      }
-    });
-  }
-
-  async worktreeRemove(workTreePath: string, force = true): Promise<string> {
-    return this.#logAndExecute(`remove worktree ${workTreePath}`, async () => {
-      const options = ['worktree', 'remove', workTreePath];
-      if (force) {
-        options.push('--force');
-      }
-      await this.#git.raw(options);
-      return `Removed worktree ${workTreePath}`;
-    });
-  }
-
-  async worktreeAdd(workTreePath: string, targetBranch: string): Promise<string> {
-    return this.#logAndExecute(`add worktree ${workTreePath}`, async () => {
-      await this.#git.raw(['worktree', 'add', workTreePath, targetBranch, '--force']);
-      return `Added worktree ${workTreePath}`;
-    });
-  }
-
-  async branchExist(branchName: string): Promise<boolean> {
-    return this.#logAndExecute(`check if branch exists: ${branchName}`, async () => {
-      try {
-        // Check local branch
-        const localBranches = await this.#git.branch(['--list', branchName]);
-        if (localBranches.all.length > 0) {
-          return true;
-        }
-
-        // Check remote branch
-        const remoteBranches = await this.#git.branch(['-r', '--list', `origin/${branchName}`]);
-        return remoteBranches.all.length > 0;
-      } catch {
-        return false;
-      }
-    });
+    }
   }
 
   async pushBranchToGitHub(branchName: string): Promise<void> {
-    return this.#logAndExecute(`push branch ${branchName} to GitHub`, async () => {
-      await this.#git.push(['origin', branchName, '--set-upstream']);
-    });
+    const command = `git push -u origin ${branchName}`;
+
+    await this.#execGitCommand(command);
   }
 
-  async getCommitTimestamp(sha: string): Promise<{ sha: string; timestamp: number }> {
-    return this.#logAndExecute(`get commit timestamp for ${sha}`, async () => {
-      try {
-        const result = await this.#git.show([sha, '--format=%ct', '--no-patch']);
-        const timestamp = parseInt(result.trim());
-        return { sha, timestamp };
-      } catch (error) {
-        return { sha, timestamp: 0 };
-      }
-    });
+  async getCommitTimestamp(sha: string) {
+    const command = `git show --format="%ct" --no-patch ${sha}`;
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+      const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
+      return { sha, timestamp };
+    } catch (error) {
+      return { sha, timestamp: 0 };
+    }
   }
 }

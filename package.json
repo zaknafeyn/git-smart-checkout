@@ -49,7 +49,7 @@
           "when": "git-smart-checkout.showPrClone"
         },
         {
-          "id": "git-smart-checkout.prCommits",
+          "id": "git-smart-checkout.prCommits", 
           "name": "Commits to Cherry-pick",
           "type": "webview",
           "icon": "$(git-commit)",
@@ -197,7 +197,6 @@
   },
   "dependencies": {
     "classnames": "^2.5.1",
-    "date-fns": "^4.1.0",
-    "simple-git": "^3.28.0"
+    "date-fns": "^4.1.0"
   }
 }
