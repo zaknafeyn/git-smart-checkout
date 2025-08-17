@@ -1,4 +1,4 @@
-import { ExecSyncOptions } from 'child_process';
+import { ExecException, ExecSyncOptions } from 'child_process';
 
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
@@ -83,6 +83,26 @@ export class GitExecutor {
     const command = `git fetch ${remoteName} ${branchName}:refs/remotes/${remoteName}/${branchName}`;
 
     await this.#execGitCommand(command);
+  }
+
+  async pullCurrentBranch() {
+    const command = 'git pull';
+
+    await this.#execGitCommand(command);
+  }
+
+  async createUniqueFeatureBranch(baseBranchName: string, sourceBranch: string): Promise<string> {
+    let branchName = baseBranchName;
+    let suffix = 1;
+
+    // Check if branch already exists
+    while (await this.branchExist(branchName)) {
+      branchName = `${baseBranchName}_${suffix}`;
+      suffix++;
+    }
+
+    await this.createBranch(branchName, sourceBranch);
+    return branchName;
   }
 
   async checkout(branchName: string) {
@@ -295,9 +315,56 @@ export class GitExecutor {
     return stdout.trim();
   }
 
-  async cherryPick(commitSha: string | string[]): Promise<void> {
+  async getConflictedFiles() {
+    const command = 'git diff --name-only --diff-filter=U';
+
+    const { stdout } = await this.#execGitCommand(command);
+    const conflictedFiles = stdout.trim().split('\n').filter(Boolean);
+    return conflictedFiles;
+  }
+
+  async cherryPick(
+    commitSha: string | string[],
+    parseError = false
+  ): Promise<{ conflicts: boolean } | void> {
     const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
-    await this.#execGitCommand(`git cherry-pick ${commits}`);
+    try {
+      await this.#execGitCommand(`git cherry-pick ${commits}`);
+    } catch (error) {
+      if (!parseError) {
+        throw error;
+      }
+
+      const e = error as ExecException & { stdout: string; stderr: string };
+      // exit code meaning for cherry-pick command: (0 = success, 1 = conflict, other = fatal error).
+
+      if (e.code === 1) {
+        return {
+          conflicts: true,
+        };
+      }
+    }
+  }
+
+  async cherryPickContinue(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --continue');
+  }
+
+  async cherryPickAbort(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --abort');
+  }
+
+  async cherryPickSkip(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --skip');
+  }
+
+  async isCherryPickInProgress(): Promise<boolean> {
+    try {
+      const { stdout } = await this.#execGitCommand('git status --porcelain=v1');
+      return stdout.includes('You are currently cherry-picking');
+    } catch {
+      return false;
+    }
   }
 
   async deleteLocalBranch(branchName: string) {

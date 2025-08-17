@@ -8,6 +8,8 @@ import { GitExecutor } from '../common/git/gitExecutor';
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
+import { getStashMessage } from '../commands/utils/getStashMessage';
+import { ConfigurationManager } from '../configuration/configurationManager';
 
 export interface PrCloneData {
   prData: GitHubPR;
@@ -27,7 +29,8 @@ export class PrCloneService {
   constructor(
     private git: GitExecutor,
     private ghClient: GitHubClient,
-    private loggingService: LoggingService
+    private loggingService: LoggingService,
+    private configurationManager: ConfigurationManager
   ) {}
 
   // async openMergeEditorFor(filePath: Uri) {
@@ -36,9 +39,19 @@ export class PrCloneService {
   // }
 
   async clonePR(data: PrCloneData): Promise<void> {
+    const config = this.configurationManager.get();
+    
+    if (config.useInPlaceCherryPick) {
+      await this.clonePRInPlace(data);
+    } else {
+      await this.clonePRWithTempWorktree(data);
+    }
+  }
+
+  private async clonePRWithTempWorktree(data: PrCloneData): Promise<void> {
     let tempPath: string | undefined;
     let createdBranchName: string | undefined;
-    this.loggingService.debug('Start cloning PR ...');
+    this.loggingService.debug('Start cloning PR using temp worktree...');
 
     try {
       await window.withProgress(
@@ -326,6 +339,234 @@ export class PrCloneService {
       await Promise.all(tempWorktreesPromises);
     } catch (error) {
       this.loggingService.warn(`Failed to cleanup other temp worktrees: ${error}`);
+    }
+  }
+
+  private async clonePRInPlace(data: PrCloneData): Promise<void> {
+    let stashMessage: string | undefined;
+    let originalBranch: string | undefined;
+    let createdBranchName: string | undefined;
+
+    this.loggingService.debug('Start cloning PR using in-place cherry-pick...');
+
+    try {
+      await window.withProgress(
+        {
+          location: ProgressLocation.Notification,
+          title: `Cloning PR #${data.prData.number} (In-Place)`,
+          cancellable: true,
+        },
+        async (progress, token) => {
+          try {
+            // Step 1: Store original branch and stash changes if needed
+            originalBranch = await this.git.getCurrentBranch();
+            progress.report({ message: 'Checking for uncommitted changes...' });
+            
+            const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
+            if (hasUncommittedChanges) {
+              stashMessage = getStashMessage(originalBranch, true);
+              this.loggingService.info(`Stashing uncommitted changes: ${stashMessage}`);
+              
+              try {
+                await this.git.createStash(stashMessage);
+                this.loggingService.info('Changes stashed successfully');
+              } catch (error) {
+                this.loggingService.warn(`Failed to stash changes: ${error}`);
+                stashMessage = undefined;
+              }
+            }
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 2: Fetch the PR's origin branch
+            progress.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
+            try {
+              await this.git.fetchSpecificBranch(data.prData.head.ref);
+              this.loggingService.info(`Fetched PR branch: ${data.prData.head.ref}`);
+            } catch (fetchError) {
+              this.loggingService.warn(`Failed to fetch PR branch: ${fetchError}`);
+            }
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 3: Switch to base branch and pull latest changes
+            progress.report({ message: `Switching to base branch: ${data.targetBranch}...` });
+            await this.git.checkout(data.targetBranch);
+            
+            progress.report({ message: 'Pulling latest changes...' });
+            try {
+              await this.git.pullCurrentBranch();
+              this.loggingService.info(`Pulled latest changes for ${data.targetBranch}`);
+            } catch (pullError) {
+              this.loggingService.warn(`Failed to pull latest changes: ${pullError}`);
+            }
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 4: Create unique feature branch
+            progress.report({ message: 'Creating feature branch...' });
+            createdBranchName = await this.git.createUniqueFeatureBranch(
+              data.featureBranch,
+              data.targetBranch
+            );
+            
+            if (createdBranchName !== data.featureBranch) {
+              window.showInformationMessage(
+                `Branch name '${data.featureBranch}' already exists. Using '${createdBranchName}' instead.`
+              );
+            }
+
+            await this.git.checkout(createdBranchName);
+            this.loggingService.info(`Created and switched to feature branch: ${createdBranchName}`);
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 5: Cherry-pick commits
+            progress.report({ message: 'Cherry-picking selected commits...' });
+            await this.cherryPickCommitsInPlace(data.selectedCommits, token);
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 6: Push branch to GitHub
+            progress.report({ message: 'Pushing branch to GitHub...' });
+            await this.git.pushBranchToGitHub(createdBranchName);
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 7: Create PR
+            progress.report({ message: 'Creating pull request...' });
+            const newPr = await this.createGitHubPR(
+              data.prData,
+              createdBranchName,
+              data.targetBranch,
+              data.description,
+              data.isDraft
+            );
+
+            if (token.isCancellationRequested) {
+              throw new Error('Cancel operation');
+            }
+
+            // Step 8: Show success notification
+            const openAction = await window.showInformationMessage(
+              `PR #${newPr.number} created successfully!`,
+              'Open'
+            );
+
+            if (openAction === 'Open') {
+              await env.openExternal(Uri.parse(newPr.html_url));
+            }
+
+            // Step 9: Hide activity bar
+            await this.hideActivityBar();
+          } catch (error) {
+            progress.report({ message: 'Error occurred during PR cloning, reverting changes ...' });
+            throw error;
+          }
+        }
+      );
+    } catch (error) {
+      this.loggingService.error(`In-place PR cloning failed: ${error}`);
+
+      // Clean up created branch if it exists and operation failed
+      if (createdBranchName) {
+        try {
+          this.loggingService.info(`Cleaning up created branch: ${createdBranchName}`);
+          // Switch back to original branch first
+          if (originalBranch) {
+            await this.git.checkout(originalBranch);
+          }
+          await this.git.deleteLocalBranch(createdBranchName);
+        } catch (cleanupError) {
+          this.loggingService.warn(
+            `Failed to cleanup branch ${createdBranchName}: ${cleanupError}`
+          );
+        }
+      }
+
+      window.showErrorMessage(
+        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
+      );
+    } finally {
+      // Step 10: Switch back to original branch
+      if (originalBranch) {
+        try {
+          await this.git.checkout(originalBranch);
+          this.loggingService.info(`Switched back to original branch: ${originalBranch}`);
+        } catch (checkoutError) {
+          this.loggingService.warn(`Failed to switch back to original branch: ${checkoutError}`);
+        }
+      }
+
+      // Step 11: Restore stashed changes if they were created
+      if (stashMessage) {
+        try {
+          const isStashExists = await this.git.isStashWithMessageExists(stashMessage);
+          
+          if (isStashExists) {
+            this.loggingService.info(`Restoring stashed changes: ${stashMessage}`);
+            await this.git.popStash(stashMessage);
+            this.loggingService.info('Stashed changes restored successfully');
+          }
+        } catch (error) {
+          this.loggingService.warn(`Failed to restore stashed changes: ${error}`);
+          window.showWarningMessage(
+            'Failed to restore your previously stashed changes. Please check your git stash list manually.'
+          );
+        }
+      }
+    }
+  }
+
+  private async cherryPickCommitsInPlace(commitShas: string[], token: CancellationToken): Promise<void> {
+    this.loggingService.info('cherryPickCommitsInPlace:', commitShas);
+
+    // Sort commits by creation date to ensure proper chronological order
+    const commitDetails = await Promise.all(
+      commitShas.map(async (sha) => this.git.getCommitTimestamp(sha))
+    );
+
+    const sortedCommits = commitDetails
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((commit) => commit.sha);
+
+    this.loggingService.info('Cherry-picking commits in chronological order:', sortedCommits);
+
+    if (token.isCancellationRequested) {
+      throw new Error('Cancel operation');
+    }
+
+    try {
+      // Cherry-pick all commits at once
+      await this.git.cherryPick(sortedCommits);
+    } catch (error) {
+      // Handle conflicts - show a message and let the user resolve manually
+      const errorMessage = `Cherry-pick conflicts detected. Please resolve conflicts manually in VS Code and continue the cherry-pick process using VS Code's built-in Git capabilities.`;
+      
+      this.loggingService.error(`Cherry-pick failed with conflicts: ${error}`);
+      
+      const continueAction = 'OK';
+      await window.showWarningMessage(
+        errorMessage,
+        { modal: true },
+        continueAction
+      );
+      
+      // The cherry-pick process is now in the user's hands
+      // They need to resolve conflicts manually and continue
+      throw new Error('Cherry-pick conflicts require manual resolution');
     }
   }
 

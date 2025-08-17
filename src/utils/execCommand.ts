@@ -22,6 +22,7 @@ export async function execCommand(
 
     resolve({ stdout, stderr });
   } catch (err) {
+    logService.error(command, err);
     reject(err);
   }
 

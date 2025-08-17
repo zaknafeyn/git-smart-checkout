@@ -120,7 +120,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         throw new Error('No workspace folder found');
       }
 
-      this.prCloneService = new PrCloneService(git, this.ghClient, this.loggingService);
+      this.prCloneService = new PrCloneService(git, this.ghClient, this.loggingService, this.configurationManager);
     }
   }
 

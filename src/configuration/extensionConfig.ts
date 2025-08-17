@@ -19,6 +19,7 @@ export interface ExtensionConfig {
   refetchBeforeCheckout: boolean;
   showStatusBar: boolean;
   defaultTargetBranch: string;
+  useInPlaceCherryPick: boolean;
   logging: {
     enabled: boolean;
   };
