@@ -68,7 +68,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-
   // Register command to handle notifications from WebView (used by commits webview)
   const showNotificationCommand = vscode.commands.registerCommand(
     `${EXTENSION_NAME}.showNotification`,
@@ -84,6 +83,22 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showErrorMessage(message, 'OK');
           break;
       }
+    }
+  );
+
+  // Register PR Clone menu command
+  const prCancelCloneMenuCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.prCancelCloneMenu`,
+    async () => {
+      await vscode.window.showInformationMessage('Cancelling PR clone', 'OK');
+    }
+  );
+
+  // Register Cherry Pick PR conflicts Resolved menu command
+  const prConflictsResolvedMenuCommand = vscode.commands.registerCommand(
+    `${EXTENSION_NAME}.prConflictsResolvedMenu`,
+    async () => {
+      await vscode.window.showInformationMessage('Conflicts are resolved', 'OK');
     }
   );
 
@@ -106,10 +121,15 @@ export function activate(context: vscode.ExtensionContext) {
     clonePullRequestCommand,
     updateSelectedCommitsCommand,
     showNotificationCommand,
+    prCancelCloneMenuCommand,
+    prConflictsResolvedMenuCommand,
     prCloneWebViewProvider,
     prCommitsWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prClone`, prCloneWebViewProvider),
-    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prCommits`, prCommitsWebViewProvider)
+    vscode.window.registerWebviewViewProvider(
+      `${EXTENSION_NAME}.prCommits`,
+      prCommitsWebViewProvider
+    )
   );
 
   // Show status bar

@@ -49,7 +49,7 @@
           "when": "git-smart-checkout.showPrClone"
         },
         {
-          "id": "git-smart-checkout.prCommits", 
+          "id": "git-smart-checkout.prCommits",
           "name": "Commits to Cherry-pick",
           "type": "webview",
           "icon": "$(git-commit)",
@@ -81,6 +81,18 @@
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
         }
+      },
+      {
+        "command": "git-smart-checkout.prCancelCloneMenu",
+        "title": "Cancel PR clone",
+        "category": "Git",
+        "icon": "resources/revert.svg"
+      },
+      {
+        "command": "git-smart-checkout.prConflictsResolvedMenu",
+        "title": "Conflicts resolved",
+        "category": "Git",
+        "icon": "resources/forward.svg"
       }
     ],
     "menus": {
@@ -93,6 +105,18 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "git-smart-checkout.prCancelCloneMenu",
+          "when": "view == git-smart-checkout.prClone",
+          "group": "navigation"
+        },
+        {
+          "command": "git-smart-checkout.prConflictsResolvedMenu",
+          "when": "view == git-smart-checkout.prClone",
+          "group": "navigation"
         }
       ]
     },
