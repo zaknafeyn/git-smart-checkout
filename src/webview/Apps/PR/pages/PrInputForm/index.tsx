@@ -8,11 +8,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './module.css';
 
 interface PrInputFormProps {
+  repoOwner?: string;
+  repoName?: string;
   onFetchPR: (prInput: string) => void;
   onCancel: () => void;
 }
 
-export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel }) => {
+export const PrInputForm: React.FC<PrInputFormProps> = ({
+    repoOwner = 'owner',
+    repoName = 'repo',
+    onFetchPR,
+    onCancel
+  }) => {
   const [prInput, setPrInput] = useState('');
   const loadPullRequestData = useLoadingState();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +51,7 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel })
       alert('Please enter a PR number or URL');
       return;
     }
+    
     loadPullRequestData.start();
     onFetchPR(prInput.trim());
   };
@@ -59,7 +67,7 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({ onFetchPR, onCancel })
           label="PR Number or URL:"
           value={prInput}
           onChange={(e) => setPrInput(e.target.value)}
-          placeholder="e.g., 123 or https://github.com/owner/repo/pull/123"
+          placeholder={`e.g., 123 or https://github.com/${repoOwner}/${repoName}/pull/123`}
         />
 
         <div className={styles.buttonGroup}>

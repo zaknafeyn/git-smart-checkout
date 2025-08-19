@@ -6,6 +6,7 @@ import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubCommit } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { PrCloneService } from '../services/prCloneService';
 
 export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -14,9 +15,12 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private static readonly STORAGE_KEY = 'pr-commits-webview-state';
   private isCloning: boolean = false;
 
+  private cloneServiceCleanUpAssigned = false;
+
   constructor(
     private context: ExtensionContext,
-    private loggingService: LoggingService
+    private loggingService: LoggingService,
+    private prCloneService: PrCloneService
   ) {
     this.loadPersistedState();
   }
@@ -24,8 +28,10 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private loadPersistedState() {
     try {
       const workspaceState = this.context.workspaceState;
-      const savedState = workspaceState.get<{commits: GitHubCommit[], selectedCommits: string[]}>(PrCommitsWebViewProvider.STORAGE_KEY);
-      
+      const savedState = workspaceState.get<{ commits: GitHubCommit[]; selectedCommits: string[] }>(
+        PrCommitsWebViewProvider.STORAGE_KEY
+      );
+
       if (savedState) {
         this.commits = savedState.commits || [];
         this.selectedCommits = savedState.selectedCommits || [];
@@ -40,7 +46,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
       const workspaceState = this.context.workspaceState;
       const stateToSave = {
         commits: this.commits,
-        selectedCommits: this.selectedCommits
+        selectedCommits: this.selectedCommits,
       };
       workspaceState.update(PrCommitsWebViewProvider.STORAGE_KEY, stateToSave);
     } catch (error) {
@@ -51,6 +57,20 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   resolveWebviewView(webviewView: WebviewView) {
     this.loggingService.info('...Resolve commits webview');
     this.webviewView = webviewView;
+
+    if (!this.cloneServiceCleanUpAssigned) {
+      // register clean up actions
+      this.prCloneService.addCleanUpActions({
+        cleanUpActionEnd: () => {
+          webviewView.webview.postMessage({
+            command: WebviewCommand.UPDATE_LOADING_STATE,
+            isLoading: false,
+          });
+        },
+      });
+
+      this.cloneServiceCleanUpAssigned = true;
+    }
 
     const extensionUri = this.context.extensionUri;
 
@@ -66,7 +86,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
       this.loggingService.debug(`[CommitsWebView] received command: ${JSON.stringify(message)}`);
-      
+
       switch (message.command) {
         case WebviewCommand.TOGGLE_COMMIT:
           await this.handleToggleCommit(message.sha);
@@ -110,13 +130,13 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
   public updateCommits(commits: GitHubCommit[]) {
     this.commits = commits;
-    this.loggingService.debug("Commits: ", commits);
-    
+    this.loggingService.debug('Commits: ', commits);
+
     // Auto-select non-merge commits (unselect merge commits by default)
     this.selectedCommits = commits
-      .filter(commit => commit.parents.length <= 1) // Only non-merge commits
-      .map(commit => commit.sha);
-    
+      .filter((commit) => commit.parents.length <= 1) // Only non-merge commits
+      .map((commit) => commit.sha);
+
     this.savePersistedState();
     this.sendCommitsToWebview();
     this.sendSelectedCommitsToMainWebview();
@@ -129,13 +149,13 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     }
 
     this.loggingService.info(`Toggling commit selection: ${sha}`);
-    
+
     if (this.selectedCommits.includes(sha)) {
-      this.selectedCommits = this.selectedCommits.filter(s => s !== sha);
+      this.selectedCommits = this.selectedCommits.filter((s) => s !== sha);
     } else {
       this.selectedCommits = [...this.selectedCommits, sha];
     }
-    
+
     this.savePersistedState();
     // Send updated commits due to user checkbox toggle
     this.sendCommitsToWebview();
@@ -149,7 +169,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     }
 
     this.loggingService.info('Selecting all commits');
-    this.selectedCommits = this.commits.map(commit => commit.sha);
+    this.selectedCommits = this.commits.map((commit) => commit.sha);
     this.savePersistedState();
     // Send updated commits due to "Select All" button press
     this.sendCommitsToWebview();
@@ -172,10 +192,14 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
   private async handleCopyCommitsToClipboard() {
     this.loggingService.info('Copying commits to clipboard');
-    
+
     try {
       if (this.commits.length === 0) {
-        await commands.executeCommand('git-smart-checkout.showNotification', 'No commits available to copy', 'info');
+        await commands.executeCommand(
+          'git-smart-checkout.showNotification',
+          'No commits available to copy',
+          'info'
+        );
         return;
       }
 
@@ -189,14 +213,20 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
       const clipboardContent = commitLines.join('\n');
       await env.clipboard.writeText(clipboardContent);
 
-      await commands.executeCommand('git-smart-checkout.showNotification', 
-        `Copied ${this.commits.length} commits to clipboard`, 'info');
-      
+      await commands.executeCommand(
+        'git-smart-checkout.showNotification',
+        `Copied ${this.commits.length} commits to clipboard`,
+        'info'
+      );
+
       this.loggingService.info(`Copied ${this.commits.length} commits to clipboard`);
     } catch (error) {
       this.loggingService.error(`Failed to copy commits to clipboard: ${error}`);
-      await commands.executeCommand('git-smart-checkout.showNotification', 
-        `Failed to copy commits to clipboard: ${error}`, 'error');
+      await commands.executeCommand(
+        'git-smart-checkout.showNotification',
+        `Failed to copy commits to clipboard: ${error}`,
+        'error'
+      );
     }
   }
 
@@ -206,14 +236,16 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
       return;
     }
 
-    this.loggingService.debug(`Sending commits to webview: ${this.commits.length} commits, ${this.selectedCommits.length} selected`);
-    
+    this.loggingService.debug(
+      `Sending commits to webview: ${this.commits.length} commits, ${this.selectedCommits.length} selected`
+    );
+
     try {
       this.webviewView.webview.postMessage({
         command: WebviewCommand.UPDATE_COMMITS,
         commits: this.commits,
         selectedCommits: this.selectedCommits,
-        isCloning: this.isCloning
+        isCloning: this.isCloning,
       });
     } catch (error) {
       this.loggingService.warn(`Failed to send commits to webview: ${error}`);
@@ -249,7 +281,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private handleWebviewLog(level: 'info' | 'warn' | 'error' | 'debug', message: string) {
     // Forward webview log messages to extension logging service
     const logMessage = `[CommitsWebView] ${message}`;
-    
+
     switch (level) {
       case 'error':
         this.loggingService.error(logMessage);

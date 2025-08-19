@@ -10,23 +10,38 @@ import { LoggingService } from './logging/loggingService';
 import { StatusBarManager } from './statusBar/statusBarManager';
 import { PrCloneWebViewProvider } from './view/PrCloneWebViewProvider';
 import { PrCommitsWebViewProvider } from './view/PrCommitsWebViewProvider';
+import { commands } from 'vscode';
+import { setContextShowPRClone, setContextShowPRCommits } from './utils/setContext';
+import { PrCloneService } from './services/prCloneService';
+import { getGitExecutor } from './utils/getGitExecutor';
+import { GitHubClient } from './common/api/ghClient';
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Extension "my-vscode-extension" is now active!');
+  console.log(`Extension "${EXTENSION_NAME}" is now active!`);
 
   const commandManager = new CommandManager();
 
   const configManager = new ConfigurationManager();
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
-  const prCloneWebViewProvider = new PrCloneWebViewProvider(context, logService, configManager);
-  const prCommitsWebViewProvider = new PrCommitsWebViewProvider(context, logService);
+  const prCloneService = new PrCloneService(context, logService, configManager);
+  const prCloneWebViewProvider = new PrCloneWebViewProvider(
+    context,
+    logService,
+    configManager,
+    prCloneService
+  );
+  const prCommitsWebViewProvider = new PrCommitsWebViewProvider(
+    context,
+    logService,
+    prCloneService
+  );
 
   logService.info('Start...');
 
   // Set initial context to hide PR Clone view and commits view
-  vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, false);
-  vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrCommits`, false);
+  setContextShowPRClone(false);
+  setContextShowPRCommits(false);
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
@@ -40,14 +55,25 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
 
   // Register clone pull request command
-  const clonePullRequestCommand = vscode.commands.registerCommand(
+  const clonePullRequestCommand = commands.registerCommand(
     `${EXTENSION_NAME}.clonePullRequest`,
-    () => {
+    async () => {
+      // get exact repository
+      const git = await getGitExecutor(logService);
+
+      const repoInfo = await git.getRepoInfo();
+      if (!repoInfo) {
+        throw new Error('Could not determine GitHub repository information');
+      }
+
+      const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+
+      prCloneService.init(git, ghClient);
+
       // Show the PR Clone view by setting the context
-      vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.showPrClone`, true);
-      logService.info('... test log msg');
+      setContextShowPRClone(true);
       // Show the Git Smart Checkout activity bar
-      vscode.commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
+      commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
       // TODO: change this to clear state at the moment of the first mount of App.tsx
       setTimeout(() => {
         // Wait until app fully initialized and clear webview state to start fresh
@@ -60,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
   prCloneWebViewProvider.setCommitsProvider(prCommitsWebViewProvider);
 
   // Register command to update selected commits (internal communication)
-  const updateSelectedCommitsCommand = vscode.commands.registerCommand(
+  const updateSelectedCommitsCommand = commands.registerCommand(
     `${EXTENSION_NAME}.updateSelectedCommits`,
     (selectedCommits: string[]) => {
       // Pass selected commits to main webview
@@ -69,7 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register command to handle notifications from WebView (used by commits webview)
-  const showNotificationCommand = vscode.commands.registerCommand(
+  const showNotificationCommand = commands.registerCommand(
     `${EXTENSION_NAME}.showNotification`,
     async (message: string, type: 'info' | 'warn' | 'error' = 'info') => {
       switch (type) {
@@ -87,18 +113,18 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register PR Clone menu command
-  const prCancelCloneMenuCommand = vscode.commands.registerCommand(
+  const prCancelCloneMenuCommand = commands.registerCommand(
     `${EXTENSION_NAME}.prCancelCloneMenu`,
     async () => {
-      await vscode.window.showInformationMessage('Cancelling PR clone', 'OK');
+      prCloneService.abortClonePR();
     }
   );
 
   // Register Cherry Pick PR conflicts Resolved menu command
-  const prConflictsResolvedMenuCommand = vscode.commands.registerCommand(
+  const prConflictsResolvedMenuCommand = commands.registerCommand(
     `${EXTENSION_NAME}.prConflictsResolvedMenu`,
     async () => {
-      await vscode.window.showInformationMessage('Conflicts are resolved', 'OK');
+      await prCloneService.cherryPickNext(true);
     }
   );
 

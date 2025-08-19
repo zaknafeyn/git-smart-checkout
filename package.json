@@ -86,13 +86,19 @@
         "command": "git-smart-checkout.prCancelCloneMenu",
         "title": "Cancel PR clone",
         "category": "Git",
-        "icon": "resources/revert.svg"
+        "icon": {
+          "light": "resources/light/revert.svg",
+          "dark": "resources/dark/revert.svg"
+        }
       },
       {
         "command": "git-smart-checkout.prConflictsResolvedMenu",
         "title": "Conflicts resolved",
         "category": "Git",
-        "icon": "resources/forward.svg"
+        "icon": {
+          "light": "resources/light/forward.svg",
+          "dark": "resources/dark/forward.svg"
+        }
       }
     ],
     "menus": {
@@ -110,12 +116,12 @@
       "view/title": [
         {
           "command": "git-smart-checkout.prCancelCloneMenu",
-          "when": "view == git-smart-checkout.prClone",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
           "group": "navigation"
         },
         {
           "command": "git-smart-checkout.prConflictsResolvedMenu",
-          "when": "view == git-smart-checkout.prClone",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
           "group": "navigation"
         }
       ]
@@ -163,7 +169,8 @@
         "git-smart-checkout.useInPlaceCherryPick": {
           "type": "boolean",
           "default": true,
-          "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning"
+          "description": "(READONLY!) Use in-place cherry-pick instead of temporary worktree for PR cloning",
+          "scope": "machine"
         }
       }
     }

@@ -165,6 +165,12 @@ export class GitExecutor {
     await this.#execGitCommand(command);
   }
 
+  async reset(hard = false) {
+    const command = `git reset ${hard ? '--hard' : ''}`.trimEnd();
+
+    await this.#execGitCommand(command);
+  }
+
   async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
     if (fetchRemotes) {
       await this.fetchAllRemoteBranchesAndTags();
@@ -323,6 +329,11 @@ export class GitExecutor {
     return conflictedFiles;
   }
 
+  async hasConflicts(): Promise<boolean> {
+    const conflictedFiles = await this.getConflictedFiles();
+    return conflictedFiles.length > 0;
+  }
+
   async cherryPick(
     commitSha: string | string[],
     parseError = false
@@ -441,5 +452,18 @@ export class GitExecutor {
     } catch (error) {
       return { sha, timestamp: 0 };
     }
+  }
+
+  async getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
+    try {
+      const remoteUrl = await this.getRemoteUrl();
+      const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+      if (match) {
+        return { owner: match[1], repo: match[2] };
+      }
+    } catch (error) {
+      this.#logService.error(`Failed to get repo info: ${error}`);
+    }
+    return null;
   }
 }

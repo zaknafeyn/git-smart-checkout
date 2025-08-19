@@ -9,9 +9,17 @@ export class GitHubClient {
   private static readonly USER_AGENT = `${EXTENSION_NAME}-vscode-extension`;
 
   constructor(
-    private readonly owner: string,
-    private readonly repo: string
+    private readonly _owner: string,
+    private readonly _repo: string
   ) {}
+
+  get owner(): string {
+    return this._owner;
+  }
+
+  get repo(): string {
+    return this._repo;
+  }
 
   private async getAuthToken(): Promise<string | undefined> {
     try {
@@ -25,10 +33,10 @@ export class GitHubClient {
   private async makeRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
     const token = await this.getAuthToken();
     const url = `${GitHubClient.BASE_URL}${endpoint}`;
-    
+
     const headers: { [key: string]: string } = {
       'User-Agent': GitHubClient.USER_AGENT,
-      'Accept': 'application/vnd.github.v3+json',
+      Accept: 'application/vnd.github.v3+json',
     };
 
     if (token) {
@@ -40,9 +48,9 @@ export class GitHubClient {
     }
 
     return new Promise((resolve, reject) => {
-      const options = { 
+      const options = {
         method,
-        headers 
+        headers,
       };
 
       const req = https.request(url, options, (res) => {
@@ -60,7 +68,11 @@ export class GitHubClient {
               reject(new Error(`Failed to parse JSON response: ${error}`));
             }
           } else {
-            reject(new Error(`GitHub API error: ${res.statusCode} ${res.statusMessage || 'Unknown error'}\nResponse: ${data}`));
+            reject(
+              new Error(
+                `GitHub API error: ${res.statusCode} ${res.statusMessage || 'Unknown error'}\nResponse: ${data}`
+              )
+            );
           }
         });
       });
@@ -99,19 +111,23 @@ export class GitHubClient {
   public async fetchCommitDetails(commitSha: string): Promise<GitHubCommit> {
     const endpoint = `/repos/${this.owner}/${this.repo}/commits/${commitSha}`;
     const commitData = await this.makeRequest<any>(endpoint);
-    
+
     return {
       sha: commitData.sha,
       commit: {
-        message: commitData.commit.message
+        message: commitData.commit.message,
       },
       parents: commitData.parents || [],
-      files: commitData.files ? commitData.files.map((file: any): GitHubCommitFile => ({
-        filename: file.filename,
-        status: file.status as 'added' | 'modified' | 'removed' | 'renamed',
-        additions: file.additions || 0,
-        deletions: file.deletions || 0
-      })) : []
+      files: commitData.files
+        ? commitData.files.map(
+            (file: any): GitHubCommitFile => ({
+              filename: file.filename,
+              status: file.status as 'added' | 'modified' | 'removed' | 'renamed',
+              additions: file.additions || 0,
+              deletions: file.deletions || 0,
+            })
+          )
+        : [],
     };
   }
 
@@ -120,7 +136,7 @@ export class GitHubClient {
    */
   public async fetchCommitsDetails(commits: GitHubCommit[]): Promise<GitHubCommit[]> {
     const detailedCommits = await Promise.allSettled(
-      commits.map(commit => this.fetchCommitDetails(commit.sha))
+      commits.map((commit) => this.fetchCommitDetails(commit.sha))
     );
 
     return detailedCommits.map((result, index) => {
@@ -140,7 +156,7 @@ export class GitHubClient {
   public getRepoInfo(): { owner: string; repo: string } {
     return {
       owner: this.owner,
-      repo: this.repo
+      repo: this.repo,
     };
   }
 
@@ -148,8 +164,8 @@ export class GitHubClient {
    * Create a GitHub URL for creating a new pull request
    */
   public createPullRequestUrl(
-    targetBranch: string, 
-    featureBranch: string, 
+    targetBranch: string,
+    featureBranch: string,
     description: string
   ): string {
     return `https://github.com/${this.owner}/${this.repo}/compare/${targetBranch}...${featureBranch}?expand=1&body=${encodeURIComponent(description)}`;
@@ -171,9 +187,9 @@ export class GitHubClient {
       body,
       head,
       base,
-      draft: isDraft
+      draft: isDraft,
     };
-    
+
     return this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
   }
 }

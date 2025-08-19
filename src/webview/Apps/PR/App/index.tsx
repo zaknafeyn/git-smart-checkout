@@ -27,6 +27,11 @@ export const App: React.FC = () => {
     return { view: 'input' };
   });
 
+  const [repoInfo, setRepoInfo] = useState({
+    repo: 'repo',
+    owner: 'owner'
+  });
+
   // Save state to localStorage whenever it changes
   useEffect(() => {
     try {
@@ -108,6 +113,12 @@ export const App: React.FC = () => {
             isCloning: message.isLoading
           }));
           break;
+        case message.command === WebviewCommand.UPDATE_REPO_INFO:
+          setRepoInfo(prev => ({
+            ...prev,
+            ...message.repoInfo
+          }));
+          break;
         default:
           break;
       };
@@ -115,6 +126,10 @@ export const App: React.FC = () => {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('message', handleMessage);
+      
+      // Signal that webview is ready to receive state
+      sendMessage(WebviewCommand.WEBVIEW_READY);
+
       return () => window.removeEventListener('message', handleMessage);
     }
   }, []);
@@ -136,6 +151,8 @@ export const App: React.FC = () => {
 
   return (
     <PrInputForm 
+      repoName={repoInfo.repo}
+      repoOwner={repoInfo.owner}
       onFetchPR={handleFetchPR} 
       onCancel={handleCancel}
     />

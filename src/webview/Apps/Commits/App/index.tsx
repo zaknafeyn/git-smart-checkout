@@ -73,6 +73,13 @@ export const CommitsApp: React.FC = () => {
           isCloning: message.isCloning || false
         });
       }
+
+      if (message.command === WebviewCommand.UPDATE_LOADING_STATE) {
+        setState(prev => ({
+          ...prev,
+          isCloning: message.isLoading
+        }));
+      }
     };
 
     if (typeof window !== 'undefined') {
