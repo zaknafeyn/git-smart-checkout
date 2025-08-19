@@ -20,8 +20,7 @@ export enum WebviewCommand {
   SHOW_PR_DATA = 'showPRData',
   TARGET_BRANCH_SELECTED = 'targetBranchSelected',
   CLEAR_STATE = 'clearState',
-  //todo: rename UPDATE_LOADING_STATE -> UPDATE_CLONING_STATE and update fields used by this message
-  UPDATE_LOADING_STATE = 'updateLoadingState',
+  UPDATE_CLONING_STATE = 'updateCloningState',
   UPDATE_SELECTED_COMMITS = 'updateSelectedCommits',
   UPDATE_COMMITS = 'updateCommits',
   UPDATE_REPO_INFO = 'updateRepoInfo',

@@ -56,8 +56,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       this.prCloneService.addCleanUpActions({
         cleanUpActionEnd: () => {
           webviewView.webview.postMessage({
-            command: WebviewCommand.UPDATE_LOADING_STATE,
-            isLoading: false,
+            command: WebviewCommand.UPDATE_CLONING_STATE,
+            isCloning: false,
+          });
+
+          webviewView.webview.postMessage({
+            command: WebviewCommand.CANCEL_PR_CLONE,
           });
         },
       });
@@ -359,23 +363,23 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateLoadingState(isLoading: boolean) {
+  private updateLoadingState(isCloning: boolean) {
     if (!this.webviewView) {
       return;
     }
 
     this.webviewView.webview.postMessage({
-      command: WebviewCommand.UPDATE_LOADING_STATE,
-      isLoading,
+      command: WebviewCommand.UPDATE_CLONING_STATE,
+      isLoading: isCloning,
     });
 
-    // Update commits webview loading state
+    // Update commits webview cloning state
     if (this.commitsProvider) {
-      this.commitsProvider.updateLoadingState(isLoading);
+      this.commitsProvider.updateCloningState(isCloning);
     }
 
     // Update context to disable/enable interactions
-    setContextIsCloning(isLoading);
+    setContextIsCloning(isCloning);
   }
 
   private async handleShowConfirmationDialog(message: string, details: string, data: any) {

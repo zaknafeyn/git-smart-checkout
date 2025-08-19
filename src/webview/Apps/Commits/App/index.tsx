@@ -64,7 +64,7 @@ export const CommitsApp: React.FC = () => {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
-      logger.debug(`Received message: ${message.command}`);
+      logger.debug(`[CommitsApp] Received message: ${message.command}`);
       
       if (message.command === WebviewCommand.UPDATE_COMMITS) {
         setState({
@@ -74,10 +74,10 @@ export const CommitsApp: React.FC = () => {
         });
       }
 
-      if (message.command === WebviewCommand.UPDATE_LOADING_STATE) {
+      if (message.command === WebviewCommand.UPDATE_CLONING_STATE) {
         setState(prev => ({
           ...prev,
-          isCloning: message.isLoading
+          isCloning: message.isCloning
         }));
       }
     };

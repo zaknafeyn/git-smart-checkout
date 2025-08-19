@@ -72,6 +72,7 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
+      logger.debug(`[PrApp] Received message: ${message.command}`);
 
       switch (true) {
         case message.command === WebviewCommand.SHOW_PR_DATA:
@@ -107,10 +108,10 @@ export const App: React.FC = () => {
           // Clear state and localStorage when commanded by extension
           handleStartOver();
           break;
-        case message.command === WebviewCommand.UPDATE_LOADING_STATE:
+        case message.command === WebviewCommand.UPDATE_CLONING_STATE:
           setState(prev => ({
             ...prev,
-            isCloning: message.isLoading
+            isCloning: message.isCloning
           }));
           break;
         case message.command === WebviewCommand.UPDATE_REPO_INFO:

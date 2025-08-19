@@ -63,8 +63,8 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
       this.prCloneService.addCleanUpActions({
         cleanUpActionEnd: () => {
           webviewView.webview.postMessage({
-            command: WebviewCommand.UPDATE_LOADING_STATE,
-            isLoading: false,
+            command: WebviewCommand.UPDATE_CLONING_STATE,
+            isCloning: false,
           });
         },
       });
@@ -265,7 +265,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     return this.commits;
   }
 
-  public updateLoadingState(isCloning: boolean) {
+  public updateCloningState(isCloning: boolean) {
     this.isCloning = isCloning;
     this.sendCommitsToWebview();
   }
