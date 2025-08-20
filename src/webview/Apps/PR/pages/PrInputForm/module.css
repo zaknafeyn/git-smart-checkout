@@ -1,0 +1,6 @@
+/* TODO: Consider extracting button group layout pattern to shared CSS class - similar pattern in PrCloneForm/module.css:65-69 */
+.buttonGroup {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}

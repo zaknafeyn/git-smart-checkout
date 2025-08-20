@@ -35,6 +35,20 @@
         "group": "watchers"
       },
       "group": "build"
+    },
+    {
+      "type": "npm",
+      "script": "watch-webview",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never",
+        "group": "watchers"
+      },
+      "group": "build",
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
     }
   ]
 }

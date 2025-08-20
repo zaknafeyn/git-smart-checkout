@@ -1,0 +1,38 @@
+.textareaGroup {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TODO: Consider extracting label styles to shared CSS class - identical styling in Input/module.css:8-12 */
+.label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+/* TODO: Consider extracting base input styles to shared CSS class - similar base styling in Input/module.css:16-32 */
+.textarea {
+  display: block;
+  box-sizing: border-box;
+  padding: 5px;
+  width: 100%;
+  resize: vertical;
+  font-size: 13px;
+  border: 1px solid var(--vscode-dropdown-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+  border-radius: 2px;
+  resize: none;
+
+  &:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+  }
+
+  &::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.useLabelDetailsInCompletionEntries": true,
+  "files.associations": {
+    "*.module.css": "css"
+  },
+  "css.customData": [],
+  "typescript.tsc.autoDetect": "on",
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.surveys.enabled": false,
+  "typescript.preferences.experimentalDecorators": "auto",
+  "typescript.workspaceSymbols.scope": "allOpenProjects"
+}

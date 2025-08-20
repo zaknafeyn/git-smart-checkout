@@ -1,7 +1,8 @@
-import { exec, ExecSyncOptions, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import { exec, ExecSyncOptions } from 'child_process';
 import { promisify } from 'util';
-import { createPromiseWithResolvers } from './createPromiseWithResolvers';
+
 import { LoggingService } from '../logging/loggingService';
+import { createPromiseWithResolvers } from './createPromiseWithResolvers';
 
 const execAsync = promisify(exec);
 
@@ -10,7 +11,7 @@ export type TPromiseResponse = { stdout: string; stderr: string };
 export async function execCommand(
   command: string,
   logService: LoggingService,
-  options?: ExecSyncOptions,
+  options?: ExecSyncOptions
 ): Promise<TPromiseResponse> {
   const { promise, resolve, reject } = createPromiseWithResolvers<TPromiseResponse>();
 
@@ -21,6 +22,7 @@ export async function execCommand(
 
     resolve({ stdout, stderr });
   } catch (err) {
+    logService.error(command, err);
     reject(err);
   }
 

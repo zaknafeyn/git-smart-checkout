@@ -13,7 +13,7 @@
     "git",
     "checkout",
     "stash",
-    "autostash"
+    "auto stash"
   ],
   "license": "MIT",
   "version": "0.0.1",
@@ -30,6 +30,33 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "git-smart-checkout",
+          "title": "Git Smart Checkout",
+          "icon": "resources/dark/clone.svg"
+        }
+      ]
+    },
+    "views": {
+      "git-smart-checkout": [
+        {
+          "id": "git-smart-checkout.prClone",
+          "name": "PR Clone",
+          "type": "webview",
+          "icon": "$(git-pull-request)",
+          "when": "git-smart-checkout.showPrClone"
+        },
+        {
+          "id": "git-smart-checkout.prCommits",
+          "name": "Commits to Cherry-pick",
+          "type": "webview",
+          "icon": "$(git-commit)",
+          "when": "git-smart-checkout.showPrCommits"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "git-smart-checkout.checkoutTo",
@@ -45,6 +72,33 @@
         "command": "git-smart-checkout.switchMode",
         "title": "Switch Mode",
         "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.clonePullRequest",
+        "title": "Clone pull request...",
+        "category": "GitHub",
+        "icon": {
+          "light": "resources/light/clone.svg",
+          "dark": "resources/dark/clone.svg"
+        }
+      },
+      {
+        "command": "git-smart-checkout.prCancelCloneMenu",
+        "title": "Cancel PR clone",
+        "category": "Git",
+        "icon": {
+          "light": "resources/light/revert.svg",
+          "dark": "resources/dark/revert.svg"
+        }
+      },
+      {
+        "command": "git-smart-checkout.prConflictsResolvedMenu",
+        "title": "Conflicts resolved",
+        "category": "Git",
+        "icon": {
+          "light": "resources/light/forward.svg",
+          "dark": "resources/dark/forward.svg"
+        }
       }
     ],
     "menus": {
@@ -54,6 +108,21 @@
         },
         {
           "command": "git-smart-checkout.pullWithStash"
+        },
+        {
+          "command": "git-smart-checkout.clonePullRequest"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "git-smart-checkout.prCancelCloneMenu",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
+          "group": "navigation"
+        },
+        {
+          "command": "git-smart-checkout.prConflictsResolvedMenu",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
+          "group": "navigation"
         }
       ]
     },
@@ -87,10 +156,26 @@
           "default": false,
           "description": "Refetch remotes each time before checkout"
         },
+        "git-smart-checkout.defaultTargetBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Default target branch for PR cloning. Leave empty to use the first available branch."
+        },
+        "git-smart-checkout.prBranchPrefix": {
+          "type": "string",
+          "default": "",
+          "description": "Prefix to add to PR clone branch names. If specified and doesn't end with '/', a '/' will be automatically added."
+        },
         "git-smart-checkout.showStatusBar": {
           "type": "boolean",
           "default": true,
           "description": "Show or hide the extension's status bar item"
+        },
+        "git-smart-checkout.useInPlaceCherryPick": {
+          "type": "boolean",
+          "default": true,
+          "description": "(READONLY!) Use in-place cherry-pick instead of temporary worktree for PR cloning",
+          "scope": "machine"
         }
       }
     }
@@ -106,29 +191,48 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "yarn compile-tests && yarn compile && yarn lint",
     "check-types": "tsc --noEmit",
+    "check-types-webview": "tsc --noEmit --project tsconfig.webview.json",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
     "build-vsix": "yarn package && vsce package --yarn",
     "build-vsix-dev": "yarn compile && vsce package --yarn --no-dependencies",
-    "publish": "yarn package && vsce publish --yarn"
+    "publish": "yarn package && vsce publish --yarn",
+    "build-webview": "webpack --mode production --config webpack.webview.config.js",
+    "watch-webview": "webpack --mode development --config webpack.webview.config.js --watch",
+    "serve-webview": "webpack serve --mode development --config webpack.webview.config.js",
+    "dev": "npm-run-all -p watch:esbuild serve-webview",
+    "build-all": "yarn check-types-webview && yarn build-webview && yarn package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^7.14.1",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^2.15.0",
+    "css-loader": "^6.8.1",
     "esbuild": "^0.21.5",
     "eslint": "^9.25.1",
     "glob": "^8.0.3",
+    "html-webpack-plugin": "^5.5.3",
+    "mini-css-extract-plugin": "^2.7.6",
     "mocha": "^10.1.0",
     "npm-run-all": "^4.1.5",
-    "typescript": "^5.4.5"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.4.5",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
+    "classnames": "^2.5.1",
     "date-fns": "^4.1.0"
   }
 }

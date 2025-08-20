@@ -64,9 +64,9 @@ export class CheckoutToCommand extends BaseCommand {
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message;
-        message && vscode.window.showErrorMessage(message);
+        message && (await vscode.window.showErrorMessage(message, 'OK'));
       } else {
-        vscode.window.showErrorMessage('Unknown error');
+        await vscode.window.showErrorMessage('Unknown error', 'OK');
       }
     }
   }
@@ -201,7 +201,7 @@ export class CheckoutToCommand extends BaseCommand {
       await git.createBranch(newBranchName);
       return newBranchName;
     } catch (e) {
-      vscode.window.showErrorMessage('Failed to create the new branch.');
+      await vscode.window.showErrorMessage('Failed to create the new branch.', 'OK');
       throw new Error('Failed to create the new branch.');
     }
   }

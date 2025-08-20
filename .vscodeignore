@@ -15,3 +15,6 @@ vsc-extension-quickstart.md
 **/esbuild.*js
 **/eslint.config.*js
 .prettier*
+**/*.tsbuildinfo
+**/*.config.*js*
+TODO.md

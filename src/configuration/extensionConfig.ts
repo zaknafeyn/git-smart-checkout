@@ -18,6 +18,9 @@ export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   refetchBeforeCheckout: boolean;
   showStatusBar: boolean;
+  defaultTargetBranch: string;
+  prBranchPrefix: string;
+  useInPlaceCherryPick: boolean;
   logging: {
     enabled: boolean;
   };

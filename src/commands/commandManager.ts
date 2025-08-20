@@ -24,7 +24,7 @@ export class CommandManager {
           await command.execute(...args);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          vscode.window.showErrorMessage(`Command failed: ${errorMessage}`);
+          await vscode.window.showErrorMessage(`Command failed: ${errorMessage}`, 'OK');
           console.error(`Error executing command ${commandId}:`, error);
         }
       });

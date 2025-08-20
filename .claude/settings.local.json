@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright",
+      "Bash(find:*)",
+      "Bash(yarn check-types)",
+      "Bash(yarn lint)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(yarn tsc:*)",
+      "Bash(rm:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(yarn serve-webview:*)",
+      "Bash(yarn install)",
+      "Bash(timeout:*)",
+      "Bash(yarn build-webview:*)",
+      "Bash(yarn check-types-webview:*)",
+      "WebFetch(domain:code.visualstudio.com)",
+      "Bash(yarn compile)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|MultiEdit|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/hooks/tsc.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/hooks/lint.js"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq . > post-log.json"
+          }
+        ]
+      }
+    ]
+  }
+}

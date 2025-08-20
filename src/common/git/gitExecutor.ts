@@ -1,7 +1,8 @@
-import { ExecSyncOptions } from 'child_process';
+import { ExecException, ExecSyncOptions } from 'child_process';
+
+import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
 import { IGitRef, TUpstreamTrack } from './types';
-import { LoggingService } from '../../logging/loggingService';
 
 export class GitExecutor {
   #repositoryPath;
@@ -49,6 +50,24 @@ export class GitExecutor {
     return [ahead, behind];
   }
 
+  async #checkLocalBranchExists(branchName: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/heads/${branchName}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async #checkRemoteBranchExists(branchName: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // #endregion private
 
   async fetchAllRemoteBranchesAndTags() {
@@ -60,14 +79,53 @@ export class GitExecutor {
     await this.#execGitCommand(commandFetchAllTags);
   }
 
-  async checkout(branchName: string) {
-    const command = `git checkout ${branchName}`;
+  async fetchSpecificBranch(branchName: string, remoteName = 'origin') {
+    const command = `git fetch ${remoteName} ${branchName}:refs/remotes/${remoteName}/${branchName}`;
 
-    const { stdout } = await this.#execGitCommand(command);
-
-    return stdout;
+    await this.#execGitCommand(command);
   }
 
+  async pullCurrentBranch() {
+    const command = 'git pull';
+
+    await this.#execGitCommand(command);
+  }
+
+  async createUniqueFeatureBranch(baseBranchName: string, sourceBranch: string): Promise<string> {
+    let branchName = baseBranchName;
+    let suffix = 1;
+
+    // Check if branch already exists
+    while (await this.branchExist(branchName)) {
+      branchName = `${baseBranchName}_${suffix}`;
+      suffix++;
+    }
+
+    await this.createBranch(branchName, sourceBranch);
+    return branchName;
+  }
+
+  async checkout(branchName: string) {
+    // Check if it's a remote branch that doesn't have a local counterpart
+    const localBranchExists = await this.#checkLocalBranchExists(branchName);
+    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
+
+    if (!localBranchExists && remoteBranchExists) {
+      // Create a local tracked branch for the remote branch
+      const command = `git checkout -b ${branchName} origin/${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    } else {
+      // Regular checkout for existing local branches
+      const command = `git checkout ${branchName}`;
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout;
+    }
+  }
+
+  /**
+   * @deprecated consider using checkout with string parameter
+   */
   async checkoutBranch(branch: IGitRef) {
     const command = `git checkout ${branch.name} ${branch.remote ? `${branch.fullName}` : ''}`;
 
@@ -103,6 +161,12 @@ export class GitExecutor {
   async resetLocalChanges() {
     // Discard all local changes
     const command = 'git restore .';
+
+    await this.#execGitCommand(command);
+  }
+
+  async reset(hard = false) {
+    const command = `git reset ${hard ? '--hard' : ''}`.trimEnd();
 
     await this.#execGitCommand(command);
   }
@@ -250,5 +314,168 @@ export class GitExecutor {
     } catch {
       return false;
     }
+  }
+
+  async getRemoteUrl(remoteName = 'origin'): Promise<string> {
+    const { stdout } = await this.#execGitCommand(`git remote get-url ${remoteName}`);
+    return stdout.trim();
+  }
+
+  async getConflictedFiles() {
+    const command = 'git diff --name-only --diff-filter=U';
+
+    const { stdout } = await this.#execGitCommand(command);
+    const conflictedFiles = stdout.trim().split('\n').filter(Boolean);
+    return conflictedFiles;
+  }
+
+  async hasConflicts(): Promise<boolean> {
+    const conflictedFiles = await this.getConflictedFiles();
+    return conflictedFiles.length > 0;
+  }
+
+  async cherryPick(
+    commitSha: string | string[],
+    parseError = false,
+    emptyCommit: 'skip' | 'allow' = 'skip'
+  ): Promise<{ conflicts: boolean } | void> {
+    const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
+    try {
+      await this.#execGitCommand(
+        `git cherry-pick ${commits} ${emptyCommit === 'allow' ? '--allow-empty' : ''}`
+      );
+    } catch (error) {
+      if (!parseError) {
+        throw error;
+      }
+
+      const { code, stderr } = error as ExecException & { stdout: string; stderr: string };
+      // exit code meaning for cherry-pick command: (0 = success, 1 = conflict, other = fatal error).
+
+      if (code !== 1) {
+        return;
+      }
+
+      if (emptyCommit === 'skip' && stderr.includes('previous cherry-pick is now empty')) {
+        await this.cherryPickSkip();
+        return {
+          conflicts: false,
+        };
+      }
+
+      return {
+        conflicts: true,
+      };
+    }
+  }
+
+  async cherryPickContinue(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --continue');
+  }
+
+  async cherryPickAbort(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --abort');
+  }
+
+  async cherryPickSkip(): Promise<void> {
+    await this.#execGitCommand('git cherry-pick --skip');
+  }
+
+  async isCherryPickInProgress(): Promise<boolean> {
+    try {
+      const { stdout } = await this.#execGitCommand('git status --porcelain=v1');
+      return stdout.includes('You are currently cherry-picking');
+    } catch {
+      return false;
+    }
+  }
+
+  async deleteLocalBranch(branchName: string) {
+    const { stdout } = await this.#execGitCommand(`git branch -D ${branchName}`);
+
+    return stdout.trim();
+  }
+
+  async worktreeList(muteError = false) {
+    const command = 'git worktree list --porcelain';
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+
+      return stdout
+        .split('\n')
+        .filter((line) => line.startsWith('worktree '))
+        .map((line) => line.replace('worktree ', '').trim());
+    } catch (error) {
+      if (muteError) {
+        return [];
+      }
+
+      throw new Error(`Failed to get worktree list: ${error}`);
+    }
+  }
+
+  async worktreeRemove(workTreePath: string, force = true) {
+    const command = `git worktree remove "${workTreePath}" ${force ? '--force' : ''}`;
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async worktreeAdd(workTreePath: string, targetBranch: string) {
+    const command = `git worktree add "${workTreePath}" ${targetBranch} --force`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async branchExist(branchName: string) {
+    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
+    const commandRemote = `git show-ref --verify --quiet refs/remotes/origin/${branchName}`;
+
+    try {
+      await this.#execGitCommand(command);
+      return true;
+    } catch (error) {
+      //verify remote branch
+      try {
+        await this.#execGitCommand(commandRemote);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  async pushBranchToGitHub(branchName: string): Promise<void> {
+    const command = `git push -u origin ${branchName}`;
+
+    await this.#execGitCommand(command);
+  }
+
+  async getCommitTimestamp(sha: string) {
+    const command = `git show --format="%ct" --no-patch ${sha}`;
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+      const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
+      return { sha, timestamp };
+    } catch (error) {
+      return { sha, timestamp: 0 };
+    }
+  }
+
+  async getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
+    try {
+      const remoteUrl = await this.getRemoteUrl();
+      const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+      if (match) {
+        return { owner: match[1], repo: match[2] };
+      }
+    } catch (error) {
+      this.#logService.error(`Failed to get repo info: ${error}`);
+    }
+    return null;
   }
 }
