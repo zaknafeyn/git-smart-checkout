@@ -56,7 +56,9 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     if (nextCommit?.done) {
       this.updateProgress?.report({ message: 'All commits were applied' });
 
-      //todo: proceed to creating a PR and clean up repository
+      // push branch and proceed to PR creation
+      await this.git.pushBranchToGitHub(this.serviceStore.createdBranchName!);
+
       const { targetBranch, prData, description, isDraft } = this.serviceStore.originalPrData || {
         targetBranch: '',
         prData: undefined,
@@ -112,9 +114,12 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
         await window.showWarningMessage(errorMessage, { modal: true });
 
+        this.cancelProgress?.();
+        this.cleanUp();
+
         // The cherry-pick process is now in the user's hands
         // They need to resolve conflicts manually and continue
-        throw new Error('Cherry-pick conflicts require manual resolution');
+        // throw new Error('Cherry-pick conflicts require manual resolution');
       }
     }
   }

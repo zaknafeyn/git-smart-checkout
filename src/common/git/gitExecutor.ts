@@ -336,24 +336,36 @@ export class GitExecutor {
 
   async cherryPick(
     commitSha: string | string[],
-    parseError = false
+    parseError = false,
+    emptyCommit: 'skip' | 'allow' = 'skip'
   ): Promise<{ conflicts: boolean } | void> {
     const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
     try {
-      await this.#execGitCommand(`git cherry-pick ${commits}`);
+      await this.#execGitCommand(
+        `git cherry-pick ${commits} ${emptyCommit === 'allow' ? '--allow-empty' : ''}`
+      );
     } catch (error) {
       if (!parseError) {
         throw error;
       }
 
-      const e = error as ExecException & { stdout: string; stderr: string };
+      const { code, stderr } = error as ExecException & { stdout: string; stderr: string };
       // exit code meaning for cherry-pick command: (0 = success, 1 = conflict, other = fatal error).
 
-      if (e.code === 1) {
+      if (code !== 1) {
+        return;
+      }
+
+      if (emptyCommit === 'skip' && stderr.includes('previous cherry-pick is now empty')) {
+        await this.cherryPickSkip();
         return {
-          conflicts: true,
+          conflicts: false,
         };
       }
+
+      return {
+        conflicts: true,
+      };
     }
   }
 

@@ -37,6 +37,7 @@ export class GitHubClient {
     const headers: { [key: string]: string } = {
       'User-Agent': GitHubClient.USER_AGENT,
       Accept: 'application/vnd.github.v3+json',
+      ['X-GitHub-Api-Version']: '2022-11-28',
     };
 
     if (token) {
