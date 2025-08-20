@@ -60,6 +60,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
             isCloning: false,
           });
 
+          this.updateCloningState(false);
+
           webviewView.webview.postMessage({
             command: WebviewCommand.CANCEL_PR_CLONE,
           });
@@ -275,7 +277,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleClonePR(data: any) {
     try {
       // Set loading state
-      this.updateLoadingState(true);
+      this.updateCloningState(true);
 
       if (!this.prCloneService || !this.currentPrData) {
         throw new Error('PR Clone service or PR data not initialized');
@@ -363,14 +365,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateLoadingState(isCloning: boolean) {
+  private updateCloningState(isCloning: boolean) {
     if (!this.webviewView) {
       return;
     }
 
     this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_CLONING_STATE,
-      isLoading: isCloning,
+      isCloning,
     });
 
     // Update commits webview cloning state

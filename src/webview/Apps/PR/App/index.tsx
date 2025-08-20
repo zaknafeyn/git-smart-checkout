@@ -57,7 +57,7 @@ export const App: React.FC = () => {
 
   const handleStartOver = () => {
     logger.info('Starting over ...');
-    const newState: AppState = { view: 'input' };
+    const newState: AppState = { view: 'input', isCloning: false };
     setState(newState);
     // Clear saved state when starting over
     try {
