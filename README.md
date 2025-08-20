@@ -67,7 +67,7 @@ The extension includes a powerful **GitHub PR Clone** feature that enables devel
 
 ### How it works
 
-1. **Initiate PR Clone**: Use the `Git: Clone pull request...` command from the command palette
+1. **Initiate PR Clone**: Use the `GitHub: Clone pull request...` command from the command palette
 2. **Select Target PR**: Choose the GitHub pull request you want to clone from
 3. **Configure Options**:
    - Select target branch (where your new PR will be merged)

@@ -76,7 +76,7 @@
       {
         "command": "git-smart-checkout.clonePullRequest",
         "title": "Clone pull request...",
-        "category": "Git",
+        "category": "GitHub",
         "icon": {
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
