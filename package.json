@@ -201,7 +201,7 @@
     "watch-webview": "webpack --mode development --config webpack.webview.config.js --watch",
     "serve-webview": "webpack serve --mode development --config webpack.webview.config.js",
     "dev": "npm-run-all -p watch:esbuild serve-webview",
-    "build-all": "yarn check-types-webview && yarn build-webview && yarn package"
+    "build-all": "yarn check-types && yarn check-types-webview && yarn build-webview && yarn package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",

@@ -17,7 +17,8 @@
       "Bash(yarn check-types-webview:*)",
       "WebFetch(domain:code.visualstudio.com)",
       "Bash(yarn compile)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(yarn build-all)"
     ],
     "deny": []
   },

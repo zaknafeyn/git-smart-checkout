@@ -14,8 +14,5 @@
     "declarationMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", ".vscode-test", "src/webview/**/*"],
-  "references": [
-    { "path": "./tsconfig.webview.json" }
-  ]
+  "exclude": ["node_modules", ".vscode-test", "src/webview/**/*"]
 }

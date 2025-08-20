@@ -35,7 +35,7 @@ module.exports = (env, argv) => {
             loader: 'ts-loader',
             options: {
               configFile: path.resolve(__dirname, 'tsconfig.webview.json'),
-              transpileOnly: !isProduction,
+              transpileOnly: true,
             },
           },
           exclude: /node_modules/,
