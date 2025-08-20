@@ -49,3 +49,41 @@ This mode is just ordinary checkout without any auto stash functionality.
 ## Pull with stash
 
 The extension provides a convenient **Pull with stash** feature. When you run this command, your uncommitted changes are automatically stashed before pulling updates from the remote branch. After the pull completes, your changes are restored. This ensures a smooth workflow and prevents conflicts or loss of local changes during a pull operation.
+
+## GitHub PR Clone (BETA)
+
+The extension includes a powerful **GitHub PR Clone** feature that enables developers to create new pull requests by cherry-picking selected commits from existing PRs. This feature is valuable for selective feature adoption and maintain the same feature between different branches.
+
+> [!TIP]
+> This feature is in BETA stage, any feedback, suggestions or PRs, are very welcome
+
+### Value and Use Cases
+
+- **Selective feature adoption**: Pick only the commits you need from a large PR without taking unwanted changes
+- **Code review workflows**: Create focused PRs from larger feature branches for easier review
+- **Bug fix extraction**: Extract specific bug fixes from feature branches to hotfix branches
+- **Collaborative development**: Build upon others' work by cherry-picking their commits into your branch
+- **Version control**: Maintain clean commit history by selecting only relevant changes
+
+### How it works
+
+1. **Initiate PR Clone**: Use the `Git: Clone pull request...` command from the command palette
+2. **Select Target PR**: Choose the GitHub pull request you want to clone from
+3. **Configure Options**:
+   - Select target branch (where your new PR will be merged)
+   - Choose feature branch name for your new PR
+   - Add description for the new PR
+   - Select specific commits to cherry-pick
+4. **Cherry-pick Process**: The extension automatically:
+   - Stashes any uncommitted changes in your workspace
+   - Switches to the target branch and pulls latest changes
+   - Creates a new feature branch
+   - Cherry-picks selected commits one by one
+   - Handles conflicts with user interaction when needed
+5. **Conflict Resolution**: When conflicts occur during cherry-picking, you have three options:
+   - **Resolve**: Fix conflicts manually and continue
+   - ~~**Skip**: Skip the problematic commit and continue with the next one~~ (still in development)
+   - **Cancel**: Abort the entire process and restore original state
+6. **PR Creation**: Once all commits are processed, the extension automatically creates a new GitHub pull request or draft
+
+The entire process is tracked with progress indicators and can be safely cancelled at any point, ensuring your workspace is restored to its original state.

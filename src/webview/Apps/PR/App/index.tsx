@@ -95,7 +95,8 @@ export const App: React.FC = () => {
             prData: message.prData,
             commits: message.commits,
             branches: message.branches,
-            defaultTargetBranch: message.defaultTargetBranch
+            defaultTargetBranch: message.defaultTargetBranch,
+            prBranchPrefix: message.prBranchPrefix
           });
           break;
         case message.command === WebviewCommand.TARGET_BRANCH_SELECTED:
@@ -145,6 +146,7 @@ export const App: React.FC = () => {
         onStartOver={handleStartOver}
         selectedTargetBranch={state.targetBranch}
         defaultTargetBranch={state.defaultTargetBranch}
+        prBranchPrefix={state.prBranchPrefix}
         isCloning={state.isCloning || false}
       />
     );

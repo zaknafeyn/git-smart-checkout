@@ -207,9 +207,10 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       return;
     }
 
-    // Get default target branch from configuration
+    // Get default target branch and PR branch prefix from configuration
     const config = this.configurationManager.get();
     const defaultTargetBranch = config.defaultTargetBranch || 'main';
+    const prBranchPrefix = config.prBranchPrefix || '';
 
     // Validate that the default target branch exists in available branches
     if (
@@ -227,6 +228,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       commits,
       branches,
       defaultTargetBranch,
+      prBranchPrefix,
     });
 
     // Also update the commits webview

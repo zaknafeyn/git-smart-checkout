@@ -21,6 +21,7 @@ interface PrCloneFormProps {
   onStartOver: () => void;
   selectedTargetBranch?: string;
   defaultTargetBranch?: string;
+  prBranchPrefix?: string;
   isCloning: boolean;
 }
 
@@ -32,6 +33,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   onStartOver,
   selectedTargetBranch,
   defaultTargetBranch,
+  prBranchPrefix,
   isCloning,
   
 }) => {
@@ -43,10 +45,16 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     return prData.head.ref || branches[0] || 'main';
   });
   
-  //todo: add prefix to settings??
-  const devPrefix = "test/";
+  // Create the prefix - add "/" if the prefix doesn't end with "/" and is not empty
+  const createPrefix = (prefix?: string): string => {
+    if (!prefix || !prefix.trim()) {
+      return '';
+    }
+    return prefix.endsWith('/') ? prefix : `${prefix}/`;
+  };
 
-  const [featureBranch, setFeatureBranch] = useState(`${devPrefix}${prData.head.ref}_clone`);
+  const prefix = createPrefix(prBranchPrefix);
+  const [featureBranch, setFeatureBranch] = useState(`${prefix}${prData.head.ref}_clone`);
   const [description, setDescription] = useState(() => {
     const result = [
       `[Cloned from PR #${prData.number}](${prData.html_url})`,

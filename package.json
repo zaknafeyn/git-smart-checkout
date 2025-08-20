@@ -161,6 +161,11 @@
           "default": "main",
           "description": "Default target branch for PR cloning. Leave empty to use the first available branch."
         },
+        "git-smart-checkout.prBranchPrefix": {
+          "type": "string",
+          "default": "",
+          "description": "Prefix to add to PR clone branch names. If specified and doesn't end with '/', a '/' will be automatically added."
+        },
         "git-smart-checkout.showStatusBar": {
           "type": "boolean",
           "default": true,

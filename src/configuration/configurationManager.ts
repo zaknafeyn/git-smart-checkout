@@ -13,6 +13,7 @@ export class ConfigurationManager {
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
+      prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
       // todo: update when tem dir cherry pick service is ready
       useInPlaceCherryPick: true,
       // useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
@@ -30,6 +31,7 @@ export class ConfigurationManager {
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
+      prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
       // todo: update when tem dir cherry pick service is ready
       useInPlaceCherryPick: true,
       // useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),

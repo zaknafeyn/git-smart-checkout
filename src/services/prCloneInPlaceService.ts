@@ -102,6 +102,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
           this.updateProgress?.report({
             message: `There are conflicts on commit ${nextCommit.value.sha}, (${nextCommit.value.current} of ${nextCommit.value.total})`,
           });
+          // switch to source control tab to resolve conflicts
+          await commands.executeCommand('workbench.view.scm');
           return;
         } else {
           await this.cherryPickNext();
@@ -257,7 +259,9 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // start cherry picking
       this.cherryPickNext();
-    } catch (error) {}
+    } catch (error) {
+      //todo: handle error
+    }
   }
 
   private async createGitHubPR(
