@@ -149,7 +149,6 @@ export function activate(context: vscode.ExtensionContext) {
     showNotificationCommand,
     prCancelCloneMenuCommand,
     prConflictsResolvedMenuCommand,
-    prSkipCherryPickMenuCommand,
     prCloneWebViewProvider,
     prCommitsWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.prClone`, prCloneWebViewProvider),
