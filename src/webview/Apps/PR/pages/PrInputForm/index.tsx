@@ -35,14 +35,27 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !loadPullRequestData.isLoading) {
-        onCancel();
+      if (event.key === 'Escape') {
+        handleCancel();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel, loadPullRequestData.isLoading]);
+  }, [loadPullRequestData.isLoading]);
+
+  const handleCancel = () => {
+    if (loadPullRequestData.isLoading) {
+      // Cancel the fetch process but don't close panel
+      loadPullRequestData.finish();
+      logger.info('PR fetch cancelled by user');
+      // todo: remove onCancel and send message to provider to cancer running request
+      onCancel();
+    } else {
+      // Close the panel when not fetching
+      onCancel();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     logger.info('Fetching PR data ...')
@@ -74,8 +87,7 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
           <Button
             type="button"
             variant="secondary"
-            onClick={onCancel}
-            disabled={loadPullRequestData.isLoading}
+            onClick={handleCancel}
           >
             Cancel
           </Button>

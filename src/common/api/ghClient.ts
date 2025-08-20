@@ -21,17 +21,28 @@ export class GitHubClient {
     return this._repo;
   }
 
-  private async getAuthToken(): Promise<string | undefined> {
+  private async getAuthToken(reAuthenticate = false): Promise<string | undefined> {
     try {
-      const session = await authentication.getSession('github', ['repo'], { createIfNone: true });
+      const scope = ['repo'];
+      const session = reAuthenticate
+        ? await authentication.getSession('github', scope, {
+            forceNewSession: true,
+            clearSessionPreference: true,
+          })
+        : await authentication.getSession('github', scope, { createIfNone: true });
       return session.accessToken;
     } catch (error) {
       throw new Error(`GitHub authentication failed: ${error}`);
     }
   }
 
-  private async makeRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
-    const token = await this.getAuthToken();
+  private async makeRequest<T>(
+    endpoint: string,
+    method: string = 'GET',
+    body?: any,
+    reAuthenticate = false
+  ): Promise<T> {
+    const token = await this.getAuthToken(reAuthenticate);
     const url = `${GitHubClient.BASE_URL}${endpoint}`;
 
     const headers: { [key: string]: string } = {
@@ -62,6 +73,10 @@ export class GitHubClient {
         });
 
         res.on('end', () => {
+          if (res.statusCode && res.statusCode === 403) {
+            // todo: add reauthenticate method and retry
+          }
+
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             try {
               resolve(JSON.parse(data));

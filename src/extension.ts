@@ -17,8 +17,6 @@ import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log(`Extension "${EXTENSION_NAME}" is now active!`);
-
   const commandManager = new CommandManager();
 
   const configManager = new ConfigurationManager();
@@ -37,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
     prCloneService
   );
 
-  logService.info('Start...');
+  logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
   // Set initial context to hide PR Clone view and commits view
   setContextShowPRClone(false);
