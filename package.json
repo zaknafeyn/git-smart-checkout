@@ -13,7 +13,11 @@
     "git",
     "checkout",
     "stash",
-    "auto stash"
+    "auto stash",
+    "pull request",
+    "PR",
+    "pr clone",
+    "clone pull request"
   ],
   "license": "MIT",
   "version": "0.0.1",

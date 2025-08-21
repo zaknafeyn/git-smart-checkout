@@ -273,13 +273,19 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
   ): Promise<GitHubPR> {
     const prBody = description;
 
+    // Extract labels and assignees from original PR
+    const labels = originalPr.labels?.map(label => label.name) || [];
+    const assignees = originalPr.assignees?.map(assignee => assignee.login) || [];
+
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(
       originalPr.title, // Use original PR title
       prBody,
       featureBranch,
       targetBranch,
-      isDraft
+      isDraft,
+      labels,
+      assignees
     );
 
     this.loggingService.info(`Created PR #${newPr.number}: ${newPr.title}`);

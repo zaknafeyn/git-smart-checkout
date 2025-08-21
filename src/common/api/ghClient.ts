@@ -2,7 +2,7 @@ import * as https from 'https';
 import { authentication } from 'vscode';
 
 import { EXTENSION_NAME } from '../../const';
-import { GitHubCommit, GitHubCommitFile, GitHubPR } from '../../types/dataTypes';
+import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubUser } from '../../types/dataTypes';
 
 export class GitHubClient {
   private static readonly BASE_URL = 'https://api.github.com';
@@ -72,9 +72,21 @@ export class GitHubClient {
           data += chunk;
         });
 
-        res.on('end', () => {
+        res.on('end', async () => {
           if (res.statusCode && res.statusCode === 403) {
-            // todo: add reauthenticate method and retry
+            // Check if this is a SAML enforcement error and we haven't already retried with re-auth
+            if (!reAuthenticate && data.includes('Resource protected by organization SAML enforcement')) {
+              try {
+                // Retry with re-authentication
+                const result = await this.makeRequest<T>(endpoint, method, body, true);
+                resolve(result);
+                return;
+              } catch (retryError) {
+                // If re-authentication fails, throw the retry error instead of the original
+                reject(retryError);
+                return;
+              }
+            }
           }
 
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
@@ -195,10 +207,12 @@ export class GitHubClient {
     body: string,
     head: string,
     base: string,
-    isDraft: boolean = false
+    isDraft: boolean = false,
+    labels?: string[],
+    assignees?: string[]
   ): Promise<GitHubPR> {
     const endpoint = `/repos/${this.owner}/${this.repo}/pulls`;
-    const requestBody = {
+    const requestBody: any = {
       title,
       body,
       head,
@@ -206,6 +220,22 @@ export class GitHubClient {
       draft: isDraft,
     };
 
+    // Add labels and assignees if provided
+    if (labels && labels.length > 0) {
+      requestBody.labels = labels;
+    }
+    if (assignees && assignees.length > 0) {
+      requestBody.assignees = assignees;
+    }
+
     return this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
+  }
+
+  /**
+   * Fetch all labels from the repository
+   */
+  public async fetchLabels(): Promise<GitHubLabel[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/labels`;
+    return this.makeRequest<GitHubLabel[]>(endpoint);
   }
 }

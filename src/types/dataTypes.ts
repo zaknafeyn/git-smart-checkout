@@ -1,3 +1,9 @@
+export interface GitHubUser {
+  id: number;
+  login: string;
+  avatar_url: string;
+}
+
 export interface GitHubPR {
   number: number;
   title: string;
@@ -10,6 +16,8 @@ export interface GitHubPR {
     ref: string;
   };
   html_url: string;
+  labels: GitHubLabel[];
+  assignees: GitHubUser[];
 }
 
 export interface GitHubCommitFile {
@@ -27,6 +35,14 @@ export interface GitHubCommit {
   };
   parents: { sha: string }[];
   files?: GitHubCommitFile[];
+}
+
+export interface GitHubLabel {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  default: boolean;
 }
 
 export interface AppState {
