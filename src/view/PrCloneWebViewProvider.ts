@@ -218,7 +218,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       defaultTargetBranch.trim() &&
       !branches.includes(defaultTargetBranch)
     ) {
-      this.handleInvalidDefaultBranch(defaultTargetBranch, branches);
+      this.handleInvalidDefaultBranch(defaultTargetBranch);
       return;
     }
 
@@ -303,12 +303,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         `Failed to clone PR: ${error instanceof Error ? error.message : error}`
       );
     }
-
-    //todo: use updateLoadingState(false) in another method that finalizes or cancels current pr clone process
-    // finally {
-    //   // Clear loading state
-    //   this.updateLoadingState(false);
-    // }
   }
 
   private async handleCancelPRClone() {
@@ -339,13 +333,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private async handleInvalidDefaultBranch(
-    defaultTargetBranch: string,
-    availableBranches: string[]
-  ) {
-    this.loggingService.error(
-      `Default target branch '${defaultTargetBranch}' does not exist in available branches: ${availableBranches.join(', ')}`
-    );
+  private async handleInvalidDefaultBranch(defaultTargetBranch: string) {
+    const errorMessage = `Default target branch '${defaultTargetBranch}' does not exist in your repository. Please update the extension settings.`;
+    this.loggingService.error(errorMessage);
 
     // Hide the activity bar and webviews
     await setContextShowPRClone(false);
@@ -353,10 +343,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
     // Show dismissible error notification with settings button
     const openSettingsAction = 'Open Settings';
-    const selectedAction = await window.showErrorMessage(
-      `Default target branch '${defaultTargetBranch}' does not exist in your repository. Available branches: ${availableBranches.join(', ')}. Please update the extension settings.`,
-      openSettingsAction
-    );
+    const selectedAction = await window.showErrorMessage(errorMessage, openSettingsAction);
 
     if (selectedAction === openSettingsAction) {
       // Open extension settings

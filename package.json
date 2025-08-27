@@ -173,13 +173,12 @@
         "git-smart-checkout.showStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show or hide the extension's status bar item"
+          "description": "Show the extension's status bar item"
         },
         "git-smart-checkout.useInPlaceCherryPick": {
           "type": "boolean",
           "default": true,
-          "description": "(READONLY!) Use in-place cherry-pick instead of temporary worktree for PR cloning",
-          "scope": "machine"
+          "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning (this method doesn't allow to solve conflicts, so use when completely sure that there will be no conflicts during cherry pick"
         }
       }
     }

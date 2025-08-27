@@ -264,6 +264,11 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     }
   }
 
+  dispose() {
+    this.cleanUpActionEnd = [];
+    this.cleanUpActionBegin = [];
+  }
+
   private async createGitHubPR(
     originalPr: GitHubPR,
     featureBranch: string,
@@ -274,8 +279,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     const prBody = description;
 
     // Extract labels and assignees from original PR
-    const labels = originalPr.labels?.map(label => label.name) || [];
-    const assignees = originalPr.assignees?.map(assignee => assignee.login) || [];
+    const labels = originalPr.labels?.map((label) => label.name) || [];
+    const assignees = originalPr.assignees?.map((assignee) => assignee.login) || [];
 
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(

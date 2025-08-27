@@ -14,9 +14,7 @@ export class ConfigurationManager {
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
-      // todo: update when tem dir cherry pick service is ready
-      useInPlaceCherryPick: true,
-      // useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
+      useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
@@ -32,9 +30,7 @@ export class ConfigurationManager {
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
-      // todo: update when tem dir cherry pick service is ready
-      useInPlaceCherryPick: true,
-      // useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
+      useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },

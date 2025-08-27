@@ -51,17 +51,26 @@ export class GitExecutor {
   }
 
   async #checkLocalBranchExists(branchName: string): Promise<boolean> {
+    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
+
     try {
-      await this.#execGitCommand(`git show-ref --verify --quiet refs/heads/${branchName}`);
+      await this.#execGitCommand(command);
+
       return true;
     } catch {
       return false;
     }
   }
 
-  async #checkRemoteBranchExists(branchName: string): Promise<boolean> {
+  async #checkRemoteBranchExists(
+    branchName: string,
+    includeRemoteName = false,
+    remoteName = 'origin'
+  ): Promise<boolean> {
+    const command = `git show-ref --verify --quiet refs/remotes${includeRemoteName ? `/${remoteName}` : ''}/${branchName}`;
+
     try {
-      await this.#execGitCommand(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`);
+      await this.#execGitCommand(command);
       return true;
     } catch {
       return false;
@@ -105,14 +114,14 @@ export class GitExecutor {
     return branchName;
   }
 
-  async checkout(branchName: string) {
+  async checkout(branchName: string, remoteName = 'origin') {
     // Check if it's a remote branch that doesn't have a local counterpart
     const localBranchExists = await this.#checkLocalBranchExists(branchName);
     const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
 
     if (!localBranchExists && remoteBranchExists) {
       // Create a local tracked branch for the remote branch
-      const command = `git checkout -b ${branchName} origin/${branchName}`;
+      const command = `git checkout -b ${branchName} ${remoteName}/${branchName}`;
       const { stdout } = await this.#execGitCommand(command);
       return stdout;
     } else {
@@ -134,12 +143,29 @@ export class GitExecutor {
     return stdout;
   }
 
-  async createBranch(branchName: string, sourceBranch: string | undefined = undefined) {
+  async createBranch(
+    branchName: string,
+    sourceBranch: string | undefined = undefined
+  ): Promise<IGitRef> {
     const command = `git checkout -b ${branchName} ${sourceBranch ? sourceBranch : ''}`;
 
-    const { stdout } = await this.#execGitCommand(command);
+    await this.#execGitCommand(command);
 
-    return stdout;
+    // Get detailed information about the newly created branch
+    const SEPARATOR = '|';
+    const branchInfoCommand = `git for-each-ref --format="%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(authorname)" refs/heads/${branchName}`;
+    const { stdout: branchInfo } = await this.#execGitCommand(branchInfoCommand);
+
+    const [, hash, committerDate, comment, authorName] = branchInfo.trim().split(SEPARATOR);
+
+    return {
+      name: branchName,
+      fullName: branchName,
+      hash,
+      comment,
+      authorName,
+      committerDate,
+    };
   }
 
   async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked') {
@@ -431,21 +457,11 @@ export class GitExecutor {
   }
 
   async branchExist(branchName: string) {
-    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
-    const commandRemote = `git show-ref --verify --quiet refs/remotes/origin/${branchName}`;
-
-    try {
-      await this.#execGitCommand(command);
+    if (await this.#checkLocalBranchExists(branchName)) {
       return true;
-    } catch (error) {
-      //verify remote branch
-      try {
-        await this.#execGitCommand(commandRemote);
-        return true;
-      } catch {
-        return false;
-      }
     }
+
+    return await this.#checkRemoteBranchExists(branchName);
   }
 
   async pushBranchToGitHub(branchName: string): Promise<void> {

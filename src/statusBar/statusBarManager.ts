@@ -47,7 +47,6 @@ export class StatusBarManager implements Disposable {
 
     this.statusBarItem.backgroundColor = new ThemeColor(statusBarColor);
 
-    // Show or hide based on configuration
     if (config.showStatusBar) {
       this.statusBarItem.show();
     } else {
