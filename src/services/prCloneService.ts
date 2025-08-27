@@ -8,6 +8,7 @@ import { ConfigurationManager } from '../configuration/configurationManager';
 // import { PrCloneTempWorktreeService } from './prCloneTempWorktreeService';
 import { PrCloneInPlaceService } from './prCloneInPlaceService';
 import { setContextIsCloning } from '../utils/setContext';
+import { PrCloneTempWorktreeService } from './prCloneTempWorktreeService';
 
 export interface PrCloneData {
   prData: GitHubPR;
@@ -24,8 +25,7 @@ export interface ICleanUpActions {
 }
 
 export class PrCloneService {
-  // todo: uncomment when PrCloneTempWorktreeService is ready
-  // private _tempWorktreeService?: PrCloneTempWorktreeService;
+  private _tempWorktreeService?: PrCloneTempWorktreeService;
   private _inPlaceService?: PrCloneInPlaceService;
   private _git?: GitExecutor;
   private _ghClient?: GitHubClient;
@@ -44,13 +44,13 @@ export class PrCloneService {
     return this._isInited;
   }
 
-  // get TempWorktreeService(): PrCloneTempWorktreeService {
-  //   if (!this.isInited || !this._tempWorktreeService) {
-  //     throw new Error(`Getter "TempWorktreeService" is not initialized`);
-  //   }
+  get TempWorktreeService(): PrCloneTempWorktreeService {
+    if (!this.isInited || !this._tempWorktreeService) {
+      throw new Error(`Getter "TempWorktreeService" is not initialized`);
+    }
 
-  //   return this._tempWorktreeService;
-  // }
+    return this._tempWorktreeService;
+  }
 
   get InPlaceService(): PrCloneInPlaceService {
     if (!this.isInited || !this._inPlaceService) {
@@ -84,11 +84,11 @@ export class PrCloneService {
       this._git = git;
       this._ghClient = ghClient;
 
-      // this._tempWorktreeService = new PrCloneTempWorktreeService(
-      //   this.git,
-      //   this.ghClient,
-      //   this.loggingService
-      // );
+      this._tempWorktreeService = new PrCloneTempWorktreeService(
+        this.git,
+        this.ghClient,
+        this.loggingService
+      );
 
       this._inPlaceService = new PrCloneInPlaceService(
         this.git,
@@ -104,11 +104,9 @@ export class PrCloneService {
     setContextIsCloning(true);
 
     if (config.useInPlaceCherryPick) {
-      // todo: remove inPlaceService and clean up class
-      // await this.inPlaceService.clonePR(data);
       await this.InPlaceService.clonePR(data);
     } else {
-      // await this.TempWorktreeService.clonePR(data);
+      await this.TempWorktreeService.clonePR(data);
     }
   }
 
@@ -118,8 +116,7 @@ export class PrCloneService {
     if (config.useInPlaceCherryPick) {
       await this.InPlaceService.cherryPickNext(isContinue);
     } else {
-      // todo: add cherryPickNext to temp workdir flow
-      // await this.TempWorktreeService.clonePR(data);
+      await this.TempWorktreeService.cherryPickNext();
     }
   }
 
@@ -133,6 +130,7 @@ export class PrCloneService {
 
   addCleanUpActions(cleanUpActions: ICleanUpActions) {
     this.InPlaceService.addCleanUpActions(cleanUpActions);
+    this.TempWorktreeService.addCleanUpActions(cleanUpActions);
   }
 
   dispose(): void {
@@ -140,6 +138,7 @@ export class PrCloneService {
       return;
     }
 
-    // this.TempWorktreeService.dispose();
+    this.TempWorktreeService.dispose();
+    this.TempWorktreeService.dispose();
   }
 }

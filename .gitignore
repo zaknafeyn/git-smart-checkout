@@ -12,3 +12,5 @@ coverage/
 post-log.json
 *.tsbuildinfo
 TODO*
+
+*.log

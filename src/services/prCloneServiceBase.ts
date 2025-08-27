@@ -1,9 +1,10 @@
+import { Disposable } from 'vscode';
 import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { LoggingService } from '../logging/loggingService';
 import { ICleanUpActions } from './prCloneService';
 
-export abstract class PrCloneServiceBase {
+export abstract class PrCloneServiceBase extends Disposable {
   protected finishProgress: (() => void) | undefined;
   protected cancelProgress: (() => void) | undefined;
   protected cleanUpActionBegin: (() => void)[] = [];
@@ -13,9 +14,15 @@ export abstract class PrCloneServiceBase {
     protected git: GitExecutor,
     protected ghClient: GitHubClient,
     protected loggingService: LoggingService
-  ) {}
+  ) {
+    super(() => {});
+  }
 
   protected abstract cleanUp(isAborting: boolean): Promise<void>;
+
+  public abstract cherryPickNext(isContinue: boolean): Promise<void>;
+
+  public abstract dispose(): any;
 
   addCleanUpActions({ cleanUpActionBegin, cleanUpActionEnd }: ICleanUpActions) {
     if (cleanUpActionBegin) {

@@ -9,6 +9,7 @@ import {
   getRefLabel,
   ICON_BRANCH,
   ICON_PLUS,
+  ICON_REMOTE_BRANCH,
 } from '../utils/refFormatting';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
 import {
@@ -176,18 +177,33 @@ export class CheckoutToCommand extends BaseCommand {
     };
   }
 
-  async getTargetBranch(git: GitExecutor, selection: string, branchList: IGitRef[]) {
+  async getTargetBranch(
+    git: GitExecutor,
+    selection: string,
+    branchList: IGitRef[]
+  ): Promise<IGitRef> {
+    const iconsToRemove = [ICON_BRANCH, ICON_REMOTE_BRANCH];
+
     switch (true) {
       case selection === LABEL_CREATE_NEW_BRANCH:
         return await this.createNewBranch(git);
       case selection === LABEL_CREATE_NEW_BRANCH_FROM:
         return await this.createNewBranchFrom(git, branchList);
       default:
-        return selection.replace(`${ICON_BRANCH} `, '');
+        const branchName = iconsToRemove.reduce(
+          (prev, icon) => prev.replace(`${icon} `, ''),
+          selection
+        );
+        const branch = branchList.find((ref) => ref.fullName === branchName);
+        if (!branch) {
+          throw new Error(`Cannot find appropriate object for a ref ${branchName}`);
+        }
+
+        return branch;
     }
   }
 
-  async createNewBranch(git: GitExecutor) {
+  async createNewBranch(git: GitExecutor): Promise<IGitRef> {
     const newBranchName = await vscode.window.showInputBox({
       placeHolder: 'Branch name',
       prompt: 'Please provide a new branch name',
@@ -198,8 +214,8 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     try {
-      await git.createBranch(newBranchName);
-      return newBranchName;
+      const newBranch = await git.createBranch(newBranchName);
+      return newBranch;
     } catch (e) {
       await vscode.window.showErrorMessage('Failed to create the new branch.', 'OK');
       throw new Error('Failed to create the new branch.');
@@ -227,9 +243,8 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     try {
-      await git.createBranch(newBranchName, baseBranchName);
-
-      return newBranchName;
+      const newBranch = await git.createBranch(newBranchName, baseBranchName);
+      return newBranch;
     } catch (e) {
       throw new Error('Failed to create the new branch.');
     }
@@ -286,22 +301,28 @@ export class CheckoutToCommand extends BaseCommand {
   async checkoutAndStashChanges(
     git: GitExecutor,
     currentBranch: string,
-    newBranch: string,
+    newBranch: IGitRef,
     autoStashMode: TAutoStashMode = AUTO_STASH_CURRENT_BRANCH
   ) {
+    const newBranchName = newBranch.name;
     const isWorkdirHasChanges = await git.isWorkdirHasChanges();
     switch (autoStashMode) {
       case AUTO_STASH_CURRENT_BRANCH:
-        await this.doAutoStashCurrentBranch(git, currentBranch, newBranch, isWorkdirHasChanges);
+        await this.doAutoStashCurrentBranch(git, currentBranch, newBranchName, isWorkdirHasChanges);
         break;
       case AUTO_STASH_AND_POP_IN_NEW_BRANCH:
-        await this.doAutoStashAndPopInNewBranch(git, currentBranch, newBranch, isWorkdirHasChanges);
+        await this.doAutoStashAndPopInNewBranch(
+          git,
+          currentBranch,
+          newBranchName,
+          isWorkdirHasChanges
+        );
         break;
       case AUTO_STASH_AND_APPLY_IN_NEW_BRANCH:
         await this.doAutoStashAndPopInNewBranch(
           git,
           currentBranch,
-          newBranch,
+          newBranchName,
           isWorkdirHasChanges,
           true
         );
@@ -309,7 +330,7 @@ export class CheckoutToCommand extends BaseCommand {
       case AUTO_STASH_IGNORE:
       default:
         try {
-          await git.checkout(newBranch);
+          await git.checkout(newBranchName);
         } catch (e) {
           throw new Error('Failed to checkout the selected branch.');
         }
