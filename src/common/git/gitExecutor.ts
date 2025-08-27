@@ -464,6 +464,17 @@ export class GitExecutor {
     return await this.#checkRemoteBranchExists(branchName);
   }
 
+  async hasUpstreamBranch(branchName: string): Promise<boolean> {
+    const command = `git rev-parse --abbrev-ref ${branchName}@{upstream}`;
+
+    try {
+      await this.#execGitCommand(command);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async pushBranchToGitHub(branchName: string): Promise<void> {
     const command = `git push -u origin ${branchName}`;
 

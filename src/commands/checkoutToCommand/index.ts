@@ -331,6 +331,9 @@ export class CheckoutToCommand extends BaseCommand {
       default:
         try {
           await git.checkout(newBranchName);
+          if (await git.hasUpstreamBranch(newBranchName)) {
+            await git.pullCurrentBranch();
+          }
         } catch (e) {
           throw new Error('Failed to checkout the selected branch.');
         }
@@ -363,6 +366,9 @@ export class CheckoutToCommand extends BaseCommand {
 
     try {
       await git.checkout(newBranch);
+      if (await git.hasUpstreamBranch(newBranch)) {
+        await git.pullCurrentBranch();
+      }
     } catch (e) {
       throw new Error('Failed to checkout the selected branch.');
     }
@@ -417,6 +423,9 @@ export class CheckoutToCommand extends BaseCommand {
     // Checkout the selected branch
     try {
       await git.checkout(newBranch);
+      if (await git.hasUpstreamBranch(newBranch)) {
+        await git.pullCurrentBranch();
+      }
     } catch (e) {
       throw new Error('Failed to checkout the selected branch.');
     }
