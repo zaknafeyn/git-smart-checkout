@@ -38,12 +38,11 @@ export const LABEL_CREATE_NEW_BRANCH = `${ICON_PLUS} Create new branch...`;
 export const LABEL_CREATE_NEW_BRANCH_FROM = `${ICON_PLUS} Create new branch from...`;
 
 export class CheckoutToCommand extends BaseCommand {
-  private configManager: ConfigurationManager;
-
-  constructor(configManager: ConfigurationManager, logService: LoggingService) {
+  constructor(
+    private configManager: ConfigurationManager,
+    logService: LoggingService
+  ) {
     super(logService);
-
-    this.configManager = configManager;
     this.logService = logService;
   }
 

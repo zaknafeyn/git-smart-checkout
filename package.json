@@ -148,7 +148,8 @@
             "Auto stash and apply in new branch"
           ],
           "default": "manual",
-          "description": "Checkout stash mode"
+          "description": "Checkout stash mode",
+          "scope": "resource"
         },
         "git-smart-checkout.logging.enabled": {
           "type": "boolean",

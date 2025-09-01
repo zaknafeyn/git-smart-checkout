@@ -87,18 +87,18 @@ export class StatusBarManager implements Disposable {
     this.loggingService.info(`New mode: ${newMode}, newModeLabel: ${newModeLabel}`);
 
     if (newMode && newMode !== currentMode) {
-      const modeDetails = AUTO_STASH_MODES_DETAILS[newMode];
+      // const modeDetails = AUTO_STASH_MODES_DETAILS[newMode];
       await this.configManager.updateMode(newMode);
       this.updateStatusBar();
       this.loggingService.info(`Mode switched to: ${newMode}`);
 
-      window
-        .showInformationMessage(`Extension mode changed to: ${modeDetails.label}`, 'Open Settings')
-        .then((selection) => {
-          if (selection === 'Open Settings') {
-            commands.executeCommand(`${EXTENSION_NAME}.openSettings`);
-          }
-        });
+      // window
+      //   .showInformationMessage(`Extension mode changed to: ${modeDetails.label}`, 'Open Settings')
+      //   .then((selection) => {
+      //     if (selection === 'Open Settings') {
+      //       commands.executeCommand(`${EXTENSION_NAME}.openSettings`);
+      //     }
+      //   });
     }
   }
 
