@@ -9,7 +9,7 @@
         // "--disable-extensions",
         "--profile \"Debug\"", //Debug profile with only necessary plugins for debug
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "/Users/valentineradchuk/Dev/aura/gh-mindsight"
+        "<absolute path to a directory to launch in debug mode>"
       ],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}"
