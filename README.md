@@ -82,7 +82,6 @@ The extension includes a powerful **GitHub PR Clone** feature that enables devel
    - Handles conflicts with user interaction when needed
 5. **Conflict Resolution**: When conflicts occur during cherry-picking, you have three options:
    - **Resolve**: Fix conflicts manually and continue
-   - ~~**Skip**: Skip the problematic commit and continue with the next one~~ (still in development)
    - **Cancel**: Abort the entire process and restore original state
 6. **PR Creation**: Once all commits are processed, the extension automatically creates a new GitHub pull request or draft
 
