@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { CheckoutToCommand } from './commands/checkoutToCommand';
+import { CheckoutPreviousCommand } from './commands/checkoutPreviousCommand';
 import { CommandManager } from './commands/commandManager';
 import { PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
@@ -15,6 +16,7 @@ import { setContextShowPRClone, setContextShowPRCommits } from './utils/setConte
 import { PrCloneService } from './services/prCloneService';
 import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
+import { AutoStashService } from './services/autoStashService';
 
 export function activate(context: vscode.ExtensionContext) {
   const commandManager = new CommandManager();
@@ -34,6 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     prCloneService
   );
+  const autoStashService = new AutoStashService(configManager, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
@@ -43,12 +46,15 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
-  const checkoutToCommand = new CheckoutToCommand(configManager, logService);
+  const checkoutToCommand = new CheckoutToCommand(configManager, logService, autoStashService);
+  const checkoutPreviousCommand = new CheckoutPreviousCommand(logService, autoStashService);
   const pullWithStashCommand = new PullWithStashCommand(configManager, logService);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.switchMode`, switchModeCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
+
+  commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
 

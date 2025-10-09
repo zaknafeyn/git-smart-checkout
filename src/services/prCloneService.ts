@@ -139,6 +139,5 @@ export class PrCloneService {
     }
 
     this.TempWorktreeService.dispose();
-    this.TempWorktreeService.dispose();
   }
 }

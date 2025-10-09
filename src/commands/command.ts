@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import { GitExecutor } from '../common/git/gitExecutor';
-import { getWorkspaceFoldersFormatted } from '../common/vscode';
 import { LoggingService } from '../logging/loggingService';
 import { getGitExecutor } from '../utils/getGitExecutor';
 
@@ -24,13 +22,6 @@ export abstract class BaseCommand implements ICommand {
 
   protected async getGitExecutor() {
     return getGitExecutor(this.logService);
-  }
-
-  protected async showQuickPick(
-    items: vscode.QuickPickItem[],
-    options?: vscode.QuickPickOptions
-  ): Promise<vscode.QuickPickItem | undefined> {
-    return await vscode.window.showQuickPick(items, options);
   }
 
   protected async showInformationMessage(

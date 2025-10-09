@@ -505,4 +505,55 @@ export class GitExecutor {
     }
     return null;
   }
+
+  /**
+   * Get the previous branch from git reflog
+   * This implements the same logic as `git checkout -`
+   */
+  async getPreviousBranch(): Promise<IGitRef | null> {
+    try {
+      // Get the reflog entries for HEAD
+      const command = 'git reflog --format="%gs" -n 10';
+      const { stdout } = await this.#execGitCommand(command);
+      
+      const reflogEntries = stdout.trim().split('\n').filter(line => line.trim() !== '');
+      
+      // Look for checkout operations to find the previous branch
+      for (const entry of reflogEntries) {
+        // Match patterns like "checkout: moving from branch1 to branch2"
+        const checkoutMatch = entry.match(/checkout: moving from (.+) to (.+)/);
+        if (checkoutMatch) {
+          const fromBranch = checkoutMatch[1];
+          const toBranch = checkoutMatch[2];
+          
+          // Skip if it's the same as current branch or if it's a detached HEAD
+          if (fromBranch !== 'HEAD' && fromBranch !== toBranch && !fromBranch.includes('detached')) {
+            // Try to resolve full ref info using existing ref listing
+            const allRefs = await this.getAllRefListExtended(false);
+            const matchByName = allRefs.find(ref => !ref.isTag && ref.name === fromBranch);
+            if (matchByName) {
+              return matchByName;
+            }
+
+            const matchByFullName = allRefs.find(ref => !ref.isTag && ref.fullName === fromBranch);
+            if (matchByFullName) {
+              return matchByFullName;
+            }
+
+            // As a fallback, return a minimal IGitRef with available data
+            return {
+              name: fromBranch,
+              fullName: fromBranch,
+              authorName: '',
+            } as IGitRef;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      this.#logService.error(`Failed to get previous branch: ${error}`);
+      return null;
+    }
+  }
 }
