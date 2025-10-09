@@ -510,10 +510,10 @@ export class GitExecutor {
    * Get the previous branch from git reflog
    * This implements the same logic as `git checkout -`
    */
-  async getPreviousBranch(): Promise<IGitRef | null> {
+  async getPreviousBranch(numOfLastCommands = 10): Promise<IGitRef | null> {
     try {
       // Get the reflog entries for HEAD
-      const command = 'git reflog --format="%gs" -n 10';
+      const command = `git reflog --format="%gs" -n ${numOfLastCommands}`;
       const { stdout } = await this.#execGitCommand(command);
       
       const reflogEntries = stdout.trim().split('\n').filter(line => line.trim() !== '');

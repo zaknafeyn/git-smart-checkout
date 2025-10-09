@@ -117,7 +117,7 @@ export class CheckoutToCommand extends BaseCommand {
       { label: LABEL_CREATE_NEW_BRANCH_FROM },
     ];
 
-    const quicPickItems: vscode.QuickPickItem[] = [
+    const quickPickItems: vscode.QuickPickItem[] = [
       ...quickPickActions,
       {
         label: 'Branches',
@@ -147,7 +147,7 @@ export class CheckoutToCommand extends BaseCommand {
     ];
 
     // Show the quick pick list
-    const pickedItem = await vscode.window.showQuickPick(quicPickItems, {
+    const pickedItem = await vscode.window.showQuickPick(quickPickItems, {
       // Options
       placeHolder: 'Select a branch to checkout',
     });

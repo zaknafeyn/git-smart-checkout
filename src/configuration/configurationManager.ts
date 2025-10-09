@@ -43,7 +43,7 @@ export class ConfigurationManager {
 
   public async updateMode(mode: ExtensionConfig['mode']): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
-    await config.update('mode', mode, ConfigurationTarget.Workspace);
+    await config.update('mode', mode, ConfigurationTarget.Global);
   }
 
   public async updateLoggingEnabled(enabled: boolean): Promise<void> {

@@ -8,6 +8,7 @@ import { showQuickPick } from "../commands/utils/showQuickPick";
 import { GitExecutor } from "../common/git/gitExecutor";
 import { getStashMessage } from "../commands/utils/getStashMessage";
 import { IGitRef } from "../common/git/types";
+import { handleErrorMessage } from "../utils/handleErrorMessage";
 
 export class AutoStashService {
   
@@ -32,7 +33,7 @@ export class AutoStashService {
     }
 
     if (mode !== AUTO_STASH_MODE_MANUAL) {
-      // this means that, below code is executed only when config mode is 'manual'
+      // if config mode isn't set to 'manual', skip manual selection of stash mode
       return;
     }
 
@@ -119,15 +120,7 @@ export class AutoStashService {
         await git.createStash(stashMessage);
       }
     } catch (e) {
-      if (e instanceof Error) {
-        if (e.message === 'No local changes to save') {
-          throw new Error('No local changes to stash.');
-        } else {
-          throw new Error('Failed to stash the current changes.');
-        }
-      } else {
-        throw new Error('Failed to stash the current changes.');
-      }
+      handleErrorMessage(e);
     }
 
     try {
@@ -149,15 +142,7 @@ export class AutoStashService {
         await git.popStash(message);
       }
     } catch (e) {
-      if (e instanceof Error) {
-        if (e.message === `No stash found`) {
-          throw new Error('No stash to pop on the new branch.');
-        } else {
-          throw new Error('Failed to pop the stash on the new branch.');
-        }
-      } else {
-        throw new Error('Failed to pop the stash on the new branch.');
-      }
+      handleErrorMessage(e, 'No stash found', 'No stash to pop on the new branch.', 'Failed to pop the stash on the new branch.')
     }
   }
 
@@ -175,15 +160,7 @@ export class AutoStashService {
         await git.createStash(stashMessage);
       }
     } catch (e) {
-      if (e instanceof Error) {
-        if (e.message === 'No local changes to save') {
-          throw new Error('No local changes to stash.');
-        } else {
-          throw new Error('Failed to stash the current changes.');
-        }
-      } else {
-        throw new Error('Failed to stash the current changes.');
-      }
+      handleErrorMessage(e);
     }
 
     // Checkout the selected branch
@@ -210,15 +187,7 @@ export class AutoStashService {
         await git.popStash(stashMessage, apply);
       }
     } catch (e) {
-      if (e instanceof Error) {
-        if (e.message === `No stash found`) {
-          throw new Error(`No stash to ${operation} on the new branch.`);
-        } else {
-          throw new Error(`Failed to ${operation} the stash on the new branch.`);
-        }
-      } else {
-        throw new Error(`Failed to ${operation} the stash on the new branch.`);
-      }
+      handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`)
     }
   }
 }

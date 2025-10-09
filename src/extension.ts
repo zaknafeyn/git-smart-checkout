@@ -18,6 +18,8 @@ import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 
+const EXTENSION_LOADING_TIMEOUT = 250;
+
 export function activate(context: vscode.ExtensionContext) {
   const commandManager = new CommandManager();
 
@@ -82,7 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
       setTimeout(() => {
         // Wait until app fully initialized and clear webview state to start fresh
         prCloneWebViewProvider.clearState();
-      }, 250);
+      }, EXTENSION_LOADING_TIMEOUT);
     }
   );
 

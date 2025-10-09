@@ -1,4 +1,3 @@
-import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
@@ -9,7 +8,6 @@ export class CheckoutPreviousCommand extends BaseCommand {
     private autoStashService: AutoStashService
   ) {
     super(logService);
-    this.logService = logService;
   }
 
   async execute(): Promise<void> {
@@ -44,11 +42,12 @@ export class CheckoutPreviousCommand extends BaseCommand {
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message;
-        message && (await this.showErrorMessage(message, 'OK'));
+        if (message) {
+          await this.showErrorMessage(message, 'OK');
+        }
       } else {
         await this.showErrorMessage('Unknown error', 'OK');
       }
     }
   }
-
 }
