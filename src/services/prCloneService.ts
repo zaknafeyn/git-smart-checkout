@@ -134,10 +134,11 @@ export class PrCloneService {
   }
 
   dispose(): void {
-    if (!this.init) {
+    if (!this.isInited) {
       return;
     }
 
     this.TempWorktreeService.dispose();
+    this.InPlaceService.dispose();
   }
 }

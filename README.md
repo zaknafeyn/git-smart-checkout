@@ -20,6 +20,8 @@ Our goal is simple: make Git smarter, so you don’t have to think about it. `gi
 
 ## Checkout modes
 
+Command: `Git: Checkout to... (With Stash)`  
+
 ### Auto stash in current branch
 
 This mode is useful if you need to keep stash with your branch.
@@ -48,9 +50,19 @@ This mode is just ordinary checkout without any auto stash functionality.
 
 ## Pull with stash
 
+Command:  `Git: Pull (With Stash)`  
+
 The extension provides a convenient **Pull with stash** feature. When you run this command, your uncommitted changes are automatically stashed before pulling updates from the remote branch. After the pull completes, your changes are restored. This ensures a smooth workflow and prevents conflicts or loss of local changes during a pull operation.
 
+## Checkout ot previous branch with stash
+
+Command: `Git: Checkout previous branch (With Stash)`  
+
+This command switches workdir to previously checked branch, similar to command `git checkout -` with autostash using selected autostash mode or offers user to select autostash mode manually.
+
 ## GitHub PR Clone (BETA)
+
+Command: `GitHub: Clone pull request...`  
 
 The extension includes a powerful **GitHub PR Clone** feature that enables developers to create new pull requests by cherry-picking selected commits from existing PRs. This feature is valuable for selective feature adoption and maintain the same feature between different branches.
 
