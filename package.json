@@ -68,6 +68,11 @@
         "category": "Git"
       },
       {
+        "command": "git-smart-checkout.checkoutPrevious",
+        "title": "Checkout previous branch (With Stash)",
+        "category": "Git"
+      },
+      {
         "command": "git-smart-checkout.pullWithStash",
         "title": "Pull (With Stash)",
         "category": "Git"
@@ -111,6 +116,9 @@
           "command": "git-smart-checkout.checkoutTo"
         },
         {
+          "command": "git-smart-checkout.checkoutPrevious"
+        },
+        {
           "command": "git-smart-checkout.pullWithStash"
         },
         {
@@ -148,8 +156,7 @@
             "Auto stash and apply in new branch"
           ],
           "default": "manual",
-          "description": "Checkout stash mode",
-          "scope": "resource"
+          "description": "Checkout stash mode"
         },
         "git-smart-checkout.logging.enabled": {
           "type": "boolean",
