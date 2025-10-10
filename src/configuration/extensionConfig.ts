@@ -14,6 +14,14 @@ export type TAutoStashModeConfig = (typeof autoStashModeConfig)[keyof typeof aut
 
 export const AUTO_STASH_MODES = Object.values(autoStashModeConfig);
 
+export interface PreferredRefsRepo {
+  locals: string[];
+  remotes: string[];
+  tags: string[];
+}
+
+export type PreferredRefsMap = Record<string, PreferredRefsRepo>;
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   refetchBeforeCheckout: boolean;
@@ -24,6 +32,7 @@ export interface ExtensionConfig {
   logging: {
     enabled: boolean;
   };
+  preferredRefs?: PreferredRefsMap;
 }
 
 export interface IAutoStashMode {
