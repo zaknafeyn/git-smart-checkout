@@ -1,20 +1,22 @@
 import * as vscode from 'vscode';
 
 import { GitExecutor } from '../../common/git/gitExecutor';
-import { BaseCommand } from '../command';
 import { IGitRef } from '../../common/git/types';
+import { ConfigurationManager } from '../../configuration/configurationManager';
+import { LoggingService } from '../../logging/loggingService';
+import { AutoStashService } from '../../services/autoStashService';
+import { getRepoId } from '../../utils/getRepoId';
+import { BaseCommand } from '../command';
+import { getMergedBranchLists } from '../utils/getMergedBranchLists';
 import {
   getRefDescription,
   getRefDetails,
   getRefLabel,
+  getRefLabelWithStar,
   ICON_BRANCH,
   ICON_PLUS,
-  ICON_REMOTE_BRANCH,
+  ICON_REMOTE_BRANCH
 } from '../utils/refFormatting';
-import { getMergedBranchLists } from '../utils/getMergedBranchLists';
-import { ConfigurationManager } from '../../configuration/configurationManager';
-import { LoggingService } from '../../logging/loggingService';
-import { AutoStashService } from '../../services/autoStashService';
 
 export const LABEL_CREATE_NEW_BRANCH = `${ICON_PLUS} Create new branch...`;
 export const LABEL_CREATE_NEW_BRANCH_FROM = `${ICON_PLUS} Create new branch from...`;
@@ -99,67 +101,136 @@ export class CheckoutToCommand extends BaseCommand {
       throw new Error('The current workspace is not a git repository.');
     }
 
+    const repoId = await getRepoId(git);
     // Get the list of branches from the separate function
     const branchList = await this.getBranchList(git);
+    const existingFullSet = new Set(
+      branchList.map((ref) =>
+        ref.isTag
+          ? `refs/tags/${ref.name}`
+          : ref.remote
+          ? `refs/remotes/${ref.remote}/${ref.name}`
+          : `refs/heads/${ref.name}`
+      )
+    );
+    await this.configManager.cleanupMissing(repoId, existingFullSet);
 
     const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
-
-    const quickPickTags = branchList
-      .filter((branch) => branch.isTag)
-      .map((tag) => ({
-        label: getRefLabel(tag),
-        description: getRefDescription(tag),
-        detail: getRefDetails(tag),
-      }));
 
     const quickPickActions = [
       { label: LABEL_CREATE_NEW_BRANCH },
       { label: LABEL_CREATE_NEW_BRANCH_FROM },
     ];
 
-    const quickPickItems: vscode.QuickPickItem[] = [
-      ...quickPickActions,
-      {
-        label: 'Branches',
-        kind: vscode.QuickPickItemKind.Separator,
-      },
-      ...locals.map((branch) => ({
-        label: getRefLabel(branch),
-        description: getRefDescription(branch),
-        detail: getRefDetails(branch),
-      })),
-      {
-        label: 'Remote branches',
-        kind: vscode.QuickPickItemKind.Separator,
-      },
+    const preferredLocal = locals.filter((b) => this.configManager.isPreferred(repoId, b));
+    const preferredRemote = remotes.filter((b) => this.configManager.isPreferred(repoId, b));
+    const nonPreferredLocal = locals.filter((b) => !this.configManager.isPreferred(repoId, b));
+    const nonPreferredRemote = remotes.filter((b) => !this.configManager.isPreferred(repoId, b));
+    const preferredTags = branchList.filter((t) => t.isTag && this.configManager.isPreferred(repoId, t));
+    const otherTags = branchList.filter((t) => t.isTag && !this.configManager.isPreferred(repoId, t));
 
-      ...remotes.map((branch) => ({
-        label: getRefLabel(branch),
-        description: getRefDescription(branch),
-        detail: getRefDetails(branch),
-      })),
+    const qp = vscode.window.createQuickPick<
+      vscode.QuickPickItem & { ref?: IGitRef; type?: 'action' | 'ref' }
+    >();
+    qp.title = 'Checkout to...';
+    qp.placeholder = 'Select a branch to checkout';
 
-      {
-        label: 'Tags',
-        kind: vscode.QuickPickItemKind.Separator,
-      },
-      ...quickPickTags,
-    ];
-
-    // Show the quick pick list
-    const pickedItem = await vscode.window.showQuickPick(quickPickItems, {
-      // Options
-      placeHolder: 'Select a branch to checkout',
+    const toItem = (ref: IGitRef): (vscode.QuickPickItem & { ref: IGitRef; type: 'ref' }) => ({
+      label: getRefLabelWithStar(ref, this.configManager.isPreferred(repoId, ref)),
+      description: getRefDescription(ref),
+      detail: getRefDetails(ref),
+      buttons: [
+        {
+          iconPath: new vscode.ThemeIcon(
+            this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
+          ),
+          tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
+        },
+      ],
+      ref,
+      type: 'ref',
     });
 
-    // If the user didn't select anything, return
-    if (!pickedItem) {
+    const buildItems = () => {
+      const items: (vscode.QuickPickItem & { ref?: IGitRef; type?: 'action' | 'ref' })[] = [];
+      items.push(...quickPickActions.map((a) => ({ label: a.label, type: 'action' as const })));
+
+      // if (preferredLocal.length > 0) {
+      //   items.push({ label: 'Preferred branches', kind: vscode.QuickPickItemKind.Separator });
+      //   items.push(...preferredLocal.map(toItem));
+      // }
+
+      // if (preferredRemote.length > 0) {
+      //   items.push({ label: 'Preferred remote branches', kind: vscode.QuickPickItemKind.Separator });
+      //   items.push(...preferredRemote.map(toItem));
+      // }
+
+      items.push({ label: 'Branches', kind: vscode.QuickPickItemKind.Separator });
+      items.push(...preferredLocal.map(toItem), ...nonPreferredLocal.map(toItem));
+
+      items.push({ label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator });
+      items.push(...preferredRemote.map(toItem), ...nonPreferredRemote.map(toItem));
+
+      // if (preferredTags.length > 0) {
+      //   items.push({ label: 'Preferred tags', kind: vscode.QuickPickItemKind.Separator });
+      //   items.push(...preferredTags.map(toItem));
+      // }
+      items.push({ label: 'Tags', kind: vscode.QuickPickItemKind.Separator });
+      items.push(...preferredTags.map(toItem), ...otherTags.map(toItem));
+      return items;
+    };
+
+    qp.items = buildItems();
+
+    qp.onDidTriggerItemButton(async (e) => {
+      const ref = (e.item as any).ref as IGitRef | undefined;
+      if (!ref) {
+        return;
+      }
+      await this.configManager.togglePreferred(repoId, ref, branchList);
+      qp.items = buildItems();
+    });
+
+    const picked = await new Promise<
+      | { kind: 'action'; label: string }
+      | { kind: 'ref'; ref: IGitRef; label: string }
+      | undefined
+    >((resolve) => {
+      qp.onDidAccept(() => {
+        const sel = qp.selectedItems[0] as any;
+        if (!sel) {
+          resolve(undefined);
+          qp.hide();
+          return;
+        }
+        if (sel.type === 'action') {
+          resolve({ kind: 'action', label: sel.label });
+        } else if (sel.type === 'ref' && sel.ref) {
+          resolve({ kind: 'ref', ref: sel.ref, label: sel.label });
+        } else {
+          resolve(undefined);
+        }
+        qp.hide();
+      });
+      qp.onDidHide(() => resolve(undefined));
+      qp.show();
+    });
+
+    if (!picked) {
       throw new Error();
+    }
+
+    if (picked.kind === 'action') {
+      return {
+        currentBranch,
+        selection: picked.label,
+        branchList,
+      };
     }
 
     return {
       currentBranch,
-      selection: pickedItem.label,
+      selection: getRefLabel(picked.ref),
       branchList,
     };
   }

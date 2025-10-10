@@ -188,6 +188,12 @@
           "default": true,
           "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning (this method doesn't allow to solve conflicts, so use when completely sure that there will be no conflicts during cherry pick"
         }
+        ,
+        "git-smart-checkout.preferredRefs": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Per-user map of preferred refs by repository. Keys are `<owner>/<repo>` (GitHub) or workspace folder name; values include arrays: locals, remotes, tags (stored as full refnames like `refs/heads/<name>`, `refs/remotes/<remote>/<name>`, `refs/tags/<name>`)."
+        }
       }
     }
   },
