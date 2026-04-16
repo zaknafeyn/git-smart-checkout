@@ -176,7 +176,7 @@
         "git-smart-checkout.prBranchPrefix": {
           "type": "string",
           "default": "",
-          "description": "Prefix to add to PR clone branch names. If specified and doesn't end with '/', a '/' will be automatically added."
+          "description": "Prefix to add to PR clone branch names. If specified and doesn't end with trailing slash, it will be automatically added."
         },
         "git-smart-checkout.showStatusBar": {
           "type": "boolean",
@@ -187,8 +187,7 @@
           "type": "boolean",
           "default": true,
           "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning (this method doesn't allow to solve conflicts, so use when completely sure that there will be no conflicts during cherry pick"
-        }
-        ,
+        },
         "git-smart-checkout.preferredRefs": {
           "type": "object",
           "default": {},
@@ -239,6 +238,7 @@
     "mini-css-extract-plugin": "^2.7.6",
     "mocha": "^10.1.0",
     "npm-run-all": "^4.1.5",
+    "ovsx": "^0.10.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "style-loader": "^3.3.3",

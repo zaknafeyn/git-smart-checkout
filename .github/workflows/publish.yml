@@ -62,7 +62,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCODE_PAT }}
 
       - name: Publish to Open VSX Registry
-        run: npx ovsx publish -p ${{ secrets.OPEN_VSX_PAT }}
+        run: yarn ovsx publish --yarn --pat ${{ secrets.OPEN_VSX_PAT }}
 
       - name: Create GitHub Release
         uses: actions/create-release@v1.1.4
