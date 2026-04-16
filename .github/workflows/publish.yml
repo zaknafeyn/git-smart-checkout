@@ -2,6 +2,8 @@ name: Deploy VS Code Extension
 
 on:
   push:
+    branches: 
+      - vradchuk/publish-to-open-vsx
     tags:
       - 'v*.*.*' # Triggers on tags like v0.1.2, v1.0.0, etc.
 
