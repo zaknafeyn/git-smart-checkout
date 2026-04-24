@@ -18,7 +18,18 @@
       "WebFetch(domain:code.visualstudio.com)",
       "Bash(yarn compile)",
       "Bash(grep:*)",
-      "Bash(yarn build-all)"
+      "Bash(yarn build-all)",
+      "Bash(npm info *)",
+      "Bash(yarn run *)",
+      "Bash(git -C /Users/vradchuk/Dev/git-smart-checkout log --oneline -5)",
+      "Bash(node -e \"const os = require\\('os'\\); console.log\\(os.tmpdir\\(\\)\\);\")",
+      "Bash(node -e \"const os = require\\('os'\\); const fs = require\\('fs'\\); const path = require\\('path'\\); const dir = fs.mkdtempSync\\(path.join\\(os.tmpdir\\(\\), 'vsc-test-'\\)\\); console.log\\(dir\\); fs.rmSync\\(dir, {recursive:true}\\);\")",
+      "Bash(node -e \"const { format } = require\\('/Users/vradchuk/Dev/git-smart-checkout/node_modules/date-fns'\\); console.log\\(format\\(Date.now\\(\\), \\\\\"yyyy-MM-ddThh:mm:ss\\\\\"\\)\\);\")",
+      "Bash(node -e \"const { format } = require\\('/Users/vradchuk/Dev/git-smart-checkout/node_modules/date-fns'\\); const result = format\\(new Date\\('2026-04-19T10:30:00'\\), \\\\\"yyyy-MM-ddThh:mm:ss\\\\\"\\); console.log\\('format result:', result\\); console.log\\('length:', result.length\\);\")",
+      "Bash(node -e \"const { format } = require\\('/Users/vradchuk/Dev/git-smart-checkout/node_modules/date-fns'\\); console.log\\(format\\(new Date\\(\\), \\\\\"yyyy-MM-dd'T'HH:mm:ss\\\\\"\\)\\); console.log\\('original pattern:', format\\(new Date\\(\\), 'yyyy-MM-ddThh:mm:ss'\\)\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(yarn compile-tests *)",
+      "Bash(yarn add *)"
     ],
     "deny": []
   },
