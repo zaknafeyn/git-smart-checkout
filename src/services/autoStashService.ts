@@ -102,7 +102,8 @@ export class AutoStashService {
             await git.pullCurrentBranch();
           }
         } catch (e) {
-          throw new Error('Failed to checkout the selected branch.');
+          const msg = e instanceof Error ? e.message : String(e);
+          throw new Error(`Failed to checkout the selected branch: ${msg}`);
         }
         break;
     }
@@ -129,7 +130,8 @@ export class AutoStashService {
         await git.pullCurrentBranch();
       }
     } catch (e) {
-      throw new Error('Failed to checkout the selected branch.');
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
 
     try {
@@ -163,14 +165,14 @@ export class AutoStashService {
       handleErrorMessage(e);
     }
 
-    // Checkout the selected branch
     try {
       await git.checkout(nextBranch);
       if (await git.hasUpstreamBranch(nextBranch)) {
         await git.pullCurrentBranch();
       }
     } catch (e) {
-      throw new Error('Failed to checkout the selected branch.');
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
 
     const operation = apply ? 'apply' : 'pop';

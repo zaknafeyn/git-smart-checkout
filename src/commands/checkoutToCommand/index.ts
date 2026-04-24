@@ -39,18 +39,24 @@ export class CheckoutToCommand extends BaseCommand {
 
       const newBranch = await this.getTargetBranch(git, selection, branchList);
 
-      const autoStashMode = await this.autoStashService.getAutoStashMode();
+      const isNewBranch =
+        selection === LABEL_CREATE_NEW_BRANCH ||
+        selection === LABEL_CREATE_NEW_BRANCH_FROM;
 
-      if (!autoStashMode) {
-        return;
+      if (!isNewBranch) {
+        const autoStashMode = await this.autoStashService.getAutoStashMode();
+
+        if (!autoStashMode) {
+          return;
+        }
+
+        await this.autoStashService.checkoutAndStashChanges(
+          git,
+          currentBranch,
+          newBranch,
+          autoStashMode
+        );
       }
-
-      await this.autoStashService.checkoutAndStashChanges(
-        git,
-        currentBranch,
-        newBranch,
-        autoStashMode
-      );
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message;
@@ -275,15 +281,15 @@ export class CheckoutToCommand extends BaseCommand {
       const newBranch = await git.createBranch(newBranchName);
       return newBranch;
     } catch (e) {
-      await vscode.window.showErrorMessage('Failed to create the new branch.', 'OK');
-      throw new Error('Failed to create the new branch.');
+      const msg = e instanceof Error ? e.message : String(e);
+      await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
+      throw new Error(`Failed to create the new branch: ${msg}`);
     }
   }
 
   async createNewBranchFrom(git: GitExecutor, branchList: IGitRef[]) {
     const baseBranchList = branchList.map((branch) => `${ICON_BRANCH} ${branch.fullName}`);
     const baseBranchName = await vscode.window.showQuickPick(baseBranchList, {
-      // Options
       placeHolder: 'Select a branch to base the new branch on',
     });
 
@@ -300,11 +306,26 @@ export class CheckoutToCommand extends BaseCommand {
       throw new Error('New branch name is not provided.');
     }
 
+    const strippedBase = baseBranchName.replace(/^\$\([^)]*\)\s*/, '');
+
     try {
-      const newBranch = await git.createBranch(newBranchName, baseBranchName);
+      const dirty = await git.isWorkdirHasChanges();
+      const stashName = `smart-checkout-new-branch-${Date.now()}`;
+      if (dirty) {
+        await git.createStash(stashName);
+      }
+      const newBranch = await git.createBranch(newBranchName, strippedBase);
+      if (dirty) {
+        try {
+          await git.popStash(stashName);
+        } catch {
+          // conflicts are left for the user to resolve
+        }
+      }
       return newBranch;
     } catch (e) {
-      throw new Error('Failed to create the new branch.');
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Failed to create the new branch: ${msg}`);
     }
   }
 }
