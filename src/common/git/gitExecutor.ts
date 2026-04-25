@@ -373,11 +373,13 @@ export class GitExecutor {
 
     const command = `git merge-tree --write-tree --name-only --no-messages ${targetRef} ${sha}`;
     try {
-      const { stdout } = await this.#execGitCommand(command);
-      return stdout.split('\n').map(l => l.trim()).filter(Boolean);
+      await this.#execGitCommand(command);
+      return []; // exit 0 = clean merge, no conflicts
     } catch (e: any) {
+      // exit 1 = conflicts; stdout is "<tree-oid>\nfile1\nfile2\n…"
       const out: string = e?.stdout ?? '';
-      return out.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      const lines = out.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      return lines.slice(1); // skip the tree OID on the first line
     }
   }
 
