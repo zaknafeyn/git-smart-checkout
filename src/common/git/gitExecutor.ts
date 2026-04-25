@@ -358,6 +358,29 @@ export class GitExecutor {
     return stdout.trim();
   }
 
+  // Predicts stash-apply conflicts before any destructive operations by materializing
+  // the working tree as a temporary commit via `git stash create` (non-destructive —
+  // no entry is pushed to refs/stash) and then running `git merge-tree` to simulate
+  // a 3-way merge of that commit onto targetRef. Requires Git >= 2.38.
+  // `merge-tree` exits non-zero and writes conflicting paths to stdout when conflicts
+  // are found, so we capture stdout from both the success and error paths.
+  async getStashConflictPreview(targetRef: string): Promise<string[]> {
+    const { stdout: stashSha } = await this.#execGitCommand('git stash create');
+    const sha = stashSha.trim();
+    if (!sha) { 
+      return [];
+    }
+
+    const command = `git merge-tree --write-tree --name-only --no-messages ${targetRef} ${sha}`;
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+      return stdout.split('\n').map(l => l.trim()).filter(Boolean);
+    } catch (e: any) {
+      const out: string = e?.stdout ?? '';
+      return out.split('\n').map((l: string) => l.trim()).filter(Boolean);
+    }
+  }
+
   async getConflictedFiles() {
     const command = 'git diff --name-only --diff-filter=U';
 
