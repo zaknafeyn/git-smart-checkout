@@ -21,6 +21,9 @@ export class ConfigurationManager {
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
+      tagTemplate: vscodeConfig.get('tagTemplate', ''),
+      pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
+      tagRemote: vscodeConfig.get('tagRemote', 'origin'),
     };
   }
 
@@ -39,6 +42,9 @@ export class ConfigurationManager {
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
+      tagTemplate: vscodeConfig.get('tagTemplate', ''),
+      pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
+      tagRemote: vscodeConfig.get('tagRemote', 'origin'),
     };
   }
 

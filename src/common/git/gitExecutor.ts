@@ -504,6 +504,28 @@ export class GitExecutor {
     }
   }
 
+  async tagExists(tagName: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(`git show-ref --verify --quiet refs/tags/${tagName}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async createTag(tagName: string): Promise<void> {
+    await this.#execGitCommand(`git tag ${tagName}`);
+  }
+
+  async pushTag(tagName: string, remoteName = 'origin'): Promise<void> {
+    await this.#execGitCommand(`git push ${remoteName} refs/tags/${tagName}`);
+  }
+
+  async listTags(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand('git tag --list');
+    return stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+  }
+
   async getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
     try {
       const remoteUrl = await this.getRemoteUrl();

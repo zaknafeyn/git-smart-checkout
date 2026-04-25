@@ -18,6 +18,7 @@ import { PrCloneService } from './services/prCloneService';
 import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
+import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 
 const EXTENSION_LOADING_TIMEOUT = 250;
 
@@ -61,6 +62,9 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
+
+  const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
 
   // Register clone pull request command
   const clonePullRequestCommand = commands.registerCommand(
