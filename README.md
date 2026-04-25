@@ -100,3 +100,51 @@ The extension includes a powerful **GitHub PR Clone** feature that enables devel
 6. **PR Creation**: Once all commits are processed, the extension automatically creates a new GitHub pull request or draft
 
 The entire process is tracked with progress indicators and can be safely cancelled at any point, ensuring your workspace is restored to its original state.
+
+## Create Tag from Template
+
+Command: `Git: Create Git Tag from Template`
+
+Generate Git tags from a configurable template, with safe token substitution for file values, branch regex matches, and auto-incrementing suffixes — so you never need to look up the current version or ticket number manually.
+
+> [!TIP]
+> Set `git-smart-checkout.tagTemplate` once per project and run `Create Git Tag from Template` from the command palette to produce a correct, collision-free tag in one step.
+
+### Settings
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `git-smart-checkout.tagTemplate` | `""` | Template string. Leave empty to enter tag name manually. |
+| `git-smart-checkout.pushTagWithoutConfirmation` | `false` | Push the created tag automatically without asking. |
+| `git-smart-checkout.tagRemote` | `"origin"` | Remote to push tags to. |
+
+### Template tokens
+
+| Token | Example | Description |
+| --- | --- | --- |
+| `{f:<file>:<json-path>}` | `{f:package.json:.version}` | Reads a JSON value from a workspace-local file. |
+| `{b:<regex>}` | `{b:\b[A-Z]+-\d{3,4}\b}` | Extracts the first regex match from the current branch name. |
+| `{r:<N>}` | `{r:1}` | Auto-increments from N until the resulting tag name does not exist. |
+| `{s:<script>}` or `{s:stdout\|stderr:<script>}` | `{s:./get-build-id.sh}` | Runs a workspace-local script and uses its output. Defaults to `stdout`; specify `stderr` to capture the error stream instead. Tag generation stops if the script fails. |
+
+### Example
+
+With template:
+
+```text
+mobile-v{f:package.json:.version}-{b:\b[A-Z]+-\d{3,4}\b}-{r:1}
+```
+
+On branch `feature/FEAT-123-login` with `package.json` version `12.3.4` and existing tags `mobile-v12.3.4-FEAT-123-1` and `mobile-v12.3.4-FEAT-123-2`, the command generates:
+
+```text
+mobile-v12.3.4-FEAT-123-3
+```
+
+### Manual tag entry
+
+If `git-smart-checkout.tagTemplate` is empty, the command prompts for a tag name. The input is validated and checked for uniqueness before creation.
+
+### Security
+
+File paths in `{f:...}` tokens are restricted to the workspace root — absolute paths, `..` traversal, and symlink escapes are all rejected. Tag names are validated against shell-unsafe characters and `git check-ref-format` rules before any git command is run.

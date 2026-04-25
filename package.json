@@ -111,6 +111,11 @@
           "light": "resources/light/forward.svg",
           "dark": "resources/dark/forward.svg"
         }
+      },
+      {
+        "command": "git-smart-checkout.createTagFromTemplate",
+        "title": "Create Git Tag from Template",
+        "category": "Git"
       }
     ],
     "menus": {
@@ -126,6 +131,9 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
+        },
+        {
+          "command": "git-smart-checkout.createTagFromTemplate"
         }
       ],
       "view/title": [
@@ -200,6 +208,21 @@
           "type": "object",
           "default": {},
           "markdownDescription": "Per-user map of preferred refs by repository. Keys are `<owner>/<repo>` (GitHub) or workspace folder name; values include arrays: locals, remotes, tags (stored as full refnames like `refs/heads/<name>`, `refs/remotes/<remote>/<name>`, `refs/tags/<name>`)."
+        },
+        "git-smart-checkout.tagTemplate": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}-{r:1}`"
+        },
+        "git-smart-checkout.pushTagWithoutConfirmation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically push the created Git tag to the remote without asking for confirmation."
+        },
+        "git-smart-checkout.tagRemote": {
+          "type": "string",
+          "default": "origin",
+          "description": "Git remote used when pushing created tags."
         }
       }
     }

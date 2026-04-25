@@ -34,6 +34,9 @@ export interface ExtensionConfig {
     enabled: boolean;
   };
   preferredRefs?: PreferredRefsMap;
+  tagTemplate: string;
+  pushTagWithoutConfirmation: boolean;
+  tagRemote: string;
 }
 
 export interface IAutoStashMode {
