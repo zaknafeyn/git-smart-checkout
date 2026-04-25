@@ -25,6 +25,7 @@ export type PreferredRefsMap = Record<string, PreferredRefsRepo>;
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   refetchBeforeCheckout: boolean;
+  useFastBranchList: boolean;
   showStatusBar: boolean;
   defaultTargetBranch: string;
   prBranchPrefix: string;

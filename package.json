@@ -28,6 +28,9 @@
   "categories": [
     "Other"
   ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "activationEvents": [
     "onStartupFinished",
     "workspaceContains:.git"
@@ -167,6 +170,11 @@
           "type": "boolean",
           "default": false,
           "description": "Refetch remotes each time before checkout"
+        },
+        "git-smart-checkout.useFastBranchList": {
+          "type": "boolean",
+          "default": true,
+          "description": "Seed the branch picker instantly from VS Code's cached git model, then enrich with full details in the background. Disable if the picker shows stale branches."
         },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",
