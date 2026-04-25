@@ -78,6 +78,54 @@ export function createTestRepo(): TestRepo {
   });
 }
 
+export interface TagTestRepo extends TestRepo {
+  remoteRepoPath: string;
+  remoteHasTag(tagName: string): boolean;
+}
+
+/**
+ * Repo with a bare sibling registered as origin, for testing tag push operations.
+ */
+export function createTagTestRepo(): TagTestRepo {
+  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-tag-remote-'));
+  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+
+  const base = buildRepo('gsc-tag-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+  });
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  execInRepo(`git remote add origin "${remoteRepoPath}"`);
+  execInRepo('git push -u origin main');
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    remoteRepoPath,
+    remoteHasTag(tagName: string): boolean {
+      try {
+        const out = execSync(`git tag --list "${tagName}"`, {
+          cwd: remoteRepoPath,
+          encoding: 'utf-8',
+        });
+        return out.trim() === tagName;
+      } catch {
+        return false;
+      }
+    },
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
 /**
  * Conflict-prone repo. Both branches modify file1.txt divergently so that
  * stashing changes from main and popping/applying them on feature will conflict.
