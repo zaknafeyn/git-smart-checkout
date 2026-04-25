@@ -144,7 +144,7 @@ export class AutoStashService {
         await git.popStash(message);
       }
     } catch (e) {
-      handleErrorMessage(e, 'No stash found', 'No stash to pop on the new branch.', 'Failed to pop the stash on the new branch.')
+      handleErrorMessage(e, 'No stash found', 'No stash to pop on the new branch.', 'Failed to pop the stash on the new branch.');
     }
   }
 
@@ -189,7 +189,7 @@ export class AutoStashService {
         await git.popStash(stashMessage, apply);
       }
     } catch (e) {
-      handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`)
+      handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
     }
   }
 }

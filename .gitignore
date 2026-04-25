@@ -14,3 +14,7 @@ post-log.json
 TODO*
 
 *.log
+test-results/
+
+# .claude
+settings.local.json
