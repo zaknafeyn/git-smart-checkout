@@ -35,6 +35,75 @@ jobs:
       - name: Run e2e tests
         run: yarn test:e2e:ci
 
+      # - name: Generate job summary
+      #   if: always()
+      #   run: |
+      #     python3 << 'EOF'
+      #     import xml.etree.ElementTree as ET
+      #     import os, sys
+
+      #     results_file = 'test-results/e2e-results.xml'
+      #     summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
+
+      #     if not summary_file or not os.path.exists(results_file):
+      #         sys.exit(0)
+
+      #     try:
+      #         root = ET.parse(results_file).getroot()
+      #     except Exception as e:
+      #         print(f"Failed to parse {results_file}: {e}")
+      #         sys.exit(0)
+
+      #     suites = root.findall('testsuite') if root.tag == 'testsuites' else ([root] if root.tag == 'testsuite' else [])
+
+      #     total_tests = total_failures = total_errors = total_skipped = 0
+      #     total_time = 0.0
+      #     rows = []
+
+      #     for suite in suites:
+      #         total_tests   += int(suite.get('tests',    0))
+      #         total_failures += int(suite.get('failures', 0))
+      #         total_errors   += int(suite.get('errors',   0))
+      #         total_skipped  += int(suite.get('skipped',  0))
+      #         total_time     += float(suite.get('time',   0))
+      #         suite_name = suite.get('name', 'Unknown')
+
+      #         for tc in suite.findall('testcase'):
+      #             if   tc.find('failure') is not None: icon = '❌'
+      #             elif tc.find('error')   is not None: icon = '⚠️'
+      #             elif tc.find('skipped') is not None: icon = '⏭️'
+      #             else:                                 icon = '✅'
+      #             rows.append((suite_name, tc.get('name', ''), icon, float(tc.get('time', 0))))
+
+      #     passed = total_tests - total_failures - total_errors - total_skipped
+      #     overall = '✅ Passed' if (total_failures + total_errors) == 0 else '❌ Failed'
+
+      #     lines = [
+      #         f'## E2E Test Results — {overall}',
+      #         '',
+      #         '| | |',
+      #         '|---|---|',
+      #         f'| **Tests** | {total_tests} |',
+      #         f'| **Passed** | {passed} |',
+      #         f'| **Failed** | {total_failures + total_errors} |',
+      #         f'| **Skipped** | {total_skipped} |',
+      #         f'| **Duration** | {total_time:.2f}s |',
+      #         '',
+      #         '<details><summary>Test Details</summary>',
+      #         '',
+      #         '| Suite | Test | Status | Duration |',
+      #         '|---|---|:---:|---|',
+      #     ]
+
+      #     for suite_name, tc_name, icon, t in rows:
+      #         lines.append(f'| {suite_name} | {tc_name} | {icon} | {t:.2f}s |')
+
+      #     lines += ['', '</details>', '']
+
+      #     with open(summary_file, 'a') as f:
+      #         f.write('\n'.join(lines))
+      #     EOF
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,5 +118,5 @@ jobs:
         with:
           name: E2E Test Results
           path: test-results/e2e-results.xml
-          reporter: java-junit
+          reporter: jest-junit
           fail-on-error: false
