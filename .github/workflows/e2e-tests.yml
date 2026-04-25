@@ -26,6 +26,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Cache VS Code test instance
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test
+          key: vscode-test-${{ runner.os }}-${{ hashFiles('.vscode-test.mjs') }}
+          restore-keys: |
+            vscode-test-${{ runner.os }}-
+
       - name: Compile extension and tests
         run: yarn compile && yarn compile-tests
 
