@@ -2,15 +2,26 @@ import { ExecException, ExecSyncOptions } from 'child_process';
 
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
+import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, TUpstreamTrack } from './types';
 
 export class GitExecutor {
   #repositoryPath;
   #logService;
+  #vscodeGitProvider: VscodeGitProvider | undefined;
 
-  constructor(repositoryPath: string, logService: LoggingService) {
+  constructor(repositoryPath: string, logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
     this.#repositoryPath = repositoryPath;
     this.#logService = logService;
+    this.#vscodeGitProvider = vscodeGitProvider;
+  }
+
+  get repositoryPath(): string {
+    return this.#repositoryPath;
+  }
+
+  async getAllRefListFast(): Promise<IGitRef[] | undefined> {
+    return this.#vscodeGitProvider?.getRefsForRepo(this.#repositoryPath);
   }
 
   // #region private

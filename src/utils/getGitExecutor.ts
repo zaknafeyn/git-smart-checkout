@@ -1,9 +1,10 @@
 import { QuickPickItem, window } from 'vscode';
 import { GitExecutor } from '../common/git/gitExecutor';
+import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { getWorkspaceFoldersFormatted } from '../common/vscode';
 import { LoggingService } from '../logging/loggingService';
 
-export const getGitExecutor = async (logService: LoggingService) => {
+export const getGitExecutor = async (logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) => {
   const wsFolders = getWorkspaceFoldersFormatted();
 
   if (!wsFolders || wsFolders.length === 0) {
@@ -11,7 +12,7 @@ export const getGitExecutor = async (logService: LoggingService) => {
   }
 
   if (wsFolders.length === 1) {
-    return new GitExecutor(wsFolders[0].path, logService);
+    return new GitExecutor(wsFolders[0].path, logService, vscodeGitProvider);
   }
 
   const repositoryOptions: QuickPickItem[] = wsFolders.map((wsf) => ({
@@ -29,5 +30,5 @@ export const getGitExecutor = async (logService: LoggingService) => {
 
   const repository = wsFolders.find(({ name }) => name === selectedOption.label);
 
-  return new GitExecutor(repository!.path, logService);
+  return new GitExecutor(repository!.path, logService, vscodeGitProvider);
 };

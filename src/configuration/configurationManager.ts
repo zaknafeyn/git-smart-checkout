@@ -12,6 +12,7 @@ export class ConfigurationManager {
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
+      useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
@@ -29,6 +30,7 @@ export class ConfigurationManager {
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
+      useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),

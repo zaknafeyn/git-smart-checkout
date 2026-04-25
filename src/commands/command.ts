@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { LoggingService } from '../logging/loggingService';
 import { getGitExecutor } from '../utils/getGitExecutor';
 
@@ -20,8 +21,8 @@ export abstract class BaseCommand implements ICommand {
     return await vscode.window.showInputBox(options);
   }
 
-  protected async getGitExecutor() {
-    return getGitExecutor(this.logService);
+  protected async getGitExecutor(vscodeGitProvider?: VscodeGitProvider) {
+    return getGitExecutor(this.logService, vscodeGitProvider);
   }
 
   protected async showInformationMessage(

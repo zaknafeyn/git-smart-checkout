@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { IGitRef } from '../../common/git/types';
+import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
@@ -25,7 +26,8 @@ export class CheckoutToCommand extends BaseCommand {
   constructor(
     private configManager: ConfigurationManager,
     logService: LoggingService,
-    private autoStashService: AutoStashService
+    private autoStashService: AutoStashService,
+    private vscodeGitProvider?: VscodeGitProvider
   ) {
     super(logService);
     this.logService = logService;
@@ -33,7 +35,7 @@ export class CheckoutToCommand extends BaseCommand {
 
   async execute(): Promise<void> {
     try {
-      const git = await this.getGitExecutor();
+      const git = await this.getGitExecutor(this.vscodeGitProvider);
 
       const { currentBranch, selection, branchList } = await this.getSelectedOption(git);
 
@@ -108,32 +110,10 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     const repoId = await getRepoId(git);
-    // Get the list of branches from the separate function
-    const branchList = await this.getBranchList(git);
-    const existingFullSet = new Set(
-      branchList.map((ref) =>
-        ref.isTag
-          ? `refs/tags/${ref.name}`
-          : ref.remote
-          ? `refs/remotes/${ref.remote}/${ref.name}`
-          : `refs/heads/${ref.name}`
-      )
-    );
-    await this.configManager.cleanupMissing(repoId, existingFullSet);
+    const { useFastBranchList } = this.configManager.get();
 
-    const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
-
-    const quickPickActions = [
-      { label: LABEL_CREATE_NEW_BRANCH },
-      { label: LABEL_CREATE_NEW_BRANCH_FROM },
-    ];
-
-    const preferredLocal = locals.filter((b) => this.configManager.isPreferred(repoId, b));
-    const preferredRemote = remotes.filter((b) => this.configManager.isPreferred(repoId, b));
-    const nonPreferredLocal = locals.filter((b) => !this.configManager.isPreferred(repoId, b));
-    const nonPreferredRemote = remotes.filter((b) => !this.configManager.isPreferred(repoId, b));
-    const preferredTags = branchList.filter((t) => t.isTag && this.configManager.isPreferred(repoId, t));
-    const otherTags = branchList.filter((t) => t.isTag && !this.configManager.isPreferred(repoId, t));
+    // Mutable branch list — upgraded in-place when Phase 2 resolves.
+    let branchList: IGitRef[] = [];
 
     const qp = vscode.window.createQuickPick<
       vscode.QuickPickItem & { ref?: IGitRef; type?: 'action' | 'ref' }
@@ -141,52 +121,50 @@ export class CheckoutToCommand extends BaseCommand {
     qp.title = 'Checkout to...';
     qp.placeholder = 'Select a branch to checkout';
 
-    const toItem = (ref: IGitRef): (vscode.QuickPickItem & { ref: IGitRef; type: 'ref' }) => ({
-      label: getRefLabelWithStar(ref, this.configManager.isPreferred(repoId, ref)),
-      description: getRefDescription(ref),
-      detail: getRefDetails(ref),
-      buttons: [
-        {
-          iconPath: new vscode.ThemeIcon(
-            this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
-          ),
-          tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
-        },
-      ],
-      ref,
-      type: 'ref',
-    });
+    const quickPickActions = [
+      { label: LABEL_CREATE_NEW_BRANCH },
+      { label: LABEL_CREATE_NEW_BRANCH_FROM },
+    ];
+
+    const toItem = (ref: IGitRef): (vscode.QuickPickItem & { ref: IGitRef; type: 'ref' }) => {
+      const isPreferred = this.configManager.isPreferred(repoId, ref);
+
+      return {
+        label: getRefLabelWithStar(ref, isPreferred),
+        description: getRefDescription(ref),
+        detail: getRefDetails(ref),
+        buttons: [
+          {
+            iconPath: new vscode.ThemeIcon(
+              this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
+            ),
+            tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
+          },
+        ],
+        ref,
+        type: 'ref',
+      };
+    };
 
     const buildItems = () => {
+      const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
+      const preferredLocal = locals.filter((b) => this.configManager.isPreferred(repoId, b));
+      const preferredRemote = remotes.filter((b) => this.configManager.isPreferred(repoId, b));
+      const nonPreferredLocal = locals.filter((b) => !this.configManager.isPreferred(repoId, b));
+      const nonPreferredRemote = remotes.filter((b) => !this.configManager.isPreferred(repoId, b));
+      const preferredTags = branchList.filter((t) => t.isTag && this.configManager.isPreferred(repoId, t));
+      const otherTags = branchList.filter((t) => t.isTag && !this.configManager.isPreferred(repoId, t));
+
       const items: (vscode.QuickPickItem & { ref?: IGitRef; type?: 'action' | 'ref' })[] = [];
       items.push(...quickPickActions.map((a) => ({ label: a.label, type: 'action' as const })));
-
-      // if (preferredLocal.length > 0) {
-      //   items.push({ label: 'Preferred branches', kind: vscode.QuickPickItemKind.Separator });
-      //   items.push(...preferredLocal.map(toItem));
-      // }
-
-      // if (preferredRemote.length > 0) {
-      //   items.push({ label: 'Preferred remote branches', kind: vscode.QuickPickItemKind.Separator });
-      //   items.push(...preferredRemote.map(toItem));
-      // }
-
       items.push({ label: 'Branches', kind: vscode.QuickPickItemKind.Separator });
       items.push(...preferredLocal.map(toItem), ...nonPreferredLocal.map(toItem));
-
       items.push({ label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator });
       items.push(...preferredRemote.map(toItem), ...nonPreferredRemote.map(toItem));
-
-      // if (preferredTags.length > 0) {
-      //   items.push({ label: 'Preferred tags', kind: vscode.QuickPickItemKind.Separator });
-      //   items.push(...preferredTags.map(toItem));
-      // }
       items.push({ label: 'Tags', kind: vscode.QuickPickItemKind.Separator });
       items.push(...preferredTags.map(toItem), ...otherTags.map(toItem));
       return items;
     };
-
-    qp.items = buildItems();
 
     qp.onDidTriggerItemButton(async (e) => {
       const ref = (e.item as any).ref as IGitRef | undefined;
@@ -197,11 +175,19 @@ export class CheckoutToCommand extends BaseCommand {
       qp.items = buildItems();
     });
 
-    const picked = await new Promise<
+    // Promise that resolves when the user makes a selection (or dismisses).
+    let resolveSelection!: (
+      value:
+        | { kind: 'action'; label: string }
+        | { kind: 'ref'; ref: IGitRef; label: string }
+        | undefined
+    ) => void;
+    const selectionPromise = new Promise<
       | { kind: 'action'; label: string }
       | { kind: 'ref'; ref: IGitRef; label: string }
       | undefined
     >((resolve) => {
+      resolveSelection = resolve;
       qp.onDidAccept(() => {
         const sel = qp.selectedItems[0] as any;
         if (!sel) {
@@ -219,8 +205,61 @@ export class CheckoutToCommand extends BaseCommand {
         qp.hide();
       });
       qp.onDidHide(() => resolve(undefined));
-      qp.show();
     });
+
+    // Phase 1: seed picker immediately from VS Code's cached git model.
+    const fastRefs = useFastBranchList ? await git.getAllRefListFast() : undefined;
+    if (fastRefs && fastRefs.length > 0) {
+      branchList = fastRefs;
+      qp.items = buildItems();
+      qp.busy = true;
+      qp.show();
+    }
+
+    // Phase 2: fetch full data (may include a network fetch when refetchBeforeCheckout is on).
+    // Fire-and-forget — updates the picker when ready.
+    let phase2Error: Error | undefined;
+    const phase2Done = this.getBranchList(git)
+      .then((richRefs) => {
+        branchList = richRefs;
+        qp.items = buildItems();
+        qp.busy = false;
+
+        const existingFullSet = new Set(
+          richRefs.map((ref) =>
+            ref.isTag
+              ? `refs/tags/${ref.name}`
+              : ref.remote
+              ? `refs/remotes/${ref.remote}/${ref.name}`
+              : `refs/heads/${ref.name}`
+          )
+        );
+        this.configManager.cleanupMissing(repoId, existingFullSet);
+
+        if (!fastRefs || fastRefs.length === 0) {
+          qp.items = buildItems();
+          qp.show();
+        }
+      })
+      .catch((err) => {
+        phase2Error = err instanceof Error ? err : new Error(String(err));
+        if (!fastRefs || fastRefs.length === 0) {
+          // No fast data was ever shown — propagate by resolving the selection as cancelled.
+          resolveSelection(undefined);
+        }
+      });
+
+    // Await user selection (picker is already visible or will appear when Phase 2 resolves).
+    const picked = await selectionPromise;
+    qp.dispose();
+
+    // If we had no fast data and Phase 2 failed, surface the error.
+    if (phase2Error && (!fastRefs || fastRefs.length === 0)) {
+      throw phase2Error;
+    }
+
+    // Suppress unused-promise lint warning — we intentionally don't await phase2Done here.
+    void phase2Done;
 
     if (!picked) {
       throw new Error();
