@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as vscode from 'vscode';
 
 import {
   AUTO_STASH_AND_APPLY_IN_NEW_BRANCH,
@@ -19,6 +20,14 @@ function makeRef(name: string): IGitRef {
   return { name, fullName: name, authorName: '' };
 }
 
+// Stubs window.showWarningMessage for the duration of the test suite.
+// Returns a restore function to call in after().
+function stubConflictDialog(answer: string | undefined): () => void {
+  const original = vscode.window.showWarningMessage.bind(vscode.window);
+  (vscode.window as any).showWarningMessage = async () => answer;
+  return () => { (vscode.window as any).showWarningMessage = original; };
+}
+
 describe('AutoStashService — stash pop/apply conflicts', () => {
 
   /**
@@ -26,11 +35,16 @@ describe('AutoStashService — stash pop/apply conflicts', () => {
    * (based on "initial content"). feature has file1.txt = "feature version of file1".
    * Popping the stash on feature conflicts → checkoutAndStashChanges throws, stash
    * entry is retained because git stash pop does not drop the entry on conflict.
+   * Dialog is stubbed to 'Continue' so the user proceeds past the warning.
    */
-  describe('AUTO_STASH_AND_POP_IN_NEW_BRANCH: conflicting changes', () => {
+  describe('AUTO_STASH_AND_POP_IN_NEW_BRANCH: conflicting changes — user continues', () => {
     let repo: TestRepo;
-    before(() => { repo = createConflictTestRepo(); });
-    after(() => { repo.cleanup(); });
+    let restoreDialog: () => void;
+    before(() => {
+      repo = createConflictTestRepo();
+      restoreDialog = stubConflictDialog('Continue');
+    });
+    after(() => { restoreDialog(); repo.cleanup(); });
 
     it('throws an error, checkout still happened, stash entry is retained', async () => {
       repo.makeChange('file1.txt', 'main dirty change\n');
@@ -49,11 +63,16 @@ describe('AutoStashService — stash pop/apply conflicts', () => {
   /**
    * AUTO_STASH_AND_APPLY_IN_NEW_BRANCH: same conflict scenario.
    * apply always retains the stash entry regardless of success or failure.
+   * Dialog is stubbed to 'Continue' so the user proceeds past the warning.
    */
-  describe('AUTO_STASH_AND_APPLY_IN_NEW_BRANCH: conflicting changes', () => {
+  describe('AUTO_STASH_AND_APPLY_IN_NEW_BRANCH: conflicting changes — user continues', () => {
     let repo: TestRepo;
-    before(() => { repo = createConflictTestRepo(); });
-    after(() => { repo.cleanup(); });
+    let restoreDialog: () => void;
+    before(() => {
+      repo = createConflictTestRepo();
+      restoreDialog = stubConflictDialog('Continue');
+    });
+    after(() => { restoreDialog(); repo.cleanup(); });
 
     it('throws an error, checkout still happened, stash entry is retained', async () => {
       repo.makeChange('file1.txt', 'main dirty change\n');
@@ -70,11 +89,59 @@ describe('AutoStashService — stash pop/apply conflicts', () => {
   });
 
   /**
+   * AUTO_STASH_AND_POP_IN_NEW_BRANCH: conflict detected, user cancels.
+   * The operation must abort before any state mutation: no checkout, no stash.
+   */
+  describe('AUTO_STASH_AND_POP_IN_NEW_BRANCH: conflicting changes — user cancels', () => {
+    let repo: TestRepo;
+    let restoreDialog: () => void;
+    before(() => {
+      repo = createConflictTestRepo();
+      restoreDialog = stubConflictDialog('Cancel');
+    });
+    after(() => { restoreDialog(); repo.cleanup(); });
+
+    it('stays on original branch, working tree unchanged, no stash created', async () => {
+      repo.makeChange('file1.txt', 'main dirty change\n');
+
+      await sut.checkoutAndStashChanges(repo.git, repo.mainBranch, makeRef(repo.featureBranch), AUTO_STASH_AND_POP_IN_NEW_BRANCH);
+
+      assert.strictEqual(await repo.git.getCurrentBranch(), repo.mainBranch, 'still on main — checkout was aborted');
+      assert.strictEqual(await repo.git.isWorkdirHasChanges(), true, 'local changes preserved');
+      assert.strictEqual(repo.stashCount(), 0, 'no stash was created');
+    });
+  });
+
+  /**
+   * AUTO_STASH_AND_APPLY_IN_NEW_BRANCH: conflict detected, user cancels.
+   */
+  describe('AUTO_STASH_AND_APPLY_IN_NEW_BRANCH: conflicting changes — user cancels', () => {
+    let repo: TestRepo;
+    let restoreDialog: () => void;
+    before(() => {
+      repo = createConflictTestRepo();
+      restoreDialog = stubConflictDialog('Cancel');
+    });
+    after(() => { restoreDialog(); repo.cleanup(); });
+
+    it('stays on original branch, working tree unchanged, no stash created', async () => {
+      repo.makeChange('file1.txt', 'main dirty change\n');
+
+      await sut.checkoutAndStashChanges(repo.git, repo.mainBranch, makeRef(repo.featureBranch), AUTO_STASH_AND_APPLY_IN_NEW_BRANCH);
+
+      assert.strictEqual(await repo.git.getCurrentBranch(), repo.mainBranch, 'still on main — checkout was aborted');
+      assert.strictEqual(await repo.git.isWorkdirHasChanges(), true, 'local changes preserved');
+      assert.strictEqual(repo.stashCount(), 0, 'no stash was created');
+    });
+  });
+
+  /**
    * AUTO_STASH_CURRENT_BRANCH: stash is named auto-stash-{branch}. On the outbound
    * leg (main → feature) no pop is attempted because no stash named "auto-stash-feature"
    * exists. On the return leg (feature → main) the stash "auto-stash-main" IS popped,
    * but because the stash was taken before the conflict divergence it applies cleanly.
    * This test verifies the full roundtrip succeeds even in a conflict-prone repo.
+   * No dialog stub needed — this mode does not use doAutoStashAndPopInNewBranch.
    */
   describe('AUTO_STASH_CURRENT_BRANCH: roundtrip in conflict-prone repo', () => {
     let repo: TestRepo;

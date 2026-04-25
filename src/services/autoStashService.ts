@@ -1,4 +1,4 @@
-import { QuickPickItem } from "vscode";
+import { QuickPickItem, window } from "vscode";
 import { AUTO_STASH_AND_APPLY_IN_NEW_BRANCH, AUTO_STASH_AND_POP_IN_NEW_BRANCH, AUTO_STASH_CURRENT_BRANCH, AUTO_STASH_IGNORE, AUTO_STASH_PREFIX, DESC_AUTO_STASH_AND_APPLY_IN_NEW_BRANCH, DESC_AUTO_STASH_AND_POP_IN_NEW_BRANCH, DESC_AUTO_STASH_CURRENT_BRANCH, DESC_AUTO_STASH_IGNORE } from "../commands/checkoutToCommand/constants";
 import { TAutoStashMode } from "../commands/checkoutToCommand/types";
 import { ConfigurationManager } from "../configuration/configurationManager";
@@ -148,6 +148,16 @@ export class AutoStashService {
     }
   }
 
+  async #confirmStashConflicts(files: string[], operation: string): Promise<boolean> {
+    const fileList = files.map(f => ` • ${f}`).join('\n');
+    const message =
+      `Switching branches will ${operation} a stash that conflicts with the target branch.\n\n` +
+      `Conflicting files:\n${fileList}\n\n` +
+      `Continue anyway? You will need to resolve conflicts manually after checkout.`;
+    const choice = await window.showWarningMessage(message, { modal: true }, 'Continue', 'Cancel');
+    return choice === 'Continue';
+  }
+
   async doAutoStashAndPopInNewBranch(
     git: GitExecutor,
     currentBranch: string,
@@ -156,9 +166,18 @@ export class AutoStashService {
     apply: boolean = false
   ) {
     const stashMessage = getStashMessage(currentBranch, true);
+    const operation = apply ? 'apply' : 'pop';
 
     try {
       if (isWorkdirHasChanges) {
+        const conflicts = await git.getStashConflictPreview(nextBranch);
+        if (conflicts.length > 0) {
+          const proceed = await this.#confirmStashConflicts(conflicts, operation);
+          if (!proceed) {
+            this.logService.info('User cancelled checkout due to predicted stash conflicts');
+            return;
+          }
+        }
         await git.createStash(stashMessage);
       }
     } catch (e) {
@@ -174,8 +193,6 @@ export class AutoStashService {
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
-
-    const operation = apply ? 'apply' : 'pop';
 
     // nothing to pop if no changes were stashed before checkout
     if (!isWorkdirHasChanges) {

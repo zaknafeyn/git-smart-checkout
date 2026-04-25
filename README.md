@@ -2,6 +2,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![VS Marketplace](https://vsmarketplacebadges.dev/downloads/vradchuk.git-smart-checkout.png)](https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout)  [![Open VSX](https://img.shields.io/open-vsx/dt/vradchuk/git-smart-checkout?style=flat&logo=eclipseide)](https://open-vsx.org/extension/vradchuk/git-smart-checkout)
 
+## Requirements
+
+- Git **2.38** or newer (required for conflict pre-flight detection in *Auto stash and pop/apply* modes)
+
 ## Info
 
 `git-smart-checkout` is a vscode extension that adds a new command `Git: Checkout to ... (With stash)` to command palette that allows to choose stash strategy at checkout.
