@@ -1,0 +1,136 @@
+.footer {
+  padding: 64px 0 32px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 64px;
+  margin-bottom: 48px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 300px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary) !important;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.tagline {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  color: var(--text-muted) !important;
+  font-size: 12px;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.badge:hover {
+  border-color: var(--accent);
+  color: var(--accent) !important;
+}
+
+.links {
+  display: flex;
+  gap: 48px;
+}
+
+.linkGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.linkGroupTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.link {
+  font-size: 14px;
+  color: var(--text-muted) !important;
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: var(--text-secondary) !important;
+}
+
+.bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-subtle);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.copyright {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.copyright a {
+  color: var(--text-muted) !important;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+}
+
+.copyright a:hover {
+  color: var(--text-secondary) !important;
+}
+
+.madeWith {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .top {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .links {
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding: 48px 0 24px;
+  }
+
+  .bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
