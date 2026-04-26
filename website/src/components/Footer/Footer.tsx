@@ -5,6 +5,9 @@ const OPEN_VSX_URL = 'https://open-vsx.org/extension/vradchuk/git-smart-checkout
 const GITHUB_URL = 'https://github.com/zaknafeyn/git-smart-checkout';
 const ISSUES_URL = 'https://github.com/zaknafeyn/git-smart-checkout/issues';
 const CHANGELOG_URL = 'https://github.com/zaknafeyn/git-smart-checkout/blob/main/CHANGELOG.md';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/valentineradchuk/';
+const GITHUB_PROFILE_URL = 'https://github.com/zaknafeyn';
+const PERSONAL_SITE_URL = 'https://vradchuk.info/';
 
 export function Footer() {
   return (
@@ -59,6 +62,14 @@ export function Footer() {
               <a href="#stash-modes" className={styles.link}>Stash Modes</a>
               <a href="#roadmap" className={styles.link}>Roadmap</a>
               <a href="#install" className={styles.link}>Installation</a>
+              <a href="#contact" className={styles.link}>Contact</a>
+            </div>
+
+            <div className={styles.linkGroup}>
+              <h4 className={styles.linkGroupTitle}>Author</h4>
+              <a href={LINKEDIN_URL} target="_blank" rel="noreferrer" className={styles.link}>LinkedIn</a>
+              <a href={GITHUB_PROFILE_URL} target="_blank" rel="noreferrer" className={styles.link}>GitHub Profile</a>
+              <a href={PERSONAL_SITE_URL} target="_blank" rel="noreferrer" className={styles.link}>vradchuk.info</a>
             </div>
           </div>
         </div>
