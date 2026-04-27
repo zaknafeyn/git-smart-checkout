@@ -18,3 +18,11 @@ test-results/
 
 # .claude
 settings.local.json
+.claude/memory/
+.claude/sessions/
+.claude/state/
+changed-files.jsonl
+
+# website build artifacts (sources kept, build output lives in gh-web-site branch)
+website/dist/
+website/node_modules/
