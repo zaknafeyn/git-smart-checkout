@@ -1,5 +1,7 @@
 # git-smart-checkout
 
+ Website https://git-smart-checkout.vradchuk.info
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![VS Marketplace](https://vsmarketplacebadges.dev/downloads/vradchuk.git-smart-checkout.png)](https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout)  [![Open VSX](https://img.shields.io/open-vsx/dt/vradchuk/git-smart-checkout?style=flat&logo=eclipseide)](https://open-vsx.org/extension/vradchuk/git-smart-checkout)
 
 ## Requirements
