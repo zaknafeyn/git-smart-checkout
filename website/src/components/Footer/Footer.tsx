@@ -62,14 +62,13 @@ export function Footer() {
               <a href="#stash-modes" className={styles.link}>Stash Modes</a>
               <a href="#roadmap" className={styles.link}>Roadmap</a>
               <a href="#install" className={styles.link}>Installation</a>
-              <a href="#contact" className={styles.link}>Contact</a>
             </div>
 
             <div className={styles.linkGroup}>
               <h4 className={styles.linkGroupTitle}>Author</h4>
               <a href={LINKEDIN_URL} target="_blank" rel="noreferrer" className={styles.link}>LinkedIn</a>
               <a href={GITHUB_PROFILE_URL} target="_blank" rel="noreferrer" className={styles.link}>GitHub Profile</a>
-              <a href={PERSONAL_SITE_URL} target="_blank" rel="noreferrer" className={styles.link}>vradchuk.info</a>
+              <a href={PERSONAL_SITE_URL} target="_blank" rel="noreferrer" className={styles.link}>Personal web page</a>
             </div>
           </div>
         </div>

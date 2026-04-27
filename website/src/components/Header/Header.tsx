@@ -39,7 +39,6 @@ export function Header() {
           <a href="#stash-modes" className={styles.navLink} onClick={() => setMenuOpen(false)}>Stash Modes</a>
           <a href="#roadmap" className={styles.navLink} onClick={() => setMenuOpen(false)}>Roadmap</a>
           <a href="#install" className={styles.navLink} onClick={() => setMenuOpen(false)}>Install</a>
-          <a href="#contact" className={styles.navLink} onClick={() => setMenuOpen(false)}>Contact</a>
           <a href={GITHUB_URL} className={styles.navLink} target="_blank" rel="noreferrer">GitHub</a>
           <a href={MARKETPLACE_URL} className={styles.installBtn} target="_blank" rel="noreferrer">
             Install Free

@@ -4,6 +4,13 @@ const MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=vra
 const OPEN_VSX_URL = 'https://open-vsx.org/extension/vradchuk/git-smart-checkout';
 const GITHUB_URL = 'https://github.com/zaknafeyn/git-smart-checkout';
 
+const EDITORS = [
+  { name: 'VS Code',  url: 'https://code.visualstudio.com/', icon: <img src="/icons/vscode.png"  width={14} height={14} alt="" /> },
+  { name: 'Cursor',   url: 'https://cursor.com/',            icon: <img src="/icons/cursor.png"  width={14} height={14} alt="" /> },
+  { name: 'Windsurf', url: 'https://windsurf.com/',          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="#00C6AE" aria-hidden="true"><path d="M2 13C4.5 7 7.5 7 10 13C12.5 19 15.5 19 18 13C19.5 10 21.5 10 22 13L22 18L2 18Z"/></svg> },
+  { name: 'VSCodium', url: 'https://vscodium.com/',          icon: null },
+];
+
 export function Hero() {
   return (
     <section className={styles.hero}>
@@ -32,8 +39,9 @@ export function Hero() {
             Install on VS Code
           </a>
           <a href={OPEN_VSX_URL} className={styles.btnSecondary} target="_blank" rel="noreferrer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+            <svg width="18" height="18" viewBox="0 0 106 132" aria-hidden="true">
+              <path d="M30 44.2L52.6 5H7.3zM4.6 88.5h45.3L27.2 49.4zm51 0l22.6 39.2 22.6-39.2z" fill="#c160ef"/>
+              <path d="M52.6 5L30 44.2h45.2zM27.2 49.4l22.7 39.1 22.6-39.1zm51 0L55.6 88.5h45.2z" fill="#a60ee5"/>
             </svg>
             Open VSX
           </a>
@@ -48,10 +56,12 @@ export function Hero() {
         <div className={styles.compatRow}>
           <span className={styles.compatLabel}>Works with</span>
           <div className={styles.compatEditors}>
-            <span className={styles.editor}>VS Code</span>
-            <span className={styles.editor}>Cursor</span>
-            <span className={styles.editor}>Windsurf</span>
-            <span className={styles.editor}>VSCodium</span>
+            {EDITORS.map(({ name, url, icon }) => (
+              <a key={name} href={url} className={styles.editor} target="_blank" rel="noreferrer">
+                {icon}
+                {name}
+              </a>
+            ))}
           </div>
         </div>
 
