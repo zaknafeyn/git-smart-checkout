@@ -5,10 +5,10 @@ const OPEN_VSX_URL = 'https://open-vsx.org/extension/vradchuk/git-smart-checkout
 const GITHUB_URL = 'https://github.com/zaknafeyn/git-smart-checkout';
 
 const EDITORS = [
-  { name: 'VS Code',  url: 'https://code.visualstudio.com/', icon: <img src="/icons/vscode.png"  width={14} height={14} alt="" /> },
-  { name: 'Cursor',   url: 'https://cursor.com/',            icon: <img src="/icons/cursor.png"  width={14} height={14} alt="" /> },
-  { name: 'Windsurf', url: 'https://windsurf.com/',          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="#00C6AE" aria-hidden="true"><path d="M2 13C4.5 7 7.5 7 10 13C12.5 19 15.5 19 18 13C19.5 10 21.5 10 22 13L22 18L2 18Z"/></svg> },
-  { name: 'VSCodium', url: 'https://vscodium.com/',          icon: null },
+  { name: 'VS Code',  url: 'https://code.visualstudio.com/' },
+  { name: 'Cursor',   url: 'https://cursor.com/' },
+  { name: 'Windsurf', url: 'https://windsurf.com/' },
+  { name: 'VSCodium', url: 'https://vscodium.com/' },
 ];
 
 export function Hero() {
@@ -56,9 +56,8 @@ export function Hero() {
         <div className={styles.compatRow}>
           <span className={styles.compatLabel}>Works with</span>
           <div className={styles.compatEditors}>
-            {EDITORS.map(({ name, url, icon }) => (
+            {EDITORS.map(({ name, url }) => (
               <a key={name} href={url} className={styles.editor} target="_blank" rel="noreferrer">
-                {icon}
                 {name}
               </a>
             ))}
