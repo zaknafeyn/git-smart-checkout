@@ -49,11 +49,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  transition: border-color 0.2s;
-}
-
-.method:hover {
-  border-color: var(--green);
 }
 
 .methodHeader {
@@ -112,7 +107,7 @@ kbd {
   border-radius: 4px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  font-family: var(--font-mono);
+  font-family: 'Noto Sans Symbols 2', var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -193,7 +188,7 @@ kbd {
   border-radius: 4px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  font-family: var(--font-mono);
+  font-family: 'Noto Sans Symbols 2', var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -225,8 +220,20 @@ kbd {
     padding: 64px 0;
   }
 
+  .header {
+    margin-bottom: 40px;
+  }
+
   .methods {
     grid-template-columns: 1fr;
+  }
+
+  .method {
+    padding: 24px;
+  }
+
+  .quickstart {
+    padding: 24px;
   }
 
   .qsSteps {
@@ -237,5 +244,29 @@ kbd {
   .qsArrow {
     transform: rotate(90deg);
     margin-left: 14px;
+  }
+
+  .methodBtn {
+    width: 100%;
+    text-align: center;
+    align-self: stretch;
+    justify-content: center;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .section {
+    padding: 48px 0;
+  }
+
+  .method {
+    padding: 20px;
+  }
+
+  .quickstart {
+    padding: 20px;
   }
 }

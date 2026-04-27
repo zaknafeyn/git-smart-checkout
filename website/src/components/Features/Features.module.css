@@ -48,18 +48,9 @@
   border-radius: var(--radius-md);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  min-width: 0;
+  overflow: hidden;
 }
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.card.blue:hover { border-color: var(--accent); }
-.card.green:hover { border-color: var(--green); }
-.card.purple:hover { border-color: var(--purple); }
-.card.orange:hover { border-color: var(--orange); }
 
 .cardIcon {
   font-size: 28px;
@@ -114,22 +105,29 @@
   border: 1px solid var(--border-subtle);
   margin-top: 4px;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
 }
 
 .cmdIcon {
+  font-family: 'Noto Sans Symbols 2', sans-serif;
   font-size: 11px;
+  line-height: 1;
   color: var(--text-muted);
   flex-shrink: 0;
+  letter-spacing: 0.05em;
+  align-self: center;
 }
 
 .cardCommand code {
   font-family: var(--font-mono);
   font-size: 11px;
+  line-height: 1;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -137,7 +135,21 @@
     padding: 64px 0;
   }
 
+  .header {
+    margin-bottom: 40px;
+  }
+
   .grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .section {
+    padding: 48px 0;
+  }
+
+  .card {
+    padding: 20px;
   }
 }

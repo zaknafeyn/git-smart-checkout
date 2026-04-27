@@ -91,7 +91,7 @@ export function Features() {
                 <p className={styles.cardDesc}>{f.description}</p>
                 {f.command && (
                   <div className={styles.cardCommand}>
-                    <span className={styles.cmdIcon}>⌘</span>
+                    <span className={styles.cmdIcon}>⌘ ⇧ P</span>
                     <code>{f.command}</code>
                   </div>
                 )}

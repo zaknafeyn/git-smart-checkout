@@ -159,4 +159,18 @@
   .section {
     padding: 64px 0;
   }
+
+  .header {
+    margin-bottom: 36px;
+  }
+}
+
+@media (max-width: 520px) {
+  .cards {
+    max-width: 100%;
+  }
+
+  .section {
+    padding: 48px 0;
+  }
 }

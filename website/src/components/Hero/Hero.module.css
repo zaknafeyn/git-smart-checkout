@@ -181,6 +181,7 @@
   border-radius: 4px;
   background: rgba(56, 139, 253, 0.15);
   color: var(--accent);
+  font-family: 'Noto Sans Symbols 2', sans-serif;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -216,13 +217,45 @@
     padding: 100px 0 64px;
   }
 
+  .inner {
+    gap: 24px;
+  }
+
   .codeBlock {
     flex-direction: column;
     gap: 8px;
     text-align: center;
+    width: 100%;
   }
 
   .subtitle {
     font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 80px 0 48px;
+  }
+
+  .inner {
+    gap: 20px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+  }
+
+  .btnPrimary,
+  .btnSecondary,
+  .btnGhost {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 20px;
+  }
+
+  .actions {
+    width: 100%;
+    flex-direction: column;
   }
 }
