@@ -1,3 +1,4 @@
+import { DownloadStats } from '../DownloadStats/DownloadStats';
 import styles from './Hero.module.css';
 
 const MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout';
@@ -63,6 +64,8 @@ export function Hero() {
             ))}
           </div>
         </div>
+        
+        <DownloadStats />
 
         <div className={styles.codeBlock}>
           <span className={styles.codePrompt}>⌘ ⇧ P</span>

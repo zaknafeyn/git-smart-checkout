@@ -1,10 +1,10 @@
+import { Features } from './components/Features/Features';
+import { Footer } from './components/Footer/Footer';
 import { Header } from './components/Header/Header';
 import { Hero } from './components/Hero/Hero';
-import { Features } from './components/Features/Features';
-import { StashModes } from './components/StashModes/StashModes';
-import { PlannedFeatures } from './components/PlannedFeatures/PlannedFeatures';
 import { Installation } from './components/Installation/Installation';
-import { Footer } from './components/Footer/Footer';
+import { PlannedFeatures } from './components/PlannedFeatures/PlannedFeatures';
+import { StashModes } from './components/StashModes/StashModes';
 
 export function App() {
   return (
