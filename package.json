@@ -266,7 +266,7 @@
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^2.15.0",
     "css-loader": "^6.8.1",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.25.1",
     "glob": "^12.0.0",
     "html-webpack-plugin": "^5.5.3",
