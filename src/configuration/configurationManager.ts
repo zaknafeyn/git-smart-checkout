@@ -21,6 +21,9 @@ export class ConfigurationManager {
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
       },
+      telemetry: {
+        enabled: vscodeConfig.get('telemetry.enabled', true),
+      },
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
       tagRemote: vscodeConfig.get('tagRemote', 'origin'),
@@ -41,6 +44,9 @@ export class ConfigurationManager {
       preferredRefs: vscodeConfig.get('preferredRefs', {} as PreferredRefsMap),
       logging: {
         enabled: vscodeConfig.get('logging.enabled', true),
+      },
+      telemetry: {
+        enabled: vscodeConfig.get('telemetry.enabled', true),
       },
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),

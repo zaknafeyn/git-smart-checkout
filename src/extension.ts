@@ -19,13 +19,32 @@ import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
+import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
+import { randomUUID } from 'crypto';
 
 const EXTENSION_LOADING_TIMEOUT = 250;
 
 export function activate(context: vscode.ExtensionContext) {
+  const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
+    const id = randomUUID();
+    context.globalState.update('analytics.anonymousId', id);
+    return id;
+  })();
+
+  initAnalytics(anonymousId, {
+    vscode_version: vscode.version,
+    extension_version: context.extension.packageJSON.version as string,
+    os: process.platform,
+  });
+
   const commandManager = new CommandManager();
 
   const configManager = new ConfigurationManager();
+
+  const updateTelemetryState = () =>
+    setAnalyticsEnabled(vscode.env.isTelemetryEnabled && configManager.get().telemetry.enabled);
+
+  updateTelemetryState();
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
   const prCloneService = new PrCloneService(context, logService, configManager);
@@ -148,12 +167,16 @@ export function activate(context: vscode.ExtensionContext) {
     if (event.affectsConfiguration(EXTENSION_NAME)) {
       configManager.reload();
       statusBarManager.onConfigurationChanged();
+      updateTelemetryState();
     }
   });
+
+  const telemetryChangeListener = vscode.env.onDidChangeTelemetryEnabled(() => updateTelemetryState());
 
   // Add to context subscriptions
   context.subscriptions.push(
     configChangeListener,
+    telemetryChangeListener,
     statusBarManager,
     logService,
     clonePullRequestCommand,
@@ -177,6 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.globalState.update('commandManager', commandManager);
 }
 
-export function deactivate() {
+export async function deactivate() {
   console.log('Extension "my-vscode-extension" is now deactivated!');
+  await shutdownAnalytics();
 }

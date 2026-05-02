@@ -9,6 +9,7 @@ import { GitExecutor } from "../common/git/gitExecutor";
 import { getStashMessage } from "../commands/utils/getStashMessage";
 import { IGitRef } from "../common/git/types";
 import { handleErrorMessage } from "../utils/handleErrorMessage";
+import { AnalyticsEvent, capture, captureException } from "../analytics/analytics";
 
 export class AutoStashService {
   
@@ -107,6 +108,7 @@ export class AutoStashService {
         }
         break;
     }
+    capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
   }
 
   async doAutoStashCurrentBranch(
@@ -130,6 +132,7 @@ export class AutoStashService {
         await git.pullCurrentBranch();
       }
     } catch (e) {
+      captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
@@ -190,6 +193,7 @@ export class AutoStashService {
         await git.pullCurrentBranch();
       }
     } catch (e) {
+      captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }

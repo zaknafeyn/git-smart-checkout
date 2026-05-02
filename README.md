@@ -150,3 +150,44 @@ If `git-smart-checkout.tagTemplate` is empty, the command prompts for a tag name
 ### Security
 
 File paths in `{f:...}` tokens are restricted to the workspace root — absolute paths, `..` traversal, and symlink escapes are all rejected. Tag names are validated against shell-unsafe characters and `git check-ref-format` rules before any git command is run.
+
+## Telemetry
+
+This extension collects anonymous usage events to help improve the extension.
+
+**Collected:**
+- Extension activation
+- Command usage (checkout, pull, tag creation, PR clone)
+- Stash mode used during checkout
+- Whether the working directory had uncommitted changes (boolean)
+- Commit count for PR clone operations (number only)
+- Whether a PR was created as a draft (boolean)
+- Whether a tag template was used (boolean)
+- Non-sensitive error type names (e.g. `TypeError`, `Error`)
+- VS Code version
+- Extension version
+- Operating system (platform, e.g. `darwin`, `win32`, `linux`)
+
+**Not collected:**
+- Source code
+- File contents
+- File paths
+- Repository names
+- Branch names
+- Tag names
+- Commit messages
+- PR numbers or titles
+- Remote URLs
+- Personal information
+
+Telemetry respects VS Code's global telemetry setting and can be disabled with:
+
+```json
+"telemetry.telemetryLevel": "off"
+```
+
+You can also disable extension telemetry independently with:
+
+```json
+"git-smart-checkout.telemetry.enabled": false
+```

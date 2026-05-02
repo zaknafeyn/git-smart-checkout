@@ -1,6 +1,7 @@
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
+import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 
 export class CheckoutPreviousCommand extends BaseCommand {
   constructor(
@@ -38,8 +39,11 @@ export class CheckoutPreviousCommand extends BaseCommand {
       // Perform checkout with auto stash
       await this.autoStashService.checkoutAndStashChanges(git, currentBranch, previousBranch, autoStashMode);
 
+      capture(AnalyticsEvent.CheckoutPreviousBranch, { stash_mode: autoStashMode });
+
       await this.showInformationMessage(`Switched to previous branch: ${previousBranch.fullName}`, 'OK');
     } catch (error) {
+      captureException(error);
       if (error instanceof Error) {
         const message = error.message;
         if (message) {

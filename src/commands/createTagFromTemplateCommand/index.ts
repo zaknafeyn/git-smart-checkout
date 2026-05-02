@@ -9,6 +9,7 @@ import {
   TagTemplateContext,
 } from '../../services/tagTemplateService';
 import { validateTagName } from './validateTagName';
+import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 
 export class CreateTagFromTemplateCommand extends BaseCommand {
   constructor(
@@ -132,7 +133,9 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     try {
       await git.createTag(tagName);
       log('Tag created successfully');
+      capture(AnalyticsEvent.TagCreated, { used_template: template !== '' });
     } catch (e) {
+      captureException(e);
       this.logService.error('[Create Tag] Tag creation failed', e);
       await this.showErrorMessage(`Failed to create tag "${tagName}".`);
       return;
@@ -187,10 +190,12 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     try {
       await git.pushTag(tagName, remote);
       this.logService.info('[Create Tag] Tag pushed successfully to ' + remote);
+      capture(AnalyticsEvent.TagPushed);
       await this.showInformationMessage(
         `Tag "${tagName}" created and pushed to ${remote}.`
       );
     } catch (e) {
+      captureException(e);
       this.logService.error('[Create Tag] Push failed', e);
       await this.showWarningMessage(
         `Tag "${tagName}" was created locally, but push failed.`

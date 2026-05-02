@@ -9,6 +9,7 @@ import { AutoStashService } from '../../services/autoStashService';
 import { getRepoId } from '../../utils/getRepoId';
 import { BaseCommand } from '../command';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
+import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import {
   getRefDescription,
   getRefDetails,
@@ -318,8 +319,10 @@ export class CheckoutToCommand extends BaseCommand {
 
     try {
       const newBranch = await git.createBranch(newBranchName);
+      capture(AnalyticsEvent.BranchCreated);
       return newBranch;
     } catch (e) {
+      captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
       throw new Error(`Failed to create the new branch: ${msg}`);
@@ -354,6 +357,7 @@ export class CheckoutToCommand extends BaseCommand {
         await git.createStash(stashName);
       }
       const newBranch = await git.createBranch(newBranchName, strippedBase);
+      capture(AnalyticsEvent.BranchCreated);
       if (dirty) {
         try {
           await git.popStash(stashName);
@@ -363,6 +367,7 @@ export class CheckoutToCommand extends BaseCommand {
       }
       return newBranch;
     } catch (e) {
+      captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to create the new branch: ${msg}`);
     }
