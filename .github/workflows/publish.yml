@@ -45,6 +45,9 @@ jobs:
 
       - name: Build extension
         run: yarn build-all
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
 
       - name: Create VSIX package
         run: yarn build-vsix
