@@ -16,6 +16,7 @@ import {
   setContextShowPRCommits,
 } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
+import { capture, captureException } from '../analytics/analytics';
 
 interface IServiceStore {
   originalBranch?: string;
@@ -73,6 +74,11 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         description!,
         isDraft!
       );
+
+      capture('pr_clone_completed', {
+        is_draft: isDraft,
+        commit_count: this.serviceStore.originalPrData?.selectedCommits.length,
+      });
 
       const openAction = await window.showInformationMessage(
         `PR #${newPr.number} created successfully!`,
@@ -172,6 +178,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // if operation abort requested, clean up leftovers (new branch)
+      capture('pr_clone_aborted');
       await this.git.deleteLocalBranch(this.serviceStore.createdBranchName);
     } finally {
       this.cleanUpActionEnd.forEach((action) => action());
@@ -194,6 +201,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
     try {
       this.serviceStore.originalPrData = data;
+
+      capture('pr_clone_started', { commit_count: data.selectedCommits.length, is_draft: data.isDraft });
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();
@@ -260,7 +269,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       // start cherry picking
       this.cherryPickNext();
     } catch (error) {
-      //todo: handle error
+      captureException(error);
     }
   }
 

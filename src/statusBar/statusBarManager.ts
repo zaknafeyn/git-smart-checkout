@@ -16,6 +16,7 @@ import {
   AUTO_STASH_MODES_DETAILS,
   TAutoStashModeConfig,
 } from '../configuration/extensionConfig';
+import { capture } from '../analytics/analytics';
 
 export class StatusBarManager implements Disposable {
   private statusBarItem: StatusBarItem;
@@ -91,6 +92,7 @@ export class StatusBarManager implements Disposable {
       await this.configManager.updateMode(newMode);
       this.updateStatusBar();
       this.loggingService.info(`Mode switched to: ${newMode}`);
+      capture('stash_mode_switched', { from_mode: currentMode, to_mode: newMode });
 
       // window
       //   .showInformationMessage(`Extension mode changed to: ${modeDetails.label}`, 'Open Settings')

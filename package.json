@@ -223,6 +223,11 @@
           "type": "string",
           "default": "origin",
           "description": "Git remote used when pushing created tags."
+        },
+        "git-smart-checkout.telemetry.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable anonymous telemetry for Git Smart Checkout analytics (respect VS Code's global telemetry settings). This helps improve the extension and never collects personal information."
         }
       }
     }

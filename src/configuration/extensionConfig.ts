@@ -33,6 +33,9 @@ export interface ExtensionConfig {
   logging: {
     enabled: boolean;
   };
+  telemetry: {
+    enabled: boolean;
+  };
   preferredRefs?: PreferredRefsMap;
   tagTemplate: string;
   pushTagWithoutConfirmation: boolean;
