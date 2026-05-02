@@ -914,6 +914,18 @@
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
 
+"@posthog/core@1.28.0":
+  version "1.28.0"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.28.0.tgz#f9b2be00f66cbf92ae90a4475a043a903a275e3b"
+  integrity sha512-753giUMWuk602UtS101tDZuNcwiKkr+3UEhLgfOwHAk2W32n53knOxAjyWT0JwMq5/+0uSQ2y4uaZXQAxwvBSw==
+  dependencies:
+    "@posthog/types" "1.372.6"
+
+"@posthog/types@1.372.6":
+  version "1.372.6"
+  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.372.6.tgz#a58581fedb5314812dc8845b3feec61b5b71ab72"
+  integrity sha512-sqI36LBvuo8xcYsXIlVa0q3IXJJjqtatM2LrXlyOM7kgHrldBwS4ldzaTXrTdpe/TiIl1b4ZHxtSHMzPig+DnQ==
+
 "@secretlint/config-creator@^10.2.2":
   version "10.2.2"
   resolved "https://registry.yarnpkg.com/@secretlint/config-creator/-/config-creator-10.2.2.tgz#5d646e83bb2aacfbd5218968ceb358420b4c2cb3"
@@ -5465,6 +5477,13 @@ postcss@^8.4.33:
     nanoid "^3.3.11"
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
+
+posthog-node@^5.33.0:
+  version "5.33.0"
+  resolved "https://registry.yarnpkg.com/posthog-node/-/posthog-node-5.33.0.tgz#8f4f1e4e4ee3c53c6c71c11a62433c3465125ee4"
+  integrity sha512-9Sj1kKQTFlHoiWl0LvD3+8InhlD9jxeIiJrMLtU87bnYuQUDqAVR16v9/ZGaQ9C0vDVGVJJQG1a6XYeySy9hmg==
+  dependencies:
+    "@posthog/core" "1.28.0"
 
 prebuild-install@^7.0.1:
   version "7.1.3"

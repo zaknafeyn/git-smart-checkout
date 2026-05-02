@@ -291,6 +291,7 @@
   },
   "dependencies": {
     "classnames": "^2.5.1",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "posthog-node": "^5.33.0"
   }
 }
