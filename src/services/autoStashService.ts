@@ -9,7 +9,7 @@ import { GitExecutor } from "../common/git/gitExecutor";
 import { getStashMessage } from "../commands/utils/getStashMessage";
 import { IGitRef } from "../common/git/types";
 import { handleErrorMessage } from "../utils/handleErrorMessage";
-import { capture, captureException } from "../analytics/analytics";
+import { AnalyticsEvent, capture, captureException } from "../analytics/analytics";
 
 export class AutoStashService {
   
@@ -108,7 +108,7 @@ export class AutoStashService {
         }
         break;
     }
-    capture('checkout_to_branch', { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
+    capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
   }
 
   async doAutoStashCurrentBranch(

@@ -2,7 +2,7 @@ import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { BaseCommand } from '../command';
 import { getStashMessage } from '../utils/getStashMessage';
-import { capture } from '../../analytics/analytics';
+import { AnalyticsEvent, capture } from '../../analytics/analytics';
 
 export class PullWithStashCommand extends BaseCommand {
   configManager: ConfigurationManager;
@@ -40,6 +40,6 @@ export class PullWithStashCommand extends BaseCommand {
       await git.popStash(stashMessage);
     }
 
-    capture('pull_with_stash', { had_changes: isWorkdirHasChangesBeforeStash });
+    capture(AnalyticsEvent.PullWithStash, { had_changes: isWorkdirHasChangesBeforeStash });
   }
 }

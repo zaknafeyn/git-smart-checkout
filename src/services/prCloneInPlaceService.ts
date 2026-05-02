@@ -16,7 +16,7 @@ import {
   setContextShowPRCommits,
 } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
-import { capture, captureException } from '../analytics/analytics';
+import { AnalyticsEvent, capture, captureException } from '../analytics/analytics';
 
 interface IServiceStore {
   originalBranch?: string;
@@ -75,7 +75,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         isDraft!
       );
 
-      capture('pr_clone_completed', {
+      capture(AnalyticsEvent.PrCloneCompleted, {
         is_draft: isDraft,
         commit_count: this.serviceStore.originalPrData?.selectedCommits.length,
       });
@@ -178,7 +178,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // if operation abort requested, clean up leftovers (new branch)
-      capture('pr_clone_aborted');
+      capture(AnalyticsEvent.PrCloneAborted);
       await this.git.deleteLocalBranch(this.serviceStore.createdBranchName);
     } finally {
       this.cleanUpActionEnd.forEach((action) => action());
@@ -202,7 +202,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     try {
       this.serviceStore.originalPrData = data;
 
-      capture('pr_clone_started', { commit_count: data.selectedCommits.length, is_draft: data.isDraft });
+      capture(AnalyticsEvent.PrCloneStarted, { commit_count: data.selectedCommits.length, is_draft: data.isDraft });
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();

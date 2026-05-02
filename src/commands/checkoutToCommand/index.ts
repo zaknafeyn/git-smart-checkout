@@ -9,7 +9,7 @@ import { AutoStashService } from '../../services/autoStashService';
 import { getRepoId } from '../../utils/getRepoId';
 import { BaseCommand } from '../command';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
-import { capture, captureException } from '../../analytics/analytics';
+import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import {
   getRefDescription,
   getRefDetails,
@@ -319,7 +319,7 @@ export class CheckoutToCommand extends BaseCommand {
 
     try {
       const newBranch = await git.createBranch(newBranchName);
-      capture('branch_created');
+      capture(AnalyticsEvent.BranchCreated);
       return newBranch;
     } catch (e) {
       captureException(e);
@@ -357,7 +357,7 @@ export class CheckoutToCommand extends BaseCommand {
         await git.createStash(stashName);
       }
       const newBranch = await git.createBranch(newBranchName, strippedBase);
-      capture('branch_created');
+      capture(AnalyticsEvent.BranchCreated);
       if (dirty) {
         try {
           await git.popStash(stashName);

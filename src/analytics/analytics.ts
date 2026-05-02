@@ -1,5 +1,18 @@
 import { PostHog } from 'posthog-node';
 
+export enum AnalyticsEvent {
+  CheckoutToBranch = 'checkout_to_branch',
+  CheckoutPreviousBranch = 'checkout_previous_branch',
+  BranchCreated = 'branch_created',
+  PullWithStash = 'pull_with_stash',
+  StashModeSwitched = 'stash_mode_switched',
+  TagCreated = 'tag_created',
+  TagPushed = 'tag_pushed',
+  PrCloneStarted = 'pr_clone_started',
+  PrCloneCompleted = 'pr_clone_completed',
+  PrCloneAborted = 'pr_clone_aborted',
+}
+
 let client: PostHog | null = null;
 let _enabled = false;
 let _distinctId = 'anonymous';
@@ -20,7 +33,7 @@ export function setAnalyticsEnabled(enabled: boolean): void {
   _enabled = enabled;
 }
 
-export function capture(event: string, properties?: Record<string, unknown>): void {
+export function capture(event: AnalyticsEvent, properties?: Record<string, unknown>): void {
   if (!_enabled || !client) { return; }
   client.capture({
     distinctId: _distinctId,
