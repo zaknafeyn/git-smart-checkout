@@ -13,9 +13,9 @@ interface LinkProps {
 export const Link: FC<LinkProps> = ({ children, url, className, tooltipText }) => {
   const style = classNames(styles.link, className)
   return (
-    <a 
-      href={url} 
-      target="_blank" 
+    <a
+      href={url}
+      target="_blank"
       rel="noopener noreferrer"
       className={style}
       title={tooltipText}
