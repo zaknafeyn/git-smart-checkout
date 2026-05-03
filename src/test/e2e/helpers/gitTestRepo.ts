@@ -95,6 +95,11 @@ export interface TagTestRepo extends TestRepo {
   remoteHasTag(tagName: string): boolean;
 }
 
+export interface PullTestRepo extends TestRepo {
+  remoteRepoPath: string;
+  producerRepoPath: string;
+}
+
 /**
  * Repo with a bare sibling registered as origin, for testing tag push operations.
  */
@@ -134,6 +139,51 @@ export function createTagTestRepo(): TagTestRepo {
     cleanup() {
       originalCleanup();
       fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * Repo with a tracked origin/main and a second clone that has already pushed
+ * one remote-only commit. Useful for command-level pull tests.
+ */
+export function createPullTestRepo(): PullTestRepo {
+  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pull-remote-'));
+  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+
+  const base = buildRepo('gsc-pull-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+  });
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  execInRepo(`git remote add origin "${remoteRepoPath}"`);
+  execInRepo('git push -u origin main');
+
+  const producerRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pull-producer-'));
+  fs.rmSync(producerRepoPath, { recursive: true, force: true });
+  execSync(`git clone "${remoteRepoPath}" "${producerRepoPath}"`, { stdio: 'pipe' });
+  execSync('git config user.email "test@test.local"', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git config user.name "Test"', { cwd: producerRepoPath, stdio: 'pipe' });
+  fs.writeFileSync(path.join(producerRepoPath, 'remote.txt'), 'remote content\n');
+  execSync('git add remote.txt', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git commit -m "feat: remote change"', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git push origin main', { cwd: producerRepoPath, stdio: 'pipe' });
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    remoteRepoPath,
+    producerRepoPath,
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+      fs.rmSync(producerRepoPath, { recursive: true, force: true });
     },
   };
 }

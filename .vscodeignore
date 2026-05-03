@@ -16,6 +16,7 @@ yarn.lock
 createTag.sh
 vsc-extension-quickstart.md
 **/tsconfig.json
+tsconfig.webview.json
 **/.eslintrc.json
 **/*.map
 **/*.ts
