@@ -1,9 +1,16 @@
 node_modules/**
 .vscode/**
 .vscode-test/**
+.vscode-test-web/**
+.vscode-test.mjs
 .github/**
 src/**
+.env
+.env.*
+.DS_Store
 .gitignore
+.hintrc
+.nvmrc
 .yarnrc
 yarn.lock
 createTag.sh
@@ -21,4 +28,4 @@ TODO.md
 CLAUDE.md
 .claude/**
 website
-resources
+
