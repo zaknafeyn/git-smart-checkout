@@ -10,6 +10,7 @@ import { getStashMessage } from "../commands/utils/getStashMessage";
 import { IGitRef } from "../common/git/types";
 import { handleErrorMessage } from "../utils/handleErrorMessage";
 import { AnalyticsEvent, capture, captureException } from "../analytics/analytics";
+import { VscodeGitProvider } from "../common/git/vscodeGitProvider";
 
 export class AutoStashService {
   
@@ -64,6 +65,92 @@ export class AutoStashService {
     this.logService.info(`Selected mode: ${autoStashMode?.label}`);
 
     return autoStashMode?.label as TAutoStashMode;
+  }
+
+  async getRebaseStashMode(): Promise<TAutoStashMode | undefined> {
+    const { mode } = this.configManager.get();
+
+    if (mode === AUTO_STASH_MODE_BRANCH) {
+      return AUTO_STASH_CURRENT_BRANCH;
+    }
+
+    if (mode === AUTO_STASH_MODE_POP || mode === AUTO_STASH_MODE_APPLY) {
+      this.logService.info(`Stash mode '${mode}' is not applicable to rebase; using '${AUTO_STASH_CURRENT_BRANCH}' instead.`);
+      return AUTO_STASH_CURRENT_BRANCH;
+    }
+
+    if (mode !== AUTO_STASH_MODE_MANUAL) {
+      return;
+    }
+
+    const items: QuickPickItem[] = [
+      {
+        label: AUTO_STASH_CURRENT_BRANCH,
+        detail: 'Stash changes, run rebase, then pop the stash on the same branch.',
+      },
+      {
+        label: AUTO_STASH_IGNORE,
+        detail: DESC_AUTO_STASH_IGNORE,
+      },
+    ];
+
+    const picked = await showQuickPick(items, { placeHolder: 'Select auto stash mode for rebase' });
+
+    this.logService.info(`Selected rebase mode: ${picked?.label}`);
+
+    return picked?.label as TAutoStashMode;
+  }
+
+  async rebaseAndStashChanges(
+    git: GitExecutor,
+    currentBranch: string,
+    targetRef: string,
+    mode: TAutoStashMode,
+    vscodeGitProvider?: VscodeGitProvider
+  ): Promise<void> {
+    const isWorkdirHasChanges = await git.isWorkdirHasChanges();
+
+    if (mode === AUTO_STASH_IGNORE) {
+      await this.#doRebase(git, targetRef, vscodeGitProvider);
+      capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
+      return;
+    }
+
+    // AUTO_STASH_CURRENT_BRANCH (and any other mode treated as such)
+    const stashMessage = getStashMessage(currentBranch, true);
+
+    if (isWorkdirHasChanges) {
+      await git.createStash(stashMessage);
+    }
+
+    try {
+      await this.#doRebase(git, targetRef, vscodeGitProvider);
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      // Leave the stash intact so the user can recover after resolving rebase conflicts.
+      throw new Error(`Rebase failed: ${msg}${isWorkdirHasChanges ? '\n\nYour changes are preserved in the stash.' : ''}`);
+    }
+
+    if (isWorkdirHasChanges) {
+      const hasChangesAfterRebase = await git.isWorkdirHasChanges();
+      if (hasChangesAfterRebase) {
+        await git.resetLocalChanges();
+      }
+      await git.popStash(stashMessage);
+    }
+
+    capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
+  }
+
+  async #doRebase(git: GitExecutor, targetRef: string, vscodeGitProvider?: VscodeGitProvider): Promise<void> {
+    if (vscodeGitProvider) {
+      const used = await vscodeGitProvider.rebase(git.repositoryPath, targetRef);
+      if (used) {
+        return;
+      }
+    }
+    await git.rebase(targetRef);
   }
 
   async checkoutAndStashChanges(

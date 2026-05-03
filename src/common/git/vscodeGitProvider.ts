@@ -75,6 +75,15 @@ export class VscodeGitProvider {
     }
   }
 
+  async rebase(repoPath: string, target: string): Promise<boolean> {
+    const repo = this.findRepo(repoPath);
+    if (!repo) {
+      return false;
+    }
+    await repo.rebase(target);
+    return true;
+  }
+
   getCurrentBranch(repoPath: string): string | undefined {
     try {
       const repo = this.findRepo(repoPath);

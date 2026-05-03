@@ -292,6 +292,10 @@ export class GitExecutor {
     await this.#execGitCommand(command);
   }
 
+  async rebase(target: string): Promise<void> {
+    await this.#execGitCommand(`git rebase ${target}`);
+  }
+
   async popStash(stashName: string, apply = false) {
     const command = 'git --no-pager stash list --format="%gs"';
     // Get the list of stashes
