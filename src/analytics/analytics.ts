@@ -6,6 +6,7 @@ export enum AnalyticsEvent {
   BranchCreated = 'branch_created',
   PullWithStash = 'pull_with_stash',
   StashModeSwitched = 'stash_mode_switched',
+  RebaseWithStash = 'rebase_with_stash',
   TagCreated = 'tag_created',
   TagPushed = 'tag_pushed',
   PrCloneStarted = 'pr_clone_started',

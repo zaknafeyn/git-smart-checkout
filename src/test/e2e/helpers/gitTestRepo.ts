@@ -12,6 +12,9 @@ export interface TestRepo {
   git: GitExecutor;
   mainBranch: string;
   featureBranch: string;
+  exec(command: string): string;
+  fileExists(filename: string): boolean;
+  readFile(filename: string): string;
   makeChange(filename?: string, content?: string): void;
   stashCount(): number;
   cleanup(): void;
@@ -44,6 +47,15 @@ function buildRepo(
     git,
     mainBranch,
     featureBranch,
+    exec(command: string): string {
+      return execSync(command, { cwd: repoPath, encoding: 'utf-8' });
+    },
+    fileExists(filename: string): boolean {
+      return fs.existsSync(path.join(repoPath, filename));
+    },
+    readFile(filename: string): string {
+      return fs.readFileSync(path.join(repoPath, filename), 'utf-8');
+    },
     makeChange(filename = 'file1.txt', content = 'dirty change\n') {
       fs.writeFileSync(path.join(repoPath, filename), content);
     },
@@ -141,4 +153,57 @@ export function createConflictTestRepo(): TestRepo {
     exec('git add file1.txt');
     exec('git commit -m "feat: modify file1 on feature branch"');
   });
+}
+
+/**
+ * Rebase-friendly repo. feature and main diverge from the initial commit without
+ * conflicting, and the working branch is feature.
+ */
+export function createRebaseTestRepo(): TestRepo {
+  const repo = buildRepo('gsc-rebase-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+
+    exec('git checkout -b feature');
+    fs.writeFileSync(path.join(repoPath, 'feature.txt'), 'feature content\n');
+    exec('git add feature.txt');
+    exec('git commit -m "feat: add feature file"');
+
+    exec('git checkout main');
+    fs.writeFileSync(path.join(repoPath, 'main.txt'), 'main content\n');
+    exec('git add main.txt');
+    exec('git commit -m "feat: add main file"');
+
+    exec('git tag main-tip');
+    exec('git update-ref refs/remotes/origin/main main');
+  });
+
+  repo.exec('git checkout feature');
+  return repo;
+}
+
+/**
+ * Rebase-conflict repo. feature and main both commit different versions of
+ * file1.txt, and the working branch is feature.
+ */
+export function createRebaseConflictTestRepo(): TestRepo {
+  const repo = buildRepo('gsc-rebase-conflict-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+
+    exec('git checkout -b feature');
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'feature committed content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "feat: modify file1 on feature"');
+
+    exec('git checkout main');
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'main committed content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "feat: modify file1 on main"');
+  });
+
+  repo.exec('git checkout feature');
+  return repo;
 }

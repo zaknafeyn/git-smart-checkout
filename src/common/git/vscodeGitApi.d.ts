@@ -32,6 +32,7 @@ export interface Repository {
   readonly rootUri: { readonly fsPath: string };
   readonly state: RepositoryState;
   getRefs(query: RefQuery, cancellationToken?: unknown): Promise<Ref[]>;
+  rebase(branch: string): Promise<void>;
 }
 
 export interface API {

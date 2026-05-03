@@ -114,6 +114,11 @@
         }
       },
       {
+        "command": "git-smart-checkout.rebaseWithStash",
+        "title": "Rebase ... (With Stash)",
+        "category": "Git"
+      },
+      {
         "command": "git-smart-checkout.createTagFromTemplate",
         "title": "Create Git Tag from Template",
         "category": "Git"
@@ -132,6 +137,9 @@
         },
         {
           "command": "git-smart-checkout.clonePullRequest"
+        },
+        {
+          "command": "git-smart-checkout.rebaseWithStash"
         },
         {
           "command": "git-smart-checkout.createTagFromTemplate"
