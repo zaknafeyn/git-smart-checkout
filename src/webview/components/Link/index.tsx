@@ -10,12 +10,21 @@ interface LinkProps {
   tooltipText?: string
 }
 
+function getSafeUrl(url: string): string {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'https:' || protocol === 'http:' ? url : '#';
+  } catch {
+    return '#';
+  }
+}
+
 export const Link: FC<LinkProps> = ({ children, url, className, tooltipText }) => {
   const style = classNames(styles.link, className)
   return (
-    <a 
-      href={url} 
-      target="_blank" 
+    <a
+      href={getSafeUrl(url)}
+      target="_blank"
       rel="noopener noreferrer"
       className={style}
       title={tooltipText}

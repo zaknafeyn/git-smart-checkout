@@ -23,7 +23,8 @@
   "version": "0.0.1",
   "icon": "resources/icon.png",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.74.0",
+    "node": ">=16.x"
   },
   "categories": [
     "Other"
@@ -265,8 +266,8 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/vscode": "^1.74.0",
-    "@typescript-eslint/eslint-plugin": "^5.45.0",
-    "@typescript-eslint/parser": "^7.14.1",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^2.15.0",
@@ -284,6 +285,7 @@
     "react-dom": "^18.2.0",
     "style-loader": "^3.3.3",
     "ts-loader": "^9.4.4",
+    "tslib": "^2.0.0",
     "typescript": "^5.4.5",
     "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4",
@@ -293,5 +295,8 @@
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
     "posthog-node": "^5.33.0"
+  },
+  "resolutions": {
+    "serialize-javascript": "7.0.5"
   }
 }
