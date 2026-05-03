@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*' # Triggers on tags like v0.1.2, v1.0.0, etc.
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v1.2.3)'
+        required: true
+        type: string
 
 jobs:
   deploy:
@@ -14,6 +20,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -24,7 +32,9 @@ jobs:
       - name: Extract version from tag
         id: get_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          REF="${{ inputs.tag || github.ref }}"
+          VERSION="${REF#refs/tags/v}"
+          VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
 

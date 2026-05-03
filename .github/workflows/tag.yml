@@ -22,6 +22,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.resolve_version.outputs.tag }}
 
     steps:
       - name: Check actor is repository admin
@@ -106,3 +108,10 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           echo "Tag '$TAG' created and pushed successfully."
+
+  publish:
+    needs: tag
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
