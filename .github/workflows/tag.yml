@@ -111,6 +111,8 @@ jobs:
 
   publish:
     needs: tag
+    permissions:
+      contents: write
     uses: ./.github/workflows/publish.yml
     with:
       tag: ${{ needs.tag.outputs.tag }}
