@@ -33,9 +33,12 @@ jobs:
         id: get_version
         run: |
           REF="${{ inputs.tag || github.ref }}"
+          TAG="${REF#refs/tags/}"
           VERSION="${REF#refs/tags/v}"
           VERSION="${VERSION#v}"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing tag: $TAG"
           echo "Extracted version: $VERSION"
 
       - name: Update package.json version
@@ -80,11 +83,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.get_version.outputs.TAG }}
           name: Release ${{ steps.get_version.outputs.VERSION }}
           body: |
             ## Changes in v${{ steps.get_version.outputs.VERSION }}
 
-            - Automated release from tag ${{ github.ref }}
+            - Automated release from tag ${{ steps.get_version.outputs.TAG }}
             - Built and published to VS Code Marketplace
 
             ### Installation

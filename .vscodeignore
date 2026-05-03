@@ -18,3 +18,7 @@ vsc-extension-quickstart.md
 **/*.tsbuildinfo
 **/*.config.*js*
 TODO.md
+CLAUDE.md
+.claude/**
+website
+resources
