@@ -105,6 +105,12 @@ export class GitExecutor {
     await this.#execGitCommand(command);
   }
 
+  async fetchFromUrl(remoteUrl: string, headRef: string) {
+    const command = `git fetch "${remoteUrl}" ${headRef}:${headRef}`;
+
+    await this.#execGitCommand(command);
+  }
+
   async pullCurrentBranch() {
     const command = 'git pull';
 

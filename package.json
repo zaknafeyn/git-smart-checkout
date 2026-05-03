@@ -122,6 +122,11 @@
         "command": "git-smart-checkout.createTagFromTemplate",
         "title": "Create Git Tag from Template",
         "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.checkoutByPR",
+        "title": "Checkout by PR number (With Stash)",
+        "category": "Git"
       }
     ],
     "menus": {
@@ -143,6 +148,9 @@
         },
         {
           "command": "git-smart-checkout.createTagFromTemplate"
+        },
+        {
+          "command": "git-smart-checkout.checkoutByPR"
         }
       ],
       "view/title": [
