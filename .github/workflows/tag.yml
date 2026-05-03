@@ -1,0 +1,108 @@
+name: Create and Push Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      major:
+        description: 'Major version (e.g. 1)'
+        required: false
+        type: string
+      minor:
+        description: 'Minor version (e.g. 2)'
+        required: false
+        type: string
+      patch:
+        description: 'Patch version (e.g. 3)'
+        required: false
+        type: string
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check actor is repository admin
+        run: |
+          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission')
+          if [[ "$PERMISSION" != "admin" ]]; then
+            echo "::error::Only repository admins can trigger this workflow. '${{ github.actor }}' has permission level: '$PERMISSION'"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate version
+        id: resolve_version
+        run: |
+          MAJOR="${{ inputs.major }}"
+          MINOR="${{ inputs.minor }}"
+          PATCH="${{ inputs.patch }}"
+
+          ANY_PROVIDED=""
+          [[ -n "$MAJOR" || -n "$MINOR" || -n "$PATCH" ]] && ANY_PROVIDED="true"
+
+          if [[ -n "$ANY_PROVIDED" ]]; then
+            # All three parts must be provided together
+            if [[ -z "$MAJOR" || -z "$MINOR" || -z "$PATCH" ]]; then
+              echo "::error::When specifying a version, all three parts (Major, Minor, Patch) must be provided. Got: major='$MAJOR' minor='$MINOR' patch='$PATCH'"
+              exit 1
+            fi
+
+            # Each part must be a non-negative integer
+            for PART_NAME in "Major:$MAJOR" "Minor:$MINOR" "Patch:$PATCH"; do
+              NAME="${PART_NAME%%:*}"
+              VALUE="${PART_NAME##*:}"
+              if ! [[ "$VALUE" =~ ^(0|[1-9][0-9]*)$ ]]; then
+                echo "::error::$NAME version must be a non-negative integer with no leading zeros. Got: '$VALUE'"
+                exit 1
+              fi
+            done
+
+            TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Using provided version: $TAG"
+          else
+            # Auto-increment: find the latest vX.Y.Z tag and bump Patch
+            LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+              | sort -t. -k1,1V -k2,2n -k3,3n \
+              | tail -1)
+
+            if [[ -z "$LATEST" ]]; then
+              echo "::error::No existing tag matching v<Major>.<Minor>.<Patch> found. Please provide an explicit version."
+              exit 1
+            fi
+
+            echo "Latest tag: $LATEST"
+            STRIPPED="${LATEST#v}"
+            MAJOR="${STRIPPED%%.*}"
+            REST="${STRIPPED#*.}"
+            MINOR="${REST%%.*}"
+            PATCH="${REST##*.}"
+            PATCH=$(( PATCH + 1 ))
+            TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Auto-incremented version: $TAG"
+          fi
+
+          # Guard against pushing a tag that already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag '$TAG' already exists. Bump the version or choose a different one."
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.resolve_version.outputs.tag }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Tag '$TAG' created and pushed successfully."
