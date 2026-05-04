@@ -13,6 +13,24 @@
       ],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}"
+    },
+    {
+      "name": "Debug E2E Tests (Manual UI)",
+      "type": "extensionHost",
+      "request": "launch",
+      "testConfiguration": "${workspaceFolder}/.vscode-test.mjs",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "env": {
+        "GSC_E2E_MODE": "manual",
+        "GSC_E2E_VISUAL_DELAY_MS": "1000"
+      },
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js",
+        "${workspaceFolder}/dist/**/*.js"
+      ],
+      "preLaunchTask": "${defaultBuildTask}"
     }
   ]
 }
