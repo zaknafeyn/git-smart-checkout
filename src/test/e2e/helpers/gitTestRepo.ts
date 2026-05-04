@@ -73,6 +73,15 @@ function buildRepo(
   };
 }
 
+function createBareRepo(prefix: string): string {
+  const repoPath = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+
+  execSync('git init --bare', { cwd: repoPath, stdio: 'pipe' });
+  execSync('git symbolic-ref HEAD refs/heads/main', { cwd: repoPath, stdio: 'pipe' });
+
+  return repoPath;
+}
+
 /**
  * Standard two-branch repo. main has file1.txt; feature adds feature.txt.
  * The branches do NOT conflict on shared files.
@@ -104,8 +113,7 @@ export interface PullTestRepo extends TestRepo {
  * Repo with a bare sibling registered as origin, for testing tag push operations.
  */
 export function createTagTestRepo(): TagTestRepo {
-  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-tag-remote-'));
-  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+  const remoteRepoPath = createBareRepo('gsc-tag-remote-');
 
   const base = buildRepo('gsc-tag-test-', (repoPath, exec) => {
     fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
@@ -148,8 +156,7 @@ export function createTagTestRepo(): TagTestRepo {
  * one remote-only commit. Useful for command-level pull tests.
  */
 export function createPullTestRepo(): PullTestRepo {
-  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pull-remote-'));
-  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+  const remoteRepoPath = createBareRepo('gsc-pull-remote-');
 
   const base = buildRepo('gsc-pull-test-', (repoPath, exec) => {
     fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
@@ -243,8 +250,7 @@ export interface PRTestRepo extends TestRepo {
  * branch that does NOT exist locally, simulating a PR branch to be fetched.
  */
 export function createPRTestRepo(): PRTestRepo {
-  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pr-remote-'));
-  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+  const remoteRepoPath = createBareRepo('gsc-pr-remote-');
 
   const prBranch = 'pr-feature';
 
@@ -294,8 +300,7 @@ export interface ForkPRTestRepo extends PRTestRepo {
 export function createForkPRTestRepo(): ForkPRTestRepo {
   const base = createPRTestRepo() as ForkPRTestRepo;
 
-  const forkRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-fork-remote-'));
-  execSync('git init --bare', { cwd: forkRepoPath, stdio: 'pipe' });
+  const forkRepoPath = createBareRepo('gsc-fork-remote-');
 
   const forkBranch = 'fork-feature';
 
