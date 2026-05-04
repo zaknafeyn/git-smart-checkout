@@ -64,6 +64,23 @@ Command: `Git: Checkout previous branch (With Stash)`
 
 This command switches workdir to previously checked branch, similar to command `git checkout -` with autostash using selected autostash mode or offers user to select autostash mode manually.
 
+## Checkout by PR number
+
+Command: `Git: Checkout by PR number (With Stash)`
+
+Switches directly to a pull request's branch using a PR number or URL, with the same auto-stash behaviour as all other checkout commands.
+
+**Accepted input:**
+
+- Plain number: `123`
+- Hash-prefixed: `#123`
+- Full GitHub PR URL: `https://github.com/owner/repo/pull/123`
+
+The extension fetches the PR from the GitHub API to determine the head branch, pulls it from the remote (or from the fork's repository for fork PRs), then checks it out applying the configured stash mode.
+
+> [!TIP]
+> Stash behaviour is controlled by the same mode setting used by `Checkout to ... (With Stash)`. Set it once in the status bar and all checkout commands follow it automatically.
+
 ## GitHub PR Clone (BETA)
 
 Command: `GitHub: Clone pull request...`  

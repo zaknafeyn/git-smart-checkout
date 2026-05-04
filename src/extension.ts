@@ -18,6 +18,7 @@ import { PrCloneService } from './services/prCloneService';
 import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
+import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
@@ -85,6 +86,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const rebaseWithStashCommand = new RebaseWithStashCommand(configManager, logService, autoStashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.rebaseWithStash`, rebaseWithStashCommand);
+
+  const checkoutByPRCommand = new CheckoutByPRCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.checkoutByPR`, checkoutByPRCommand);
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
