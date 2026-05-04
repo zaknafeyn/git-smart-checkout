@@ -31,6 +31,10 @@ export class CheckoutByPRCommand extends BaseCommand {
     super(logService);
   }
 
+  protected createGitHubClient(owner: string, repo: string): GitHubClient {
+    return new GitHubClient(owner, repo);
+  }
+
   async execute(): Promise<void> {
     try {
       const input = await this.showInputBox({
@@ -54,11 +58,9 @@ export class CheckoutByPRCommand extends BaseCommand {
         throw new Error('Could not determine GitHub repository information. Make sure the remote is a GitHub repository.');
       }
 
-      const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
-
-      let pr: Awaited<ReturnType<typeof ghClient.fetchPullRequest>>;
+      let pr: Awaited<ReturnType<GitHubClient['fetchPullRequest']>>;
       try {
-        pr = await ghClient.fetchPullRequest(prNumber);
+        pr = await this.createGitHubClient(repoInfo.owner, repoInfo.repo).fetchPullRequest(prNumber);
       } catch (e) {
         captureException(e);
         const msg = e instanceof Error ? e.message : String(e);
