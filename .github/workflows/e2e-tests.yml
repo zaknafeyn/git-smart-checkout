@@ -44,6 +44,7 @@ jobs:
         run: yarn test:e2e:ci
         env:
           CI: true
+          GSC_DISABLE_TELEMETRY: '1'
 
       - name: Upload test artifacts
         if: always()

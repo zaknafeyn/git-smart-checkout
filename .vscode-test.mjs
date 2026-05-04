@@ -26,6 +26,7 @@ export default defineConfig([
     ],
     env: {
       GSC_E2E_MODE: 'ci',
+      GSC_DISABLE_TELEMETRY: '1',
     },
     mocha: {
       ui: 'bdd',
@@ -49,6 +50,7 @@ export default defineConfig([
     ],
     env: {
       GSC_E2E_MODE: 'manual',
+      GSC_DISABLE_TELEMETRY: '1',
       GSC_E2E_VISUAL_DELAY_MS: process.env.GSC_E2E_VISUAL_DELAY_MS ?? '750',
     },
     mocha: {

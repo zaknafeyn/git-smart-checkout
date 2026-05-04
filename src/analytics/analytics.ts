@@ -20,10 +20,20 @@ let _enabled = false;
 let _distinctId = 'anonymous';
 let _commonProperties: Record<string, unknown> = {};
 
+function isAnalyticsDisabledByEnvironment(): boolean {
+  return process.env.GSC_DISABLE_TELEMETRY === '1' || Boolean(process.env.GSC_E2E_MODE);
+}
+
 export function initAnalytics(
   anonymousId: string,
   commonProperties: Record<string, unknown>
 ): void {
+  if (isAnalyticsDisabledByEnvironment()) {
+    client = null;
+    _enabled = false;
+    return;
+  }
+
   _distinctId = anonymousId;
   _commonProperties = commonProperties;
   client = new PostHog(process.env.POSTHOG_API_KEY!, {
@@ -32,11 +42,16 @@ export function initAnalytics(
 }
 
 export function setAnalyticsEnabled(enabled: boolean): void {
+  if (isAnalyticsDisabledByEnvironment()) {
+    _enabled = false;
+    return;
+  }
+
   _enabled = enabled;
 }
 
 export function capture(event: AnalyticsEvent, properties?: Record<string, unknown>): void {
-  if (!_enabled || !client) { return; }
+  if (isAnalyticsDisabledByEnvironment() || !_enabled || !client) { return; }
   client.capture({
     distinctId: _distinctId,
     event,
@@ -45,7 +60,7 @@ export function capture(event: AnalyticsEvent, properties?: Record<string, unkno
 }
 
 export function captureException(error: unknown): void {
-  if (!_enabled || !client) { return; }
+  if (isAnalyticsDisabledByEnvironment() || !_enabled || !client) { return; }
   const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
   client.capture({
     distinctId: _distinctId,

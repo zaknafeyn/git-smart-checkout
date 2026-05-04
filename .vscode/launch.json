@@ -24,6 +24,7 @@
       ],
       "env": {
         "GSC_E2E_MODE": "manual",
+        "GSC_DISABLE_TELEMETRY": "1",
         "GSC_E2E_VISUAL_DELAY_MS": "1000"
       },
       "outFiles": [
