@@ -183,6 +183,97 @@ export function createRebaseTestRepo(): TestRepo {
   return repo;
 }
 
+export interface PRTestRepo extends TestRepo {
+  remoteRepoPath: string;
+  prBranch: string;
+}
+
+/**
+ * Repo with a bare sibling registered as origin. The remote has a `pr-feature`
+ * branch that does NOT exist locally, simulating a PR branch to be fetched.
+ */
+export function createPRTestRepo(): PRTestRepo {
+  const remoteRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pr-remote-'));
+  execSync('git init --bare', { cwd: remoteRepoPath, stdio: 'pipe' });
+
+  const prBranch = 'pr-feature';
+
+  const base = buildRepo('gsc-pr-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+  });
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  execInRepo(`git remote add origin "${remoteRepoPath}"`);
+  execInRepo('git push -u origin main');
+
+  execInRepo(`git checkout -b ${prBranch}`);
+  fs.writeFileSync(path.join(base.repoPath, 'pr.txt'), 'pr content\n');
+  execInRepo('git add pr.txt');
+  execInRepo('git commit -m "feat: pr feature"');
+  execInRepo(`git push -u origin ${prBranch}`);
+  execInRepo('git checkout main');
+  execInRepo(`git branch -D ${prBranch}`);
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    remoteRepoPath,
+    prBranch,
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface ForkPRTestRepo extends PRTestRepo {
+  forkRepoPath: string;
+  forkBranch: string;
+}
+
+/**
+ * Extends PRTestRepo with a separate bare "fork" remote. The fork remote has a
+ * `fork-feature` branch that does NOT exist locally, simulating a PR from a fork.
+ */
+export function createForkPRTestRepo(): ForkPRTestRepo {
+  const base = createPRTestRepo() as ForkPRTestRepo;
+
+  const forkRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-fork-remote-'));
+  execSync('git init --bare', { cwd: forkRepoPath, stdio: 'pipe' });
+
+  const forkBranch = 'fork-feature';
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  execInRepo(`git checkout -b ${forkBranch}`);
+  fs.writeFileSync(path.join(base.repoPath, 'fork.txt'), 'fork content\n');
+  execInRepo('git add fork.txt');
+  execInRepo('git commit -m "feat: fork feature"');
+  execInRepo(`git push "${forkRepoPath}" ${forkBranch}`);
+  execInRepo('git checkout main');
+  execInRepo(`git branch -D ${forkBranch}`);
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    forkRepoPath,
+    forkBranch,
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(forkRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
 /**
  * Rebase-conflict repo. feature and main both commit different versions of
  * file1.txt, and the working branch is feature.

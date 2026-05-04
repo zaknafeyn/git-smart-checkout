@@ -12,6 +12,7 @@ export enum AnalyticsEvent {
   PrCloneStarted = 'pr_clone_started',
   PrCloneCompleted = 'pr_clone_completed',
   PrCloneAborted = 'pr_clone_aborted',
+  CheckoutByPR = 'checkout_by_pr',
 }
 
 let client: PostHog | null = null;

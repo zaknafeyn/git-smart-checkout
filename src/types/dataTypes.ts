@@ -11,9 +11,16 @@ export interface GitHubPR {
   head: {
     ref: string;
     sha: string;
+    repo?: {
+      full_name: string;
+      clone_url: string;
+    };
   };
   base: {
     ref: string;
+    repo?: {
+      full_name: string;
+    };
   };
   html_url: string;
   labels: GitHubLabel[];
