@@ -30,3 +30,8 @@ CLAUDE.md
 .claude/**
 website
 
+docs/**
+out/**
+hooks/**
+test-results/**
+post-log.json

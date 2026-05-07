@@ -21,7 +21,7 @@
   ],
   "license": "MIT",
   "version": "0.2.2",
-  "icon": "resources/icon.png",
+  "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=16.x"
