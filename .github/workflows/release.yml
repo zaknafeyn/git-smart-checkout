@@ -29,10 +29,17 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - name: Release
         run: yarn semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           VSCODE_PAT: ${{ secrets.VSCODE_PAT }}
           OPEN_VSX_PAT: ${{ secrets.OPEN_VSX_PAT }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
