@@ -15,8 +15,8 @@ module.exports = {
       // so vsce package will embed the correct version in the VSIX filename.
       prepareCmd: 'yarn build-all && yarn vsce package --yarn',
       publishCmd:
-        'yarn vsce publish --pat ${VSCODE_PAT} git-smart-checkout-${nextRelease.version}.vsix' +
-        ' && yarn ovsx publish --pat ${OPEN_VSX_PAT} git-smart-checkout-${nextRelease.version}.vsix',
+        'yarn vsce publish --pat ${process.env.VSCODE_PAT} git-smart-checkout-${nextRelease.version}.vsix' +
+        ' && yarn ovsx publish --pat ${process.env.OPEN_VSX_PAT} git-smart-checkout-${nextRelease.version}.vsix',
     }],
     ['@semantic-release/git', {
       assets: ['CHANGELOG.md', 'package.json'],
