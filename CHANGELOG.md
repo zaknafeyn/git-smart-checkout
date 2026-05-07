@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.1...v0.2.2) (2026-05-07)
+
+
+### Bug Fixes
+
+* Update publish command to include --packagePath for VS Code extension ([db6a00b](https://github.com/zaknafeyn/git-smart-checkout/commit/db6a00b4dbecca8192cb80742e79ecd82eb0eb17))
+
 ## [0.2.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.0...v0.2.1) (2026-05-07)
 
 
