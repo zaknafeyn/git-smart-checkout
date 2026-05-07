@@ -22,6 +22,24 @@ The `git-smart-checkout` VSCode extension was created to eliminate that pain. It
 
 Our goal is simple: make Git smarter, so you don’t have to think about it. `git-smart-checkout` reduces context-switching overhead and gives developers back valuable time and mental clarity. No more “local changes would be overwritten” errors—just smooth, uninterrupted development.
 
+## Extension settings
+
+| Settings.id (Name) | type | description |
+| --- | --- | --- |
+| `git-smart-checkout.mode` (Checkout stash mode) | `string` | Default checkout stash mode. Available values: `manual`, `autoStashForBranch`, `autoStashAndPop`, `autoStashAndApply`. |
+| `git-smart-checkout.logging.enabled` (Logging enabled) | `boolean` | Enables the extension logging output. |
+| `git-smart-checkout.refetchBeforeCheckout` (Refetch before checkout) | `boolean` | Refetches remotes before each checkout. |
+| `git-smart-checkout.useFastBranchList` (Use fast branch list) | `boolean` | Seeds the branch picker from VS Code's cached Git model, then enriches it with full details in the background. Disable if the picker shows stale branches. |
+| `git-smart-checkout.defaultTargetBranch` (Default target branch) | `string` | Default target branch for PR cloning. Leave empty to use the first available branch. |
+| `git-smart-checkout.prBranchPrefix` (PR branch prefix) | `string` | Prefix added to PR clone branch names. If the prefix does not end with a slash, one is added automatically. |
+| `git-smart-checkout.showStatusBar` (Show status bar) | `boolean` | Shows the extension status bar item. |
+| `git-smart-checkout.useInPlaceCherryPick` (Use in-place cherry-pick) | `boolean` | Uses in-place cherry-pick instead of a temporary worktree for PR cloning. This works best when cherry-pick conflicts are not expected. |
+| `git-smart-checkout.preferredRefs` (Preferred refs) | `object` | Per-user map of preferred refs by repository. Keys are `<owner>/<repo>` or workspace folder names; values contain `locals`, `remotes`, and `tags` arrays with full ref names. |
+| `git-smart-checkout.tagTemplate` (Tag template) | `string` | Template used to generate Git tag names. Supports `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}`, and `{s:stderr:<script>}` tokens. |
+| `git-smart-checkout.pushTagWithoutConfirmation` (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
+| `git-smart-checkout.tagRemote` (Tag remote) | `string` | Git remote used when pushing created tags. |
+| `git-smart-checkout.telemetry.enabled` (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
+
 ## Checkout modes
 
 Command: `Git: Checkout to... (With Stash)`  
@@ -128,14 +146,6 @@ Generate Git tags from a configurable template, with safe token substitution for
 
 > [!TIP]
 > Set `git-smart-checkout.tagTemplate` once per project and run `Create Git Tag from Template` from the command palette to produce a correct, collision-free tag in one step.
-
-### Settings
-
-| Setting | Default | Description |
-| --- | --- | --- |
-| `git-smart-checkout.tagTemplate` | `""` | Template string. Leave empty to enter tag name manually. |
-| `git-smart-checkout.pushTagWithoutConfirmation` | `false` | Push the created tag automatically without asking. |
-| `git-smart-checkout.tagRemote` | `"origin"` | Remote to push tags to. |
 
 ### Template tokens
 
