@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.0...v0.2.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* Correct environment variable references in publish command for VS Code extension ([f69dd7b](https://github.com/zaknafeyn/git-smart-checkout/commit/f69dd7b7d02df8940b86f9bb00f5642e261cfaec))
+
 # [0.2.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.1.23...v0.2.0) (2026-05-07)
 
 
