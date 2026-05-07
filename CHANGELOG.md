@@ -1,3 +1,10 @@
+## [0.2.3](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.2...v0.2.3) (2026-05-07)
+
+
+### Bug Fixes
+
+* update icon file and improve .vscodeignore entries to reduce bundle size ([00f2525](https://github.com/zaknafeyn/git-smart-checkout/commit/00f2525272e288110fdf7e10ae267bac35e7b4eb))
+
 ## [0.2.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.1...v0.2.2) (2026-05-07)
 
 
