@@ -1,4 +1,4 @@
-name: Create and Push Tag
+name: Create and Push Tag (Deprecated)
 
 on:
   workflow_dispatch:

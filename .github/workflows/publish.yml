@@ -1,9 +1,8 @@
-name: Deploy VS Code Extension
+name: Deploy VS Code Extension (Deprecated)
 
+# Emergency manual release only — semantic-release (release.yml) handles normal releases.
+# Triggered by tag.yml (workflow_dispatch) when a manual override is needed.
 on:
-  push:
-    tags:
-      - 'v*.*.*' # Triggers on tags like v0.1.2, v1.0.0, etc.
   workflow_call:
     inputs:
       tag:
