@@ -27,6 +27,14 @@ const features: Feature[] = [
     color: 'green',
   },
   {
+    icon: '🔃',
+    title: 'Pull with Rebase',
+    description:
+      'Pull with rebase while preserving local changes. The extension stashes your work, rebases onto the remote branch, and restores your changes afterward.',
+    command: 'Git: Pull (Rebase With Stash)',
+    color: 'orange',
+  },
+  {
     icon: '⬅️',
     title: 'Checkout Previous Branch',
     description:
@@ -75,7 +83,7 @@ export function Features() {
           <span className={styles.eyebrow}>What's included</span>
           <h2 className={styles.title}>Everything you need for seamless branch switching</h2>
           <p className={styles.subtitle}>
-            Seven powerful features that eliminate the friction between you and your Git workflow.
+            Eight powerful features that eliminate the friction between you and your Git workflow.
           </p>
         </div>
 

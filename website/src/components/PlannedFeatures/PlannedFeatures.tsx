@@ -30,13 +30,6 @@ const planned: PlannedFeature[] = [
       'A dedicated side panel listing all auto-created stashes with branch, age, file count, diff preview, and one-click Apply / Pop / Drop actions.',
   },
   {
-    icon: '🔃',
-    tier: 1,
-    title: 'Pull with Rebase',
-    description:
-      'Choose between merge, rebase, or fast-forward-only when pulling. Configurable globally or per-repo.',
-  },
-  {
     icon: '⚡',
     tier: 1,
     title: 'Inline Branch Actions',
