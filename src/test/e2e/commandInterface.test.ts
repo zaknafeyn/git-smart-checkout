@@ -418,6 +418,34 @@ describe('VS Code command interface', () => {
     }
   });
 
+  it('pullRebaseWithStash rebases local commits and restores local changes', async () => {
+    const repo = createPullTestRepo();
+
+    try {
+      await withRepoWorkspace(repo, async () => {
+        repo.makeChange('local.txt', 'local committed content\n');
+        repo.exec('git add local.txt');
+        repo.exec('git commit -m "feat: local change"');
+        repo.makeChange('file1.txt', 'local dirty content\n');
+        repo.makeChange('notes.txt', 'untracked notes\n');
+
+        await vscode.commands.executeCommand(commandId('pullRebaseWithStash'));
+
+        const latestSubjects = repo.exec('git log --format=%s -2').trim().split('\n');
+
+        assert.deepStrictEqual(latestSubjects, ['feat: local change', 'feat: remote change']);
+        assert.strictEqual(repo.fileExists('remote.txt'), true);
+        assert.strictEqual(repo.fileExists('local.txt'), true);
+        assert.strictEqual(repo.readFile('file1.txt'), 'local dirty content\n');
+        assert.strictEqual(repo.readFile('notes.txt'), 'untracked notes\n');
+        assert.strictEqual(await repo.git.isWorkdirHasChanges(), true);
+        assert.strictEqual(repo.stashCount(), 0);
+      });
+    } finally {
+      repo.cleanup();
+    }
+  });
+
   it('rebaseWithStash selects mode and target through VS Code prompts', async () => {
     const repo = createRebaseTestRepo();
     const restoreQuickPick = stubShowQuickPick((items, options) => {

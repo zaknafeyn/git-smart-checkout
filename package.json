@@ -82,6 +82,11 @@
         "category": "Git"
       },
       {
+        "command": "git-smart-checkout.pullRebaseWithStash",
+        "title": "Pull (Rebase With Stash)",
+        "category": "Git"
+      },
+      {
         "command": "git-smart-checkout.switchMode",
         "title": "Switch Mode",
         "category": "Git"
@@ -139,6 +144,9 @@
         },
         {
           "command": "git-smart-checkout.pullWithStash"
+        },
+        {
+          "command": "git-smart-checkout.pullRebaseWithStash"
         },
         {
           "command": "git-smart-checkout.clonePullRequest"

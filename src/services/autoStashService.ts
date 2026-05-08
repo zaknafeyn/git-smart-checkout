@@ -12,6 +12,8 @@ import { handleErrorMessage } from "../utils/handleErrorMessage";
 import { AnalyticsEvent, capture, captureException } from "../analytics/analytics";
 import { VscodeGitProvider } from "../common/git/vscodeGitProvider";
 
+export type TPullWithStashStrategy = 'merge' | 'rebase';
+
 export class AutoStashService {
   
   constructor(
@@ -99,6 +101,42 @@ export class AutoStashService {
     this.logService.info(`Selected rebase mode: ${picked?.label}`);
 
     return picked?.label as TAutoStashMode;
+  }
+
+  async pullAndStashChanges(
+    git: GitExecutor,
+    currentBranch: string,
+    strategy: TPullWithStashStrategy = 'merge'
+  ): Promise<void> {
+    const event = strategy === 'rebase'
+      ? AnalyticsEvent.PullRebaseWithStash
+      : AnalyticsEvent.PullWithStash;
+    const stashMessage = getStashMessage(currentBranch, true);
+    const isWorkdirHasChangesBeforeStash = await git.isWorkdirHasChanges();
+
+    if (isWorkdirHasChangesBeforeStash) {
+      await git.createStash(stashMessage);
+    }
+
+    try {
+      await git.pullFromRemoteBranch({ rebase: strategy === 'rebase' });
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      const operation = strategy === 'rebase' ? 'Pull with rebase' : 'Pull';
+      throw new Error(`${operation} failed: ${msg}${isWorkdirHasChangesBeforeStash ? '\n\nYour changes are preserved in the stash.' : ''}`);
+    }
+
+    if (isWorkdirHasChangesBeforeStash) {
+      const isWorkdirHasChanges = await git.isWorkdirHasChanges();
+      if (isWorkdirHasChanges) {
+        await git.resetLocalChanges();
+      }
+
+      await git.popStash(stashMessage);
+    }
+
+    capture(event, { had_changes: isWorkdirHasChangesBeforeStash });
   }
 
   async rebaseAndStashChanges(
