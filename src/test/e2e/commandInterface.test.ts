@@ -13,6 +13,10 @@ import {
   AUTO_STASH_MODE_MANUAL,
 } from '../../configuration/extensionConfig';
 import { EXTENSION_NAME } from '../../const';
+import {
+  COPY_AND_OPEN_ISSUE_ACTION,
+  ISSUE_URL,
+} from '../../utils/errorIssueNotification';
 
 import {
   createPullTestRepo,
@@ -516,6 +520,40 @@ describe('VS Code command interface', () => {
       info.restore();
       restoreInput();
       repo.cleanup();
+    }
+  });
+
+  it('showNotification error action copies the error and opens a GitHub issue', async () => {
+    const message = 'Failed to copy commits to clipboard: Error: command interface test';
+    const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
+    const originalOpenExternal = vscode.env.openExternal.bind(vscode.env);
+    const messages: string[] = [];
+    const items: string[][] = [];
+    let openedUri: vscode.Uri | undefined;
+
+    (vscode.window as any).showErrorMessage = async (shownMessage: string, ...shownItems: string[]) => {
+      messages.push(shownMessage);
+      items.push(shownItems);
+      return COPY_AND_OPEN_ISSUE_ACTION;
+    };
+    (vscode.env as any).openExternal = async (uri: vscode.Uri) => {
+      openedUri = uri;
+      return true;
+    };
+
+    try {
+      await vscode.env.clipboard.writeText('');
+
+      await vscode.commands.executeCommand(commandId('showNotification'), message, 'error');
+
+      assert.deepStrictEqual(messages, [message]);
+      assert.deepStrictEqual(items, [['OK', COPY_AND_OPEN_ISSUE_ACTION]]);
+      assert.strictEqual(await vscode.env.clipboard.readText(), message);
+      assert.strictEqual(openedUri?.toString(), ISSUE_URL);
+    } finally {
+      (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+      (vscode.env as any).openExternal = originalOpenExternal;
+      await vscode.env.clipboard.writeText('');
     }
   });
 
