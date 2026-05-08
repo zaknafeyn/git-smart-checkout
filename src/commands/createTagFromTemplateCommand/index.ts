@@ -11,6 +11,9 @@ import {
 import { validateTagName } from './validateTagName';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 
+const CREATE_TAG_ACTION = 'Create';
+const COPY_TAG_ACTION = 'Copy Tag';
+
 export class CreateTagFromTemplateCommand extends BaseCommand {
   constructor(
     private readonly configManager: ConfigurationManager,
@@ -121,12 +124,8 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
       }
     }
 
-    const confirm = await vscode.window.showInformationMessage(
-      `Create Git tag "${tagName}"?`,
-      { modal: true },
-      'Create'
-    );
-    if (confirm !== 'Create') {
+    const confirm = await this.confirmCreateTag(tagName);
+    if (!confirm) {
       return;
     }
 
@@ -183,7 +182,7 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     }
 
     if (!shouldPush) {
-      await this.showInformationMessage(`Tag "${tagName}" created.`);
+      await this.showTagReadyInformationMessage(`Tag "${tagName}" created.`, tagName);
       return;
     }
 
@@ -191,15 +190,60 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
       await git.pushTag(tagName, remote);
       this.logService.info('[Create Tag] Tag pushed successfully to ' + remote);
       capture(AnalyticsEvent.TagPushed);
-      await this.showInformationMessage(
-        `Tag "${tagName}" created and pushed to ${remote}.`
+      await this.showTagReadyInformationMessage(
+        `Tag "${tagName}" created and pushed to ${remote}.`,
+        tagName
       );
     } catch (e) {
       captureException(e);
       this.logService.error('[Create Tag] Push failed', e);
-      await this.showWarningMessage(
-        `Tag "${tagName}" was created locally, but push failed.`
+      await this.showTagReadyWarningMessage(
+        `Tag "${tagName}" was created locally, but push failed.`,
+        tagName
       );
+    }
+  }
+
+  private async confirmCreateTag(tagName: string): Promise<boolean> {
+    while (true) {
+      const action = await vscode.window.showInformationMessage(
+        `Create Git tag "${tagName}"?`,
+        { modal: true },
+        CREATE_TAG_ACTION,
+      );
+
+      return action === CREATE_TAG_ACTION;
+    }
+  }
+
+  private async showTagReadyInformationMessage(
+    message: string,
+    tagName: string
+  ): Promise<void> {
+    const action = await this.showInformationMessage(message, COPY_TAG_ACTION);
+    if (action === COPY_TAG_ACTION) {
+      await this.copyTagToClipboard(tagName);
+    }
+  }
+
+  private async showTagReadyWarningMessage(
+    message: string,
+    tagName: string
+  ): Promise<void> {
+    const action = await this.showWarningMessage(message, COPY_TAG_ACTION);
+    if (action === COPY_TAG_ACTION) {
+      await this.copyTagToClipboard(tagName);
+    }
+  }
+
+  private async copyTagToClipboard(tagName: string): Promise<void> {
+    try {
+      await vscode.env.clipboard.writeText(tagName);
+      await this.showInformationMessage(`Copied tag "${tagName}" to clipboard.`);
+    } catch (e) {
+      captureException(e);
+      this.logService.error('[Create Tag] Failed to copy tag to clipboard', e);
+      await this.showErrorMessage(`Failed to copy tag "${tagName}" to clipboard.`);
     }
   }
 }

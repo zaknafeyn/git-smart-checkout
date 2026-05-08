@@ -120,7 +120,7 @@
       },
       {
         "command": "git-smart-checkout.createTagFromTemplate",
-        "title": "Create Git Tag from Template",
+        "title": "Create Tag from Template",
         "category": "Git"
       },
       {
