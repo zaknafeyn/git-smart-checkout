@@ -1,3 +1,17 @@
+# [0.3.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.3...v0.3.0) (2026-05-08)
+
+
+### Bug Fixes
+
+* update release workflow to trigger on workflow_dispatch instead of push ([6d79f4d](https://github.com/zaknafeyn/git-smart-checkout/commit/6d79f4db69f99de36d0b024c1d5d5b7aed4622bd))
+
+
+### Features
+
+* add 'Pull (Rebase With Stash)' command with automatic stash handling ([#44](https://github.com/zaknafeyn/git-smart-checkout/issues/44)) ([4a868e5](https://github.com/zaknafeyn/git-smart-checkout/commit/4a868e5fe790f8acd92905d5f1e6eb4ad431e1f0))
+* allow user to copy created tag to clipboard and update confirmation messages ([#43](https://github.com/zaknafeyn/git-smart-checkout/issues/43)) ([3606ba2](https://github.com/zaknafeyn/git-smart-checkout/commit/3606ba293647327f25d1c98989359b431d77dfde))
+* enhance documentation for commands with stash support ([#45](https://github.com/zaknafeyn/git-smart-checkout/issues/45)) ([43677b1](https://github.com/zaknafeyn/git-smart-checkout/commit/43677b1326dfb566dc518f8e616b9261583031bc))
+
 ## [0.2.3](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.2...v0.2.3) (2026-05-07)
 
 
