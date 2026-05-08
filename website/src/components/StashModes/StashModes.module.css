@@ -94,7 +94,7 @@
 
 .tip {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 20px 24px;
   border-radius: var(--radius-md);

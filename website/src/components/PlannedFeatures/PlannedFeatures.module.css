@@ -76,35 +76,6 @@
   gap: 16px;
 }
 
-.card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 20px;
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-}
-
-.cardIcon {
-  font-size: 22px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.cardTitle {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-}
-
-.cardDesc {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-
 .cta {
   margin-top: 8px;
   padding: 28px;

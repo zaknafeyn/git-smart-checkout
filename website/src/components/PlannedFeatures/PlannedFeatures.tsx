@@ -1,3 +1,4 @@
+import { FeatureCard } from '../FeatureCard/FeatureCard';
 import styles from './PlannedFeatures.module.css';
 
 interface PlannedFeature {
@@ -96,13 +97,14 @@ export function PlannedFeatures() {
           </div>
           <div className={styles.grid}>
             {tier1.map((f) => (
-              <article key={f.title} className={styles.card}>
-                <span className={styles.cardIcon}>{f.icon}</span>
-                <div>
-                  <h4 className={styles.cardTitle}>{f.title}</h4>
-                  <p className={styles.cardDesc}>{f.description}</p>
-                </div>
-              </article>
+              <FeatureCard
+                key={f.title}
+                icon={f.icon}
+                title={f.title}
+                description={f.description}
+                compact
+                titleLevel={4}
+              />
             ))}
           </div>
         </div>
@@ -114,13 +116,14 @@ export function PlannedFeatures() {
           </div>
           <div className={styles.grid}>
             {tier2.map((f) => (
-              <article key={f.title} className={styles.card}>
-                <span className={styles.cardIcon}>{f.icon}</span>
-                <div>
-                  <h4 className={styles.cardTitle}>{f.title}</h4>
-                  <p className={styles.cardDesc}>{f.description}</p>
-                </div>
-              </article>
+              <FeatureCard
+                key={f.title}
+                icon={f.icon}
+                title={f.title}
+                description={f.description}
+                compact
+                titleLevel={4}
+              />
             ))}
           </div>
         </div>

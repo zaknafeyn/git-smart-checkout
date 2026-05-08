@@ -41,95 +41,6 @@
   gap: 20px;
 }
 
-.card {
-  display: flex;
-  gap: 16px;
-  padding: 24px;
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  min-width: 0;
-  overflow: hidden;
-}
-
-.cardIcon {
-  font-size: 28px;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.cardBody {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cardTitleRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cardTitle {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.tag {
-  padding: 2px 8px;
-  border-radius: 100px;
-  background: var(--orange-subtle);
-  color: var(--orange);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-
-.cardDesc {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.cardCommand {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  margin-top: 4px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.cmdIcon {
-  font-family: 'Noto Sans Symbols 2', sans-serif;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  letter-spacing: 0.05em;
-  align-self: center;
-}
-
-.cardCommand code {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
 @media (max-width: 768px) {
   .section {
     padding: 64px 0;
@@ -147,9 +58,5 @@
 @media (max-width: 480px) {
   .section {
     padding: 48px 0;
-  }
-
-  .card {
-    padding: 20px;
   }
 }

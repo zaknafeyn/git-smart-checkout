@@ -1,4 +1,5 @@
 import { DownloadStats } from '../DownloadStats/DownloadStats';
+import { getCommandPaletteShortcut } from '../../utils/shortcuts';
 import styles from './Hero.module.css';
 
 const MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout';
@@ -13,6 +14,8 @@ const EDITORS = [
 ];
 
 export function Hero() {
+  const commandPaletteShortcut = getCommandPaletteShortcut();
+
   return (
     <section className={styles.hero}>
       <div className={`container ${styles.inner}`}>
@@ -68,7 +71,7 @@ export function Hero() {
         <DownloadStats />
 
         <div className={styles.codeBlock}>
-          <span className={styles.codePrompt}>⌘ ⇧ P</span>
+          <kbd className={styles.codePrompt}>{commandPaletteShortcut}</kbd>
           <span className={styles.codeCmd}>Git: Checkout to... (With Stash)</span>
           <span className={styles.codeCursor} aria-hidden="true">▋</span>
         </div>

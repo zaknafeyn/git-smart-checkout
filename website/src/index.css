@@ -1,5 +1,21 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&display=swap");
 
+@font-face {
+  font-family: "SF Pro Text";
+  src: local("SF Pro Text"), local("SFProText-Regular");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Pro Icons";
+  src: local("SF Pro Icons"), local("SFProIcons-Regular");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg-primary: #0d1117;
   --bg-secondary: #161b22;
@@ -26,6 +42,9 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --font-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --font-icons: "SF Pro Icons", "Noto Sans Symbols 2", "Apple Symbols", sans-serif;
+  --font-hotkey: "SF Pro Icons", "SF Pro Text", "Noto Sans Symbols 2", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
@@ -46,11 +65,30 @@ html {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  font-family: var(--font-text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7em;
+  padding: 1px 6px;
+  border: 1px solid rgba(56, 139, 253, 0.25);
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-family: var(--font-hotkey);
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  vertical-align: baseline;
+  font-variant-numeric: tabular-nums;
 }
 
 a {
