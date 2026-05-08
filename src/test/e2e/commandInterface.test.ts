@@ -187,20 +187,23 @@ function stubInputBox(...answers: string[]): () => void {
 
 function stubInformationMessages(
   pick: (message: string, items: readonly string[]) => string | undefined
-): { messages: string[]; restore: () => void } {
+): { messages: string[]; items: string[][]; restore: () => void } {
   const original = vscode.window.showInformationMessage.bind(vscode.window);
   const messages: string[] = [];
+  const shownItems: string[][] = [];
 
   (vscode.window as any).showInformationMessage = async (message: string, ...args: any[]) => {
     messages.push(message);
     const items = typeof args[0] === 'object' && typeof args[0] !== 'string'
       ? args.slice(1)
       : args;
+    shownItems.push(items);
     return pick(message, items);
   };
 
   return {
     messages,
+    items: shownItems,
     restore() {
       (vscode.window as any).showInformationMessage = original;
     },
@@ -502,6 +505,11 @@ describe('VS Code command interface', () => {
         assert.deepStrictEqual(errors.messages, []);
         assert.strictEqual(await repo.git.tagExists('command-v1.0.0'), true);
         assert.strictEqual(repo.remoteHasTag('command-v1.0.0'), true);
+        assert.ok(
+          info.items.some((items) => items.includes('Copy Tag')),
+          'created tag notification should offer Copy Tag'
+        );
+        assert.strictEqual(await vscode.env.clipboard.readText(), 'command-v1.0.0');
       });
     } finally {
       errors.restore();
