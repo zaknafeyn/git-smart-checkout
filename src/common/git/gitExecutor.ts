@@ -3,7 +3,63 @@ import { ExecException, ExecSyncOptions } from 'child_process';
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
-import { IGitRef, TUpstreamTrack } from './types';
+import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
+
+export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
+  const worktrees: IGitWorktree[] = [];
+  let current: IGitWorktree | undefined;
+
+  const pushCurrent = () => {
+    if (current) {
+      worktrees.push(current);
+      current = undefined;
+    }
+  };
+
+  for (const rawLine of output.split('\n')) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      pushCurrent();
+      continue;
+    }
+
+    const [key, ...valueParts] = line.split(' ');
+    const value = valueParts.join(' ');
+
+    if (key === 'worktree') {
+      pushCurrent();
+      current = { path: value };
+      continue;
+    }
+
+    if (!current) {
+      continue;
+    }
+
+    switch (key) {
+      case 'HEAD':
+        current.head = value;
+        break;
+      case 'branch':
+        current.branch = value;
+        break;
+      case 'detached':
+        current.detached = true;
+        break;
+      case 'bare':
+        current.bare = true;
+        break;
+      case 'prunable':
+        current.prunable = true;
+        break;
+    }
+  }
+
+  pushCurrent();
+
+  return worktrees;
+}
 
 export class GitExecutor {
   #repositoryPath;
@@ -474,10 +530,23 @@ export class GitExecutor {
     try {
       const { stdout } = await this.#execGitCommand(command);
 
-      return stdout
-        .split('\n')
-        .filter((line) => line.startsWith('worktree '))
-        .map((line) => line.replace('worktree ', '').trim());
+      return parseWorktreeListPorcelain(stdout).map((worktree) => worktree.path);
+    } catch (error) {
+      if (muteError) {
+        return [];
+      }
+
+      throw new Error(`Failed to get worktree list: ${error}`);
+    }
+  }
+
+  async worktreeListDetailed(muteError = false): Promise<IGitWorktree[]> {
+    const command = 'git worktree list --porcelain';
+
+    try {
+      const { stdout } = await this.#execGitCommand(command);
+
+      return parseWorktreeListPorcelain(stdout);
     } catch (error) {
       if (muteError) {
         return [];
@@ -496,6 +565,22 @@ export class GitExecutor {
 
   async worktreeAdd(workTreePath: string, targetBranch: string) {
     const command = `git worktree add "${workTreePath}" ${targetBranch} --force`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async worktreeAddLocalBranch(workTreePath: string, targetBranch: string) {
+    const command = `git worktree add "${workTreePath}" "${targetBranch}"`;
+
+    const { stdout } = await this.#execGitCommand(command);
+
+    return stdout;
+  }
+
+  async worktreeAddRemoteBranch(workTreePath: string, localBranch: string, remoteRef: string) {
+    const command = `git worktree add --track -b "${localBranch}" "${workTreePath}" "${remoteRef}"`;
 
     const { stdout } = await this.#execGitCommand(command);
 

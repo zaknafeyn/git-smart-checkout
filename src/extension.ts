@@ -20,6 +20,7 @@ import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
+import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
@@ -94,6 +95,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
+
+  const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
 
   // Register clone pull request command
   const clonePullRequestCommand = commands.registerCommand(

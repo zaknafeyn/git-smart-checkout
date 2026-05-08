@@ -132,6 +132,11 @@
         "command": "git-smart-checkout.checkoutByPR",
         "title": "Checkout by PR number ... (With Stash)",
         "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.moveToNewWorktree",
+        "title": "Move to new worktree",
+        "category": "Git"
       }
     ],
     "menus": {
@@ -159,6 +164,9 @@
         },
         {
           "command": "git-smart-checkout.checkoutByPR"
+        },
+        {
+          "command": "git-smart-checkout.moveToNewWorktree"
         }
       ],
       "view/title": [
