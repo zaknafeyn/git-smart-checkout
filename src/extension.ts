@@ -23,6 +23,7 @@ import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCo
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
+import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 
 const EXTENSION_LOADING_TIMEOUT = 250;
 
@@ -147,7 +148,7 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showWarningMessage(message, 'OK');
           break;
         case 'error':
-          await vscode.window.showErrorMessage(message, 'OK');
+          await showErrorMessageWithIssueAction(message, 'OK');
           break;
       }
     }

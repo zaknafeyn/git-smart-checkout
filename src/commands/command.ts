@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { LoggingService } from '../logging/loggingService';
+import { showErrorMessageWithIssueAction } from '../utils/errorIssueNotification';
 import { getGitExecutor } from '../utils/getGitExecutor';
 
 export interface ICommand {
@@ -43,6 +44,6 @@ export abstract class BaseCommand implements ICommand {
     message: string,
     ...items: string[]
   ): Promise<string | undefined> {
-    return await vscode.window.showErrorMessage(message, ...items);
+    return await showErrorMessageWithIssueAction(message, ...items);
   }
 }
