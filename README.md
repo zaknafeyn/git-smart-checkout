@@ -76,6 +76,10 @@ Command:  `Git: Pull (With Stash)`
 
 The extension provides a convenient **Pull with stash** feature. When you run this command, your uncommitted changes are automatically stashed before pulling updates from the remote branch. After the pull completes, your changes are restored. This ensures a smooth workflow and prevents conflicts or loss of local changes during a pull operation.
 
+Command: `Git: Pull (Rebase With Stash)`
+
+Use this sibling command when your team requires rebase pulls. It uses the same temporary stash and restore behavior as `Git: Pull (With Stash)`, but runs `git pull --rebase` before restoring your changes.
+
 ## Checkout ot previous branch with stash
 
 Command: `Git: Checkout previous branch (With Stash)`  

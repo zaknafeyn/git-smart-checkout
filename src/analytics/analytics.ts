@@ -5,6 +5,7 @@ export enum AnalyticsEvent {
   CheckoutPreviousBranch = 'checkout_previous_branch',
   BranchCreated = 'branch_created',
   PullWithStash = 'pull_with_stash',
+  PullRebaseWithStash = 'pull_rebase_with_stash',
   StashModeSwitched = 'stash_mode_switched',
   RebaseWithStash = 'rebase_with_stash',
   TagCreated = 'tag_created',

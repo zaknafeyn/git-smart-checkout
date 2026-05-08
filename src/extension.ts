@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { CheckoutToCommand } from './commands/checkoutToCommand';
 import { CheckoutPreviousCommand } from './commands/checkoutPreviousCommand';
 import { CommandManager } from './commands/commandManager';
-import { PullWithStashCommand } from './commands/pullWithStashCommand';
+import { PullRebaseWithStashCommand, PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
 import { VscodeGitProvider } from './common/git/vscodeGitProvider';
 import { ConfigurationManager } from './configuration/configurationManager';
@@ -74,7 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
   const checkoutToCommand = new CheckoutToCommand(configManager, logService, autoStashService, vscodeGitProvider);
   const checkoutPreviousCommand = new CheckoutPreviousCommand(logService, autoStashService);
-  const pullWithStashCommand = new PullWithStashCommand(configManager, logService);
+  const pullWithStashCommand = new PullWithStashCommand(logService, autoStashService);
+  const pullRebaseWithStashCommand = new PullRebaseWithStashCommand(logService, autoStashService);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.switchMode`, switchModeCommand);
 
@@ -83,6 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.pullRebaseWithStash`, pullRebaseWithStashCommand);
 
   const rebaseWithStashCommand = new RebaseWithStashCommand(configManager, logService, autoStashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.rebaseWithStash`, rebaseWithStashCommand);

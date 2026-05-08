@@ -292,8 +292,8 @@ export class GitExecutor {
     return stdout.trim();
   }
 
-  async pullFromRemoteBranch() {
-    const command = 'git pull';
+  async pullFromRemoteBranch(options: { rebase?: boolean } = {}) {
+    const command = `git pull${options.rebase ? ' --rebase' : ''}`;
 
     await this.#execGitCommand(command);
   }
