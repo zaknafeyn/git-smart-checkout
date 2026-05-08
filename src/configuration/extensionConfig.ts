@@ -28,6 +28,7 @@ export interface ExtensionConfig {
   useFastBranchList: boolean;
   showStatusBar: boolean;
   defaultTargetBranch: string;
+  defaultWorktreeDirectory: string;
   prBranchPrefix: string;
   useInPlaceCherryPick: boolean;
   logging: {
