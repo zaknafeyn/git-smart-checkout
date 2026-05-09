@@ -21,6 +21,7 @@ import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
+import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
@@ -98,6 +99,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(configManager, logService, autoStashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
+
+  const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
 
   // Register clone pull request command
   const clonePullRequestCommand = commands.registerCommand(

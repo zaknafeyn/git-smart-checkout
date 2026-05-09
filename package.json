@@ -130,12 +130,17 @@
       },
       {
         "command": "git-smart-checkout.checkoutByPR",
-        "title": "Checkout by PR number ... (With Stash)",
+        "title": "Checkout by PR number... (With Stash)",
         "category": "Git"
       },
       {
         "command": "git-smart-checkout.moveToNewWorktree",
         "title": "Move to new worktree",
+        "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.removeWorktree",
+        "title": "Remove Worktree...",
         "category": "Git"
       }
     ],
@@ -167,6 +172,9 @@
         },
         {
           "command": "git-smart-checkout.moveToNewWorktree"
+        },
+        {
+          "command": "git-smart-checkout.removeWorktree"
         }
       ],
       "view/title": [

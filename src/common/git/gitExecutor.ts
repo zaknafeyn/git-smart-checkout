@@ -270,6 +270,11 @@ export class GitExecutor {
     await this.#execGitCommand(command);
   }
 
+  async discardAllWorktreeChanges() {
+    await this.#execGitCommand('git reset --hard');
+    await this.#execGitCommand('git clean -fd');
+  }
+
   async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
     if (fetchRemotes) {
       await this.fetchAllRemoteBranchesAndTags();

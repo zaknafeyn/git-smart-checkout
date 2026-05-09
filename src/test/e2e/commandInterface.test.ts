@@ -218,6 +218,31 @@ function stubInformationMessages(
   };
 }
 
+function stubWarningMessages(
+  pick: (message: string, items: readonly string[]) => string | undefined
+): { messages: string[]; items: string[][]; restore: () => void } {
+  const original = vscode.window.showWarningMessage.bind(vscode.window);
+  const messages: string[] = [];
+  const shownItems: string[][] = [];
+
+  (vscode.window as any).showWarningMessage = async (message: string, ...args: any[]) => {
+    messages.push(message);
+    const items = typeof args[0] === 'object' && typeof args[0] !== 'string'
+      ? args.slice(1)
+      : args;
+    shownItems.push(items);
+    return pick(message, items);
+  };
+
+  return {
+    messages,
+    items: shownItems,
+    restore() {
+      (vscode.window as any).showWarningMessage = original;
+    },
+  };
+}
+
 function stubErrorMessages(): { messages: string[]; restore: () => void } {
   const original = vscode.window.showErrorMessage.bind(vscode.window);
   const messages: string[] = [];
@@ -290,6 +315,13 @@ async function cleanupWorktree(repo: TestRepo, worktreePath: string): Promise<vo
 
 function execIn(cwd: string, command: string): string {
   return execSync(command, { cwd, encoding: 'utf-8' });
+}
+
+function stashMessages(repo: TestRepo): string[] {
+  return repo.exec('git stash list --format="%gs"')
+    .trim()
+    .split('\n')
+    .filter((message) => message.trim() !== '');
 }
 
 describe('VS Code command interface', () => {
@@ -632,6 +664,304 @@ describe('VS Code command interface', () => {
         info.restore();
         restoreInput();
         restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+  });
+
+  describe('removeWorktree', () => {
+    it('excludes the main worktree and lists linked worktrees', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      let inspectedPicker = false;
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          inspectedPicker = true;
+          const labels = items
+            .filter((item): item is QuickPickLikeItem => typeof item !== 'string')
+            .map((item) => item.label);
+
+          assert.ok(!labels.includes(repo.mainBranch), 'main worktree should be hidden');
+          assert.ok(labels.includes(repo.featureBranch), 'linked worktree should be listed');
+        }
+
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.strictEqual(inspectedPicker, true);
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+        });
+      } finally {
+        errors.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('removes a clean linked worktree after confirmation', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Choose a repository') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === path.basename(repo.repoPath)
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, ['Remove Worktree', 'Cancel']);
+        return 'Remove Worktree';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(warnings.messages.length, 1);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('stashes dirty changes before removing the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty before remove\n');
+      fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'untracked before remove\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Stash Changes and Remove',
+          'Reset Changes and Remove',
+          'Cancel',
+        ]);
+        return 'Stash Changes and Remove';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+          assert.strictEqual(repo.stashCount(), 1);
+          assert.ok(
+            stashMessages(repo).some((message) => message.includes(`auto-stash-${repo.featureBranch}`)),
+            'stash should use the current-branch auto-stash name'
+          );
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('resets dirty changes before removing the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty before reset remove\n');
+      fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'untracked before reset remove\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Stash Changes and Remove',
+          'Reset Changes and Remove',
+          'Cancel',
+        ]);
+        return 'Reset Changes and Remove';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+          assert.strictEqual(repo.stashCount(), 0);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('cancels dirty worktree removal without changing files', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty but kept\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, _items) => 'Cancel');
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+          assert.strictEqual(fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'), 'dirty but kept\n');
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim().length > 0, true);
+        });
+      } finally {
+        errors.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('removes matching open workspace folders after deleting the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const originalFolders = Object.getOwnPropertyDescriptor(vscode.workspace, 'workspaceFolders');
+      const originalUpdateWorkspaceFolders = vscode.workspace.updateWorkspaceFolders.bind(vscode.workspace);
+      let folders = [
+        {
+          uri: vscode.Uri.file(repo.repoPath),
+          name: path.basename(repo.repoPath),
+          index: 0,
+        },
+        {
+          uri: vscode.Uri.file(worktreePath),
+          name: path.basename(worktreePath),
+          index: 1,
+        },
+      ] as vscode.WorkspaceFolder[];
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+        configurable: true,
+        get: () => folders,
+      });
+
+      (vscode.workspace as any).updateWorkspaceFolders = (start: number, deleteCount: number) => {
+        folders.splice(start, deleteCount);
+        folders = folders.map((folder, index) => ({ ...folder, index }));
+        return true;
+      };
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Choose a repository') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === path.basename(repo.repoPath)
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, _items) => 'Remove Worktree');
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+        assert.deepStrictEqual(errors.messages, []);
+        assert.strictEqual(fs.existsSync(worktreePath), false);
+        assert.deepStrictEqual(folders.map((folder) => folder.uri.fsPath), [repo.repoPath]);
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        (vscode.workspace as any).updateWorkspaceFolders = originalUpdateWorkspaceFolders;
+        if (originalFolders) {
+          Object.defineProperty(vscode.workspace, 'workspaceFolders', originalFolders);
+        } else {
+          delete (vscode.workspace as any).workspaceFolders;
+        }
         await cleanupWorktree(repo, worktreePath);
         repo.cleanup();
       }
