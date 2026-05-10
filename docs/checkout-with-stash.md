@@ -1,6 +1,6 @@
 # Checkout with Stash
 
-Command: `Git: Checkout to ... (With Stash)`
+Command: `Git Smart Checkout: Checkout to ... (With Stash)`
 
 Use this command to switch to a local branch, remote branch, or tag while the extension protects your uncommitted changes according to the selected stash mode.
 
@@ -25,7 +25,7 @@ When `git-smart-checkout.useFastBranchList` is enabled, the picker opens quickly
 | No auto stash | Runs checkout without automatic stash handling. Git may block the checkout if local changes would be overwritten. |
 
 > [!TIP]
-> Set the default behavior with `Git: Switch Mode` or the status bar item. When the mode is `manual`, this command asks you to select a stash mode each time.
+> Set the default behavior with `Git Smart Checkout: Switch Mode` or the status bar item. When the mode is `manual`, this command asks you to select a stash mode each time.
 
 > [!TIP]
 > Stashes created by "Auto stash and apply in new branch" are not used by the automatic branch-restore flow. They remain available for manual stash access.

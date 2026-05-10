@@ -66,7 +66,7 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
       const created = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Git: Move to new worktree...',
+          title: 'Git Smart Checkout: Move to new worktree...',
           cancellable: false,
         },
         async (progress) => {

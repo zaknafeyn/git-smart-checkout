@@ -24,16 +24,16 @@ In fast-paced development environments, switching between Git branches is freque
 
 | Feature | Command | Details |
 | --- | --- | --- |
-| Checkout to a branch, tag, or remote ref with configurable stash behavior | `Git: Checkout to ... (With Stash)` | [Checkout with stash](docs/checkout-with-stash.md) |
-| Checkout the previous branch with the same stash behavior | `Git: Checkout previous branch (With Stash)` | [Checkout previous branch with stash](docs/checkout-previous-branch-with-stash.md) |
-| Checkout a GitHub pull request branch by PR number or URL | `Git: Checkout by PR number ... (With Stash)` | [Checkout by PR number with stash](docs/checkout-by-pr-number-with-stash.md) |
-| Pull the current branch while preserving local changes | `Git: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
-| Pull with rebase while preserving local changes | `Git: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
-| Rebase the current branch onto another ref while preserving local changes | `Git: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
-| Copy staged or WIP changes between existing worktrees | `Git: Copy staged changes to worktree ...`, `Git: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
-| Create a new PR from selected commits in another GitHub PR | `GitHub: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
-| Generate and optionally push a tag from a reusable template | `Git: Create Git Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
-| Change the default stash mode used by checkout-style commands | `Git: Switch Mode` | [Switch mode](docs/switch-mode.md) |
+| Checkout to a branch, tag, or remote ref with configurable stash behavior | `Git Smart Checkout: Checkout to ... (With Stash)` | [Checkout with stash](docs/checkout-with-stash.md) |
+| Checkout the previous branch with the same stash behavior | `Git Smart Checkout: Checkout previous branch (With Stash)` | [Checkout previous branch with stash](docs/checkout-previous-branch-with-stash.md) |
+| Checkout a GitHub pull request branch by PR number or URL | `Git Smart Checkout: Checkout by PR number... (With Stash)` | [Checkout by PR number with stash](docs/checkout-by-pr-number-with-stash.md) |
+| Pull the current branch while preserving local changes | `Git Smart Checkout: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
+| Pull with rebase while preserving local changes | `Git Smart Checkout: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
+| Rebase the current branch onto another ref while preserving local changes | `Git Smart Checkout: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
+| Copy staged or WIP changes between existing worktrees | `Git Smart Checkout: Copy staged changes to worktree ...`, `Git Smart Checkout: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
+| Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
+| Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
+| Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
 
 ## Extension Settings
 

@@ -1,6 +1,6 @@
 # Pull with Stash
 
-Command: `Git: Pull (With Stash)`
+Command: `Git Smart Checkout: Pull (With Stash)`
 
 Use this command to pull updates for the current branch while preserving uncommitted local changes.
 
@@ -15,4 +15,4 @@ If the pull fails after a stash was created, the command leaves your changes pre
 
 ## When To Use It
 
-Use `Git: Pull (With Stash)` when your team uses merge pulls or when you want the same behavior as `git pull`, but without manually stashing and popping local work.
+Use `Git Smart Checkout: Pull (With Stash)` when your team uses merge pulls or when you want the same behavior as `git pull`, but without manually stashing and popping local work.

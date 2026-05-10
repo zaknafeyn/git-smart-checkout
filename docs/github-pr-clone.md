@@ -1,6 +1,6 @@
 # GitHub PR Clone
 
-Command: `GitHub: Clone pull request...`
+Command: `Git Smart Checkout: Clone pull request...`
 
 The GitHub PR Clone feature creates a new pull request by cherry-picking selected commits from an existing PR. It is useful for selective feature adoption, focused review workflows, and moving fixes between target branches.
 
@@ -17,7 +17,7 @@ The GitHub PR Clone feature creates a new pull request by cherry-picking selecte
 
 ## How It Works
 
-1. Run `GitHub: Clone pull request...` from the command palette.
+1. Run `Git Smart Checkout: Clone pull request...` from the command palette.
 2. Select the GitHub pull request you want to clone from.
 3. Choose the target branch where your new PR should be merged.
 4. Choose the feature branch name for your new PR.

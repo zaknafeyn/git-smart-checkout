@@ -1,6 +1,6 @@
 # Rebase with Stash
 
-Command: `Git: Rebase ... (With Stash)`
+Command: `Git Smart Checkout: Rebase ... (With Stash)`
 
 Use this command to rebase the current branch onto another branch, remote branch, or tag while preserving uncommitted local changes.
 

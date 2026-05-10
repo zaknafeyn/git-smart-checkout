@@ -278,12 +278,12 @@ abstract class CopyChangesFromWorktreeCommand extends BaseCommand {
 
 export class CopyWipChangesFromWorktreeCommand extends CopyChangesFromWorktreeCommand {
   constructor(logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
-    super('copy', 'Git: Copy WIP from Worktree', logService, vscodeGitProvider);
+    super('copy', 'Git Smart Checkout: Copy WIP from Worktree', logService, vscodeGitProvider);
   }
 }
 
 export class MoveWipChangesFromWorktreeCommand extends CopyChangesFromWorktreeCommand {
   constructor(logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
-    super('move', 'Git: Move WIP from Worktree', logService, vscodeGitProvider);
+    super('move', 'Git Smart Checkout: Move WIP from Worktree', logService, vscodeGitProvider);
   }
 }

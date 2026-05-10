@@ -38,7 +38,7 @@ export class RemoveWorktreeCommand extends BaseCommand {
       const removed = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Git: Remove Worktree',
+          title: 'Git Smart Checkout: Remove Worktree',
           cancellable: false,
         },
         async (progress) => {

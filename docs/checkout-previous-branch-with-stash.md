@@ -1,6 +1,6 @@
 # Checkout Previous Branch with Stash
 
-Command: `Git: Checkout previous branch (With Stash)`
+Command: `Git Smart Checkout: Checkout previous branch (With Stash)`
 
 Use this command to return to the previously checked-out branch, similar to `git checkout -`, while applying the same stash protection used by checkout commands.
 
@@ -16,11 +16,11 @@ If no previous branch can be found in the reflog, the command exits and shows an
 
 ## Stash Behavior
 
-This command uses the same stash modes as `Git: Checkout to ... (With Stash)`:
+This command uses the same stash modes as `Git Smart Checkout: Checkout to ... (With Stash)`:
 
 - Auto stash in current branch
 - Auto stash and pop in new branch
 - Auto stash and apply in new branch
 - No auto stash
 
-Set the default mode with `Git: Switch Mode` or the status bar item.
+Set the default mode with `Git Smart Checkout: Switch Mode` or the status bar item.

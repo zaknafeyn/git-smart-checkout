@@ -269,7 +269,7 @@ export class CopyStagedChangesToWorktreeCommand extends CopyChangesToWorktreeCom
   constructor(logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
     super(
       'staged',
-      'Git: Copy staged changes to worktree ...',
+      'Git Smart Checkout: Copy staged changes to worktree ...',
       logService,
       vscodeGitProvider
     );
@@ -278,6 +278,11 @@ export class CopyStagedChangesToWorktreeCommand extends CopyChangesToWorktreeCom
 
 export class CopyWipChangesToWorktreeCommand extends CopyChangesToWorktreeCommand {
   constructor(logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
-    super('wip', 'Git: Copy WIP changes to worktree ...', logService, vscodeGitProvider);
+    super(
+      'wip',
+      'Git Smart Checkout: Copy WIP changes to worktree ...',
+      logService,
+      vscodeGitProvider
+    );
   }
 }
