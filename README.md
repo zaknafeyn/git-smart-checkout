@@ -30,6 +30,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Pull the current branch while preserving local changes | `Git: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
 | Pull with rebase while preserving local changes | `Git: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
 | Rebase the current branch onto another ref while preserving local changes | `Git: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
+| Copy staged or WIP changes between existing worktrees | `Git: Copy staged changes to worktree ...`, `Git: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Create a new PR from selected commits in another GitHub PR | `GitHub: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git: Create Git Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git: Switch Mode` | [Switch mode](docs/switch-mode.md) |
@@ -45,6 +46,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.refetchBeforeCheckout`](vscode://settings/git-smart-checkout.refetchBeforeCheckout) (Refetch before checkout) | `boolean` | Refetches remotes before each checkout. |
 | ⚙️ [`git-smart-checkout.useFastBranchList`](vscode://settings/git-smart-checkout.useFastBranchList) (Use fast branch list) | `boolean` | Seeds the branch picker from VS Code's cached Git model, then enriches it with full details in the background. Disable if the picker shows stale branches. |
 | ⚙️ [`git-smart-checkout.defaultTargetBranch`](vscode://settings/git-smart-checkout.defaultTargetBranch) (Default target branch) | `string` | Default target branch for PR cloning. Leave empty to use the first available branch. |
+| ⚙️ [`git-smart-checkout.defaultWorktreeDirectory`](vscode://settings/git-smart-checkout.defaultWorktreeDirectory) (Default worktree directory) | `string` | Directory where PR clone temporary worktrees are created. Leave empty to create them one level up from the current repository. |
 | ⚙️ [`git-smart-checkout.prBranchPrefix`](vscode://settings/git-smart-checkout.prBranchPrefix) (PR branch prefix) | `string` | Prefix added to PR clone branch names. If the prefix does not end with a slash, one is added automatically. |
 | ⚙️ [`git-smart-checkout.showStatusBar`](vscode://settings/git-smart-checkout.showStatusBar) (Show status bar) | `boolean` | Shows the extension status bar item. |
 | ⚙️ [`git-smart-checkout.useInPlaceCherryPick`](vscode://settings/git-smart-checkout.useInPlaceCherryPick) (Use in-place cherry-pick) | `boolean` | Uses in-place cherry-pick instead of a temporary worktree for PR cloning. This works best when cherry-pick conflicts are not expected. |
@@ -64,6 +66,7 @@ This extension collects anonymous usage events to help improve the extension.
 - Command usage (checkout, pull, rebase, tag creation, PR clone)
 - Stash mode used during checkout and rebase commands
 - Whether the working directory had uncommitted changes (boolean)
+- Whether copy/move worktree commands copied staged/WIP changes, whether the target had local changes, included untracked files, and how many untracked files were copied
 - Commit count for PR clone operations (number only)
 - Whether a PR was created as a draft (boolean)
 - Whether a tag template was used (boolean)

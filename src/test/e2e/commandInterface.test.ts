@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -20,6 +22,7 @@ import {
 
 import {
   createPullTestRepo,
+  createPRTestRepo,
   createRebaseTestRepo,
   createTagTestRepo,
   createTestRepo,
@@ -29,6 +32,8 @@ import {
 type QuickPickLikeItem = vscode.QuickPickItem & {
   ref?: { name: string; fullName: string; remote?: string; isTag?: boolean };
   type?: string;
+  worktree?: { path: string };
+  hasChanges?: boolean;
 };
 
 const commandId = (name: string) => `${EXTENSION_NAME}.${name}`;
@@ -178,11 +183,16 @@ function stubShowQuickPick(
   };
 }
 
-function stubInputBox(...answers: string[]): () => void {
+function stubInputBox(
+  ...answers: Array<string | ((options: vscode.InputBoxOptions) => string | undefined)>
+): () => void {
   const original = vscode.window.showInputBox.bind(vscode.window);
   const queue = [...answers];
 
-  (vscode.window as any).showInputBox = async () => queue.shift();
+  (vscode.window as any).showInputBox = async (options: vscode.InputBoxOptions) => {
+    const answer = queue.shift();
+    return typeof answer === 'function' ? answer(options) : answer;
+  };
 
   return () => {
     (vscode.window as any).showInputBox = original;
@@ -210,6 +220,31 @@ function stubInformationMessages(
     items: shownItems,
     restore() {
       (vscode.window as any).showInformationMessage = original;
+    },
+  };
+}
+
+function stubWarningMessages(
+  pick: (message: string, items: readonly string[]) => string | undefined
+): { messages: string[]; items: string[][]; restore: () => void } {
+  const original = vscode.window.showWarningMessage.bind(vscode.window);
+  const messages: string[] = [];
+  const shownItems: string[][] = [];
+
+  (vscode.window as any).showWarningMessage = async (message: string, ...args: any[]) => {
+    messages.push(message);
+    const items = typeof args[0] === 'object' && typeof args[0] !== 'string'
+      ? args.slice(1)
+      : args;
+    shownItems.push(items);
+    return pick(message, items);
+  };
+
+  return {
+    messages,
+    items: shownItems,
+    restore() {
+      (vscode.window as any).showWarningMessage = original;
     },
   };
 }
@@ -265,6 +300,50 @@ function assertHeadContains(repo: TestRepo, target: string): void {
     () => repo.exec(`git merge-base --is-ancestor ${target} HEAD`),
     `HEAD should contain ${target}`
   );
+}
+
+function getDefaultWorktreePath(repo: TestRepo, branchName: string): string {
+  return path.join(
+    path.dirname(repo.repoPath),
+    `${path.basename(repo.repoPath)}-${branchName.replace(/[\\/]+/g, '-')}`
+  );
+}
+
+async function cleanupWorktree(repo: TestRepo, worktreePath: string): Promise<void> {
+  try {
+    await repo.git.worktreeRemove(worktreePath);
+  } catch {
+    // The worktree may not have been created if the command failed before that point.
+  }
+
+  fs.rmSync(worktreePath, { recursive: true, force: true });
+}
+
+function execIn(cwd: string, command: string): string {
+  return execSync(command, { cwd, encoding: 'utf-8' });
+}
+
+function normalizeTestPath(targetPath: string): string {
+  try {
+    return fs.realpathSync.native(targetPath);
+  } catch {
+    return path.resolve(targetPath);
+  }
+}
+
+function isSameTestPath(left: string | undefined, right: string): boolean {
+  if (!left) {
+    return false;
+  }
+
+  return normalizeTestPath(left) === normalizeTestPath(right);
+}
+
+function stashMessages(repo: TestRepo): string[] {
+  return repo.exec('git stash list --format="%gs"')
+    .trim()
+    .split('\n')
+    .filter((message) => message.trim() !== '');
 }
 
 describe('VS Code command interface', () => {
@@ -374,6 +453,1078 @@ describe('VS Code command interface', () => {
         restoreInput();
         restoreShowQuickPick();
         restoreQuickPick();
+        repo.cleanup();
+      }
+    });
+  });
+
+  describe('moveToNewWorktree', () => {
+    it('excludes the current branch and branches checked out in another worktree', async () => {
+      const repo = createTestRepo();
+      const featureWorktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const otherBranch = 'other';
+      const otherWorktreePath = getDefaultWorktreePath(repo, otherBranch);
+      let inspectedBranchPicker = false;
+
+      repo.exec(`git branch ${otherBranch}`);
+      repo.exec(`git worktree add "${featureWorktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a target branch for the new worktree') {
+          inspectedBranchPicker = true;
+          const refs = items
+            .filter((item): item is QuickPickLikeItem => typeof item !== 'string' && Boolean((item as QuickPickLikeItem).ref))
+            .map((item) => item.ref?.name);
+
+          assert.ok(!refs.includes(repo.mainBranch), 'current branch should be hidden');
+          assert.ok(!refs.includes(repo.featureBranch), 'checked-out worktree branch should be hidden');
+
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            (item as QuickPickLikeItem).ref?.name === otherBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const restoreInput = stubInputBox((options) => {
+        assert.strictEqual(options.value, `${path.basename(repo.repoPath)}-${otherBranch}`);
+        return options.value;
+      });
+      const info = stubInformationMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Add to Workspace',
+          'Open in Current Window',
+          'Open in New Window',
+        ]);
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('moveToNewWorktree'));
+
+          assert.strictEqual(inspectedBranchPicker, true);
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(otherWorktreePath), true);
+          assert.strictEqual(vscode.workspace.workspaceFolders?.length, 1);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreInput();
+        restoreQuickPick();
+        await cleanupWorktree(repo, otherWorktreePath);
+        await cleanupWorktree(repo, featureWorktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('creates a local tracking worktree from a remote-only branch', async () => {
+      const repo = createPRTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.prBranch);
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a target branch for the new worktree') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            (item as QuickPickLikeItem).ref?.name === repo.prBranch &&
+            (item as QuickPickLikeItem).ref?.remote === 'origin'
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const restoreInput = stubInputBox((options) => options.value);
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('moveToNewWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(execIn(worktreePath, 'git branch --show-current').trim(), repo.prBranch);
+          assert.strictEqual(
+            execIn(worktreePath, `git rev-parse --abbrev-ref ${repo.prBranch}@{upstream}`).trim(),
+            `origin/${repo.prBranch}`
+          );
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreInput();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('suggests a sanitized directory name for branch names with slashes', async () => {
+      const repo = createTestRepo();
+      const branchName = 'topic/nested-name';
+      const worktreePath = getDefaultWorktreePath(repo, branchName);
+      repo.exec(`git branch ${branchName}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a target branch for the new worktree') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            (item as QuickPickLikeItem).ref?.name === branchName
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const restoreInput = stubInputBox((options) => {
+        assert.strictEqual(options.value, `${path.basename(repo.repoPath)}-topic-nested-name`);
+        return options.value;
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('moveToNewWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreInput();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('moves dirty changes into the new worktree with stash pop mode', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a target branch for the new worktree') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            (item as QuickPickLikeItem).ref?.name === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select auto stash mode') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === AUTO_STASH_AND_POP_IN_NEW_BRANCH
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const restoreInput = stubInputBox((options) => options.value);
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'worktree dirty content\n');
+
+          await vscode.commands.executeCommand(commandId('moveToNewWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(await repo.git.isWorkdirHasChanges(), false);
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim().length > 0, true);
+          assert.strictEqual(fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'), 'worktree dirty content\n');
+          assert.strictEqual(repo.stashCount(), 0);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreInput();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('leaves dirty changes in the source repo with no auto stash mode', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a target branch for the new worktree') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            (item as QuickPickLikeItem).ref?.name === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select auto stash mode') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === AUTO_STASH_IGNORE
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const restoreInput = stubInputBox((options) => options.value);
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'source dirty content\n');
+
+          await vscode.commands.executeCommand(commandId('moveToNewWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(await repo.git.isWorkdirHasChanges(), true);
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), '');
+          assert.strictEqual(repo.stashCount(), 0);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreInput();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+  });
+
+  describe('copyChangesToWorktree', () => {
+    it('shows a notification when there are no other worktrees', async () => {
+      const repo = createTestRepo();
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.ok(
+            info.messages.includes('No other Git worktrees available to copy changes to.')
+          );
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        repo.cleanup();
+      }
+    });
+
+    it('excludes the current worktree and marks clean and dirty targets', async () => {
+      const repo = createTestRepo();
+      const cleanWorktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const dirtyBranch = 'dirty-target';
+      const dirtyWorktreePath = getDefaultWorktreePath(repo, dirtyBranch);
+      let inspectedPicker = false;
+
+      repo.exec(`git branch ${dirtyBranch}`);
+      repo.exec(`git worktree add "${cleanWorktreePath}" ${repo.featureBranch}`);
+      repo.exec(`git worktree add "${dirtyWorktreePath}" ${dirtyBranch}`);
+      fs.writeFileSync(path.join(dirtyWorktreePath, 'file1.txt'), 'dirty target\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          inspectedPicker = true;
+          const worktreeItems = items.filter(
+            (item): item is QuickPickLikeItem => typeof item !== 'string'
+          );
+
+          assert.ok(!worktreeItems.some((item) => isSameTestPath(item.worktree?.path, repo.repoPath)));
+
+          const cleanItem = worktreeItems.find((item) => isSameTestPath(item.worktree?.path, cleanWorktreePath));
+          const dirtyItem = worktreeItems.find((item) => isSameTestPath(item.worktree?.path, dirtyWorktreePath));
+
+          assert.ok(cleanItem?.description?.includes('$(check) Clean'));
+          assert.strictEqual(cleanItem?.hasChanges, false);
+          assert.ok(dirtyItem?.description?.includes('$(warning) Has changes'));
+          assert.strictEqual(dirtyItem?.hasChanges, true);
+        }
+
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+          assert.strictEqual(inspectedPicker, true);
+          assert.deepStrictEqual(errors.messages, []);
+        });
+      } finally {
+        errors.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, cleanWorktreePath);
+        await cleanupWorktree(repo, dirtyWorktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('copies only staged changes and keeps them staged in the target worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const info = stubInformationMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Add to Workspace',
+          'Open in Current Window',
+          'Open in New Window',
+        ]);
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'staged source content\n');
+          repo.exec('git add file1.txt');
+          repo.makeChange('notes.txt', 'source untracked notes\n');
+
+          await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(execIn(worktreePath, 'git diff --cached --name-only').trim(), 'file1.txt');
+          assert.strictEqual(execIn(worktreePath, 'git diff --name-only').trim(), '');
+          assert.strictEqual(fs.existsSync(path.join(worktreePath, 'notes.txt')), false);
+          assert.strictEqual(repo.exec('git diff --cached --name-only').trim(), 'file1.txt');
+          assert.strictEqual(repo.fileExists('notes.txt'), true);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('shows completion actions when staged copy has nothing to copy', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const info = stubInformationMessages((message, items) => {
+        assert.ok(message.includes('No changes to copy.'));
+        assert.deepStrictEqual(items, [
+          'Add to Workspace',
+          'Open in Current Window',
+          'Open in New Window',
+        ]);
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), '');
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('does not offer to add a target worktree that is already in the workspace', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const originalFolders = Object.getOwnPropertyDescriptor(vscode.workspace, 'workspaceFolders');
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const folders = [
+        {
+          uri: vscode.Uri.file(repo.repoPath),
+          name: path.basename(repo.repoPath),
+          index: 0,
+        },
+        {
+          uri: vscode.Uri.file(worktreePath),
+          name: path.basename(worktreePath),
+          index: 1,
+        },
+      ] as vscode.WorkspaceFolder[];
+
+      Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+        configurable: true,
+        get: () => folders,
+      });
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Choose a repository') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === path.basename(repo.repoPath)
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const info = stubInformationMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Open in Current Window',
+          'Open in New Window',
+        ]);
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+        assert.deepStrictEqual(errors.messages, []);
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreQuickPick();
+        if (originalFolders) {
+          Object.defineProperty(vscode.workspace, 'workspaceFolders', originalFolders);
+        } else {
+          delete (vscode.workspace as any).workspaceFolders;
+        }
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('copies staged, unstaged, and untracked WIP while preserving source changes', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'staged source content\n');
+          repo.exec('git add file1.txt');
+          repo.makeChange('file1.txt', 'unstaged source content\n');
+          repo.makeChange('notes.txt', 'source untracked notes\n');
+
+          await vscode.commands.executeCommand(commandId('copyWipChangesToWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(execIn(worktreePath, 'git show :file1.txt'), 'staged source content\n');
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'),
+            'unstaged source content\n'
+          );
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'notes.txt'), 'utf-8'),
+            'source untracked notes\n'
+          );
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), 'MM file1.txt\n?? notes.txt');
+          assert.strictEqual(repo.exec('git show :file1.txt'), 'staged source content\n');
+          assert.strictEqual(repo.readFile('file1.txt'), 'unstaged source content\n');
+          assert.strictEqual(repo.readFile('notes.txt'), 'source untracked notes\n');
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('blocks copying into a dirty target worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'target dirty content\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy changes to') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((message, items) => {
+        assert.ok(message.includes('has local changes'));
+        assert.deepStrictEqual(items, ['OK']);
+        return 'OK';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'source staged content\n');
+          repo.exec('git add file1.txt');
+
+          await vscode.commands.executeCommand(commandId('copyStagedChangesToWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(warnings.messages.length, 1);
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'),
+            'target dirty content\n'
+          );
+          assert.strictEqual(repo.exec('git diff --cached --name-only').trim(), 'file1.txt');
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+  });
+
+  describe('copyChangesFromWorktree', () => {
+    it('copies staged, unstaged, and untracked WIP from a selected worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy WIP changes from') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'staged source content\n');
+          execIn(worktreePath, 'git add file1.txt');
+          fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'unstaged source content\n');
+          fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'source untracked notes\n');
+
+          await vscode.commands.executeCommand(commandId('copyWipChangesFromWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(repo.exec('git show :file1.txt'), 'staged source content\n');
+          assert.strictEqual(repo.readFile('file1.txt'), 'unstaged source content\n');
+          assert.strictEqual(repo.readFile('notes.txt'), 'source untracked notes\n');
+          assert.strictEqual(repo.exec('git status --porcelain').trim(), 'MM file1.txt\n?? notes.txt');
+          assert.strictEqual(execIn(worktreePath, 'git show :file1.txt'), 'staged source content\n');
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'),
+            'unstaged source content\n'
+          );
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'notes.txt'), 'utf-8'),
+            'source untracked notes\n'
+          );
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('moves WIP from a selected worktree and cleans the source worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy WIP changes from') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, ['Move WIP', 'Cancel']);
+        return 'Move WIP';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'staged source content\n');
+          execIn(worktreePath, 'git add file1.txt');
+          fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'unstaged source content\n');
+          fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'source untracked notes\n');
+
+          await vscode.commands.executeCommand(commandId('moveWipChangesFromWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(repo.exec('git show :file1.txt'), 'staged source content\n');
+          assert.strictEqual(repo.readFile('file1.txt'), 'unstaged source content\n');
+          assert.strictEqual(repo.readFile('notes.txt'), 'source untracked notes\n');
+          assert.strictEqual(repo.exec('git status --porcelain').trim(), 'MM file1.txt\n?? notes.txt');
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), '');
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'),
+            'initial content\n'
+          );
+          assert.strictEqual(fs.existsSync(path.join(worktreePath, 'notes.txt')), false);
+          assert.strictEqual(warnings.messages.length, 1);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('cancels copying from a worktree when the current worktree is dirty', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy WIP changes from') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((message, items) => {
+        assert.ok(message.includes('current worktree has local changes'));
+        assert.deepStrictEqual(items, ['Apply Anyway', 'Cancel']);
+        return 'Cancel';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          repo.makeChange('file1.txt', 'current dirty content\n');
+          fs.writeFileSync(path.join(worktreePath, 'feature.txt'), 'source dirty content\n');
+
+          await vscode.commands.executeCommand(commandId('copyWipChangesFromWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(warnings.messages.length, 1);
+          assert.strictEqual(repo.readFile('file1.txt'), 'current dirty content\n');
+          assert.strictEqual(repo.exec('git status --porcelain').trim(), 'M file1.txt');
+          assert.strictEqual(
+            fs.readFileSync(path.join(worktreePath, 'feature.txt'), 'utf-8'),
+            'source dirty content\n'
+          );
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), 'M feature.txt');
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('does not reset a source worktree when move has no WIP to copy', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to copy WIP changes from') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            isSameTestPath((item as QuickPickLikeItem).worktree?.path, worktreePath)
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, _items) => undefined);
+      const info = stubInformationMessages((message, items) => {
+        assert.ok(message.includes('No WIP changes to move.'));
+        assert.deepStrictEqual(items, ['OK']);
+        return 'OK';
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('moveWipChangesFromWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(warnings.messages.length, 0);
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim(), '');
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+  });
+
+  describe('removeWorktree', () => {
+    it('excludes the main worktree and lists linked worktrees', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      let inspectedPicker = false;
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          inspectedPicker = true;
+          const labels = items
+            .filter((item): item is QuickPickLikeItem => typeof item !== 'string')
+            .map((item) => item.label);
+
+          assert.ok(!labels.includes(repo.mainBranch), 'main worktree should be hidden');
+          assert.ok(labels.includes(repo.featureBranch), 'linked worktree should be listed');
+        }
+
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.strictEqual(inspectedPicker, true);
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+        });
+      } finally {
+        errors.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('removes a clean linked worktree after confirmation', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Choose a repository') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === path.basename(repo.repoPath)
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, ['Remove Worktree', 'Cancel']);
+        return 'Remove Worktree';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(warnings.messages.length, 1);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('stashes dirty changes before removing the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty before remove\n');
+      fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'untracked before remove\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Stash Changes and Remove',
+          'Reset Changes and Remove',
+          'Cancel',
+        ]);
+        return 'Stash Changes and Remove';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+          assert.strictEqual(repo.stashCount(), 1);
+          assert.ok(
+            stashMessages(repo).some((message) => message.includes(`auto-stash-${repo.featureBranch}`)),
+            'stash should use the current-branch auto-stash name'
+          );
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('resets dirty changes before removing the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty before reset remove\n');
+      fs.writeFileSync(path.join(worktreePath, 'notes.txt'), 'untracked before reset remove\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, items) => {
+        assert.deepStrictEqual(items, [
+          'Stash Changes and Remove',
+          'Reset Changes and Remove',
+          'Cancel',
+        ]);
+        return 'Reset Changes and Remove';
+      });
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), false);
+          assert.strictEqual(repo.stashCount(), 0);
+        });
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('cancels dirty worktree removal without changing files', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+      fs.writeFileSync(path.join(worktreePath, 'file1.txt'), 'dirty but kept\n');
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, _items) => 'Cancel');
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(fs.existsSync(worktreePath), true);
+          assert.strictEqual(fs.readFileSync(path.join(worktreePath, 'file1.txt'), 'utf-8'), 'dirty but kept\n');
+          assert.strictEqual(execIn(worktreePath, 'git status --porcelain').trim().length > 0, true);
+        });
+      } finally {
+        errors.restore();
+        warnings.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
+    it('removes matching open workspace folders after deleting the worktree', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      const originalFolders = Object.getOwnPropertyDescriptor(vscode.workspace, 'workspaceFolders');
+      const originalUpdateWorkspaceFolders = vscode.workspace.updateWorkspaceFolders.bind(vscode.workspace);
+      let folders = [
+        {
+          uri: vscode.Uri.file(repo.repoPath),
+          name: path.basename(repo.repoPath),
+          index: 0,
+        },
+        {
+          uri: vscode.Uri.file(worktreePath),
+          name: path.basename(worktreePath),
+          index: 1,
+        },
+      ] as vscode.WorkspaceFolder[];
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+        configurable: true,
+        get: () => folders,
+      });
+
+      (vscode.workspace as any).updateWorkspaceFolders = (start: number, deleteCount: number) => {
+        folders.splice(start, deleteCount);
+        folders = folders.map((folder, index) => ({ ...folder, index }));
+        return true;
+      };
+
+      const restoreQuickPick = stubShowQuickPick((items, options) => {
+        if (options?.placeHolder === 'Choose a repository') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === path.basename(repo.repoPath)
+          ) as vscode.QuickPickItem;
+        }
+
+        if (options?.placeHolder === 'Select a worktree to remove') {
+          return items.find((item) =>
+            typeof item !== 'string' &&
+            item.label === repo.featureBranch
+          ) as vscode.QuickPickItem;
+        }
+
+        return undefined;
+      });
+      const warnings = stubWarningMessages((_message, _items) => 'Remove Worktree');
+      const info = stubInformationMessages((_message, _items) => undefined);
+      const errors = stubErrorMessages();
+
+      try {
+        await vscode.commands.executeCommand(commandId('removeWorktree'));
+
+        assert.deepStrictEqual(errors.messages, []);
+        assert.strictEqual(fs.existsSync(worktreePath), false);
+        assert.deepStrictEqual(folders.map((folder) => folder.uri.fsPath), [repo.repoPath]);
+      } finally {
+        errors.restore();
+        info.restore();
+        warnings.restore();
+        restoreQuickPick();
+        (vscode.workspace as any).updateWorkspaceFolders = originalUpdateWorkspaceFolders;
+        if (originalFolders) {
+          Object.defineProperty(vscode.workspace, 'workspaceFolders', originalFolders);
+        } else {
+          delete (vscode.workspace as any).workspaceFolders;
+        }
+        await cleanupWorktree(repo, worktreePath);
         repo.cleanup();
       }
     });

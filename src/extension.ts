@@ -19,7 +19,17 @@ import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
+import {
+  CopyStagedChangesToWorktreeCommand,
+  CopyWipChangesToWorktreeCommand,
+} from './commands/copyChangesToWorktreeCommand';
+import {
+  CopyWipChangesFromWorktreeCommand,
+  MoveWipChangesFromWorktreeCommand,
+} from './commands/copyChangesFromWorktreeCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
+import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
+import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
@@ -95,6 +105,36 @@ export function activate(context: vscode.ExtensionContext) {
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
+
+  const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
+
+  const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
+
+  const copyStagedChangesToWorktreeCommand = new CopyStagedChangesToWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyStagedChangesToWorktree`,
+    copyStagedChangesToWorktreeCommand
+  );
+
+  const copyWipChangesToWorktreeCommand = new CopyWipChangesToWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyWipChangesToWorktree`,
+    copyWipChangesToWorktreeCommand
+  );
+
+  const copyWipChangesFromWorktreeCommand = new CopyWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyWipChangesFromWorktree`,
+    copyWipChangesFromWorktreeCommand
+  );
+
+  const moveWipChangesFromWorktreeCommand = new MoveWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.moveWipChangesFromWorktree`,
+    moveWipChangesFromWorktreeCommand
+  );
 
   // Register clone pull request command
   const clonePullRequestCommand = commands.registerCommand(

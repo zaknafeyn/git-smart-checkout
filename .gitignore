@@ -23,6 +23,7 @@ settings.local.json
 .claude/state/
 .claude/skills/
 changed-files.jsonl
+plans/
 
 # website build artifacts (sources kept, build output lives in gh-web-site branch)
 website/dist/

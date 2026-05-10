@@ -12,3 +12,12 @@ export interface IGitRef {
   upstreamTrack?: string;
   parsedUpstreamTrack?: TUpstreamTrack;
 }
+
+export interface IGitWorktree {
+  path: string;
+  head?: string;
+  branch?: string;
+  detached?: boolean;
+  bare?: boolean;
+  prunable?: boolean;
+}
