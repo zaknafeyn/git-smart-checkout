@@ -17,6 +17,8 @@ export enum AnalyticsEvent {
   WorktreeRemoved = 'worktree_removed',
   CopyStagedChangesToWorktree = 'copy_staged_changes_to_worktree',
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
+  CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',
+  MoveWipChangesFromWorktree = 'move_wip_changes_from_worktree',
 }
 
 let client: PostHog | null = null;

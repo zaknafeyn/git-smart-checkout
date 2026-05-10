@@ -23,6 +23,10 @@ import {
   CopyStagedChangesToWorktreeCommand,
   CopyWipChangesToWorktreeCommand,
 } from './commands/copyChangesToWorktreeCommand';
+import {
+  CopyWipChangesFromWorktreeCommand,
+  MoveWipChangesFromWorktreeCommand,
+} from './commands/copyChangesFromWorktreeCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
@@ -117,6 +121,18 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(
     `${EXTENSION_NAME}.copyWipChangesToWorktree`,
     copyWipChangesToWorktreeCommand
+  );
+
+  const copyWipChangesFromWorktreeCommand = new CopyWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyWipChangesFromWorktree`,
+    copyWipChangesFromWorktreeCommand
+  );
+
+  const moveWipChangesFromWorktreeCommand = new MoveWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.moveWipChangesFromWorktree`,
+    moveWipChangesFromWorktreeCommand
   );
 
   // Register clone pull request command

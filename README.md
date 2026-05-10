@@ -30,7 +30,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Pull the current branch while preserving local changes | `Git: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
 | Pull with rebase while preserving local changes | `Git: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
 | Rebase the current branch onto another ref while preserving local changes | `Git: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
-| Copy staged or WIP changes into an existing clean worktree | `Git: Copy staged changes to worktree ...`, `Git: Copy WIP changes to worktree ...` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
+| Copy staged or WIP changes between existing worktrees | `Git: Copy staged changes to worktree ...`, `Git: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Create a new PR from selected commits in another GitHub PR | `GitHub: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git: Create Git Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git: Switch Mode` | [Switch mode](docs/switch-mode.md) |
@@ -66,7 +66,7 @@ This extension collects anonymous usage events to help improve the extension.
 - Command usage (checkout, pull, rebase, tag creation, PR clone)
 - Stash mode used during checkout and rebase commands
 - Whether the working directory had uncommitted changes (boolean)
-- Whether copy-to-worktree commands copied staged/WIP changes, included untracked files, and how many untracked files were copied
+- Whether copy/move worktree commands copied staged/WIP changes, whether the target had local changes, included untracked files, and how many untracked files were copied
 - Commit count for PR clone operations (number only)
 - Whether a PR was created as a draft (boolean)
 - Whether a tag template was used (boolean)
