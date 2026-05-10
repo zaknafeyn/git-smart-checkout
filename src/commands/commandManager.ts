@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { showErrorMessageWithIssueAction } from '../utils/errorIssueNotification';
 import { ICommand } from './command';
 
 export class CommandManager {
@@ -24,7 +25,7 @@ export class CommandManager {
           await command.execute(...args);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          await vscode.window.showErrorMessage(`Command failed: ${errorMessage}`, 'OK');
+          await showErrorMessageWithIssueAction(`Command failed: ${errorMessage}`, 'OK');
           console.error(`Error executing command ${commandId}:`, error);
         }
       });
