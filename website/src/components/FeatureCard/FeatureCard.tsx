@@ -47,9 +47,9 @@ export function FeatureCard({
         <p className={styles.cardDesc}>{description}</p>
       </div>
       {command && (
-        <div className={styles.cardCommand}>
+        <div className={styles.cardCommand} title={command}>
           <kbd className={styles.cmdIcon}>{commandPaletteShortcut}</kbd>
-          <code>{command}</code>
+          <code title={command}>{command}</code>
         </div>
       )}
     </article>

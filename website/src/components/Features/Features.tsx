@@ -18,7 +18,7 @@ const features: Feature[] = [
     title: 'Smart Branch Checkout',
     description:
       'Switch branches without worrying about uncommitted changes. Choose your stash strategy once or per checkout — the extension handles everything else.',
-    command: 'Git: Checkout to... (With Stash)',
+    command: 'Git Smart Checkout: Checkout to... (With Stash)',
     color: 'blue',
   },
   {
@@ -26,7 +26,7 @@ const features: Feature[] = [
     title: 'Pull with Stash',
     description:
       'Pull the latest changes from remote without losing your local work. Changes are stashed before the pull and restored automatically after.',
-    command: 'Git: Pull (With Stash)',
+    command: 'Git Smart Checkout: Pull (With Stash)',
     color: 'green',
   },
   {
@@ -34,7 +34,7 @@ const features: Feature[] = [
     title: 'Pull with Rebase',
     description:
       'Pull with rebase while preserving local changes. The extension stashes your work, rebases onto the remote branch, and restores your changes afterward.',
-    command: 'Git: Pull (Rebase With Stash)',
+    command: 'Git Smart Checkout: Pull (Rebase With Stash)',
     color: 'orange',
   },
   {
@@ -46,7 +46,7 @@ const features: Feature[] = [
         magic. Think of it as <kbd>Ctrl + Z</kbd> for branch switching.
       </>
     ),
-    command: 'Git: Checkout previous branch (With Stash)',
+    command: 'Git Smart Checkout: Checkout previous branch (With Stash)',
     color: 'purple',
   },
   {
@@ -63,8 +63,16 @@ const features: Feature[] = [
     title: 'Tag from Template',
     description:
       'Generate version tags from a configurable template. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
-    command: 'Git: Create Tag from Template',
+    command: 'Git Smart Checkout: Create Tag from Template',
     color: 'blue',
+  },
+  {
+    icon: '🌲',
+    title: 'Worktree Workflows',
+    description:
+      'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove worktrees safely.',
+    command: 'Git Smart Checkout: Move to new worktree',
+    color: 'green',
   },
   {
     icon: '🛡️',
@@ -90,7 +98,7 @@ export function Features() {
           <span className={styles.eyebrow}>What's included</span>
           <h2 className={styles.title}>Everything you need for seamless branch switching</h2>
           <p className={styles.subtitle}>
-            Eight powerful features that eliminate the friction between you and your Git workflow.
+            Powerful features that eliminate the friction between you and your Git workflow.
           </p>
         </div>
 
@@ -103,6 +111,7 @@ export function Features() {
               description={f.description}
               command={f.command}
               tag={f.tag}
+              // tone={f.color}
             />
           ))}
         </div>

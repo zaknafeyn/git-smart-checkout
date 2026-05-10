@@ -74,7 +74,7 @@ export function Installation() {
               <div className={styles.qsNum}>2</div>
               <div>
                 <p className={styles.qsLabel}>Type the command</p>
-                <code className={styles.code}>Git: Checkout to... (With Stash)</code>
+                <code className={styles.code}>Git Smart Checkout: Checkout to... (With Stash)</code>
               </div>
             </div>
             <div className={styles.qsArrow}>→</div>

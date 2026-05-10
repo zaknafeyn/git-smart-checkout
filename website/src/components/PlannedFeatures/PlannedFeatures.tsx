@@ -59,13 +59,6 @@ const planned: PlannedFeature[] = [
       'Proper support for workspaces with multiple git repositories — pick the target repo when a command is ambiguous.',
   },
   {
-    icon: '🌲',
-    tier: 2,
-    title: 'Worktree Support',
-    description:
-      'Open any branch in a new git worktree without touching your current workspace. Ideal for running two branches side-by-side.',
-  },
-  {
     icon: '🌐',
     tier: 2,
     title: 'GitLab & Bitbucket',

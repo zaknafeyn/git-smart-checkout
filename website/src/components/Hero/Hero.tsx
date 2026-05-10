@@ -72,7 +72,7 @@ export function Hero() {
 
         <div className={styles.codeBlock}>
           <kbd className={styles.codePrompt}>{commandPaletteShortcut}</kbd>
-          <span className={styles.codeCmd}>Git: Checkout to... (With Stash)</span>
+          <span className={styles.codeCmd}>Git Smart Checkout: Checkout to... (With Stash)</span>
           <span className={styles.codeCursor} aria-hidden="true">▋</span>
         </div>
       </div>
