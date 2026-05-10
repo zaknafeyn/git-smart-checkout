@@ -1,3 +1,12 @@
+# [0.4.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.3.0...v0.4.0) (2026-05-10)
+
+
+### Features
+
+* implement error handling with issue reporting in showErrorMessage ([#47](https://github.com/zaknafeyn/git-smart-checkout/issues/47)) ([108faa8](https://github.com/zaknafeyn/git-smart-checkout/commit/108faa89d0aa502e0590127c3a6db94b2e5b3967))
+* smart checkout to worktree ([#49](https://github.com/zaknafeyn/git-smart-checkout/issues/49)) ([25e8e12](https://github.com/zaknafeyn/git-smart-checkout/commit/25e8e120d82c4172aaf69caaa6ccddf810758aea))
+* update extension settings section with clickable links for easier access ([5c9bc0c](https://github.com/zaknafeyn/git-smart-checkout/commit/5c9bc0c9bebcf3d8a38314bae6d91b60602faf9d))
+
 # [0.3.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.2.3...v0.3.0) (2026-05-08)
 
 
