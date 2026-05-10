@@ -1,4 +1,7 @@
 import { ExecException, ExecSyncOptions } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
@@ -402,6 +405,69 @@ export class GitExecutor {
     const uncommittedChanges = stdout.trim();
 
     return uncommittedChanges.length !== 0;
+  }
+
+  async getStagedChangesPatch(): Promise<string> {
+    const { stdout } = await this.#execGitCommand('git diff --cached --binary');
+    return stdout;
+  }
+
+  async getUnstagedChangesPatch(): Promise<string> {
+    const { stdout } = await this.#execGitCommand('git diff --binary');
+    return stdout;
+  }
+
+  async applyPatch(patch: string, options: { staged?: boolean } = {}): Promise<void> {
+    if (!patch.trim()) {
+      return;
+    }
+
+    const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-patch-'));
+    const patchPath = path.join(tempDirectory, 'changes.patch');
+
+    try {
+      fs.writeFileSync(patchPath, patch);
+      await this.#execGitCommand(`git apply ${options.staged ? '--index ' : ''}"${patchPath}"`);
+    } finally {
+      fs.rmSync(tempDirectory, { recursive: true, force: true });
+    }
+  }
+
+  async getUntrackedFiles(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand('git ls-files --others --exclude-standard -z');
+
+    return stdout.split('\0').filter((file) => file.length > 0);
+  }
+
+  copyUntrackedFilesTo(targetRepositoryPath: string, files: string[]): void {
+    for (const file of files) {
+      if (!this.isSafeRelativePath(file)) {
+        throw new Error(`Cannot copy unsafe untracked path: ${file}`);
+      }
+
+      const sourcePath = path.join(this.#repositoryPath, file);
+      const targetPath = path.join(targetRepositoryPath, file);
+
+      if (fs.existsSync(targetPath)) {
+        throw new Error(`Cannot copy untracked file because it already exists in target worktree: ${file}`);
+      }
+
+      const sourceStat = fs.lstatSync(sourcePath);
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+
+      if (sourceStat.isSymbolicLink()) {
+        fs.symlinkSync(fs.readlinkSync(sourcePath), targetPath);
+      } else if (sourceStat.isDirectory()) {
+        fs.cpSync(sourcePath, targetPath, { recursive: true, errorOnExist: true, force: false });
+      } else {
+        fs.copyFileSync(sourcePath, targetPath, fs.constants.COPYFILE_EXCL);
+      }
+    }
+  }
+
+  private isSafeRelativePath(filePath: string): boolean {
+    const normalized = path.normalize(filePath);
+    return normalized !== '..' && !normalized.startsWith(`..${path.sep}`) && !path.isAbsolute(normalized);
   }
 
   async isStashWithMessageExists(message: string) {

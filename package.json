@@ -139,6 +139,16 @@
         "category": "Git"
       },
       {
+        "command": "git-smart-checkout.copyStagedChangesToWorktree",
+        "title": "Copy staged changes to worktree ...",
+        "category": "Git"
+      },
+      {
+        "command": "git-smart-checkout.copyWipChangesToWorktree",
+        "title": "Copy WIP changes to worktree ...",
+        "category": "Git"
+      },
+      {
         "command": "git-smart-checkout.removeWorktree",
         "title": "Remove Worktree...",
         "category": "Git"
@@ -172,6 +182,12 @@
         },
         {
           "command": "git-smart-checkout.moveToNewWorktree"
+        },
+        {
+          "command": "git-smart-checkout.copyStagedChangesToWorktree"
+        },
+        {
+          "command": "git-smart-checkout.copyWipChangesToWorktree"
         },
         {
           "command": "git-smart-checkout.removeWorktree"

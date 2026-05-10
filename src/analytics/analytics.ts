@@ -15,6 +15,8 @@ export enum AnalyticsEvent {
   PrCloneAborted = 'pr_clone_aborted',
   CheckoutByPR = 'checkout_by_pr',
   WorktreeRemoved = 'worktree_removed',
+  CopyStagedChangesToWorktree = 'copy_staged_changes_to_worktree',
+  CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
 }
 
 let client: PostHog | null = null;

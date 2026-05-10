@@ -20,7 +20,7 @@ import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
 
 const ACTION_ADD_TO_WORKSPACE = 'Add to Workspace';
-const ACTION_OPEN_FOLDER = 'Open Folder';
+const ACTION_OPEN_FOLDER = 'Open in Current Window';
 const ACTION_OPEN_IN_NEW_WINDOW = 'Open in New Window';
 
 type WorktreeBranchItem = vscode.QuickPickItem & { ref: IGitRef };
@@ -308,9 +308,7 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
   private async showCompletionActions(worktreePath: string): Promise<void> {
     const action = await vscode.window.showInformationMessage(
       `Worktree created at ${worktreePath}`,
-      ACTION_ADD_TO_WORKSPACE,
-      ACTION_OPEN_FOLDER,
-      ACTION_OPEN_IN_NEW_WINDOW
+      ...this.getCompletionActions(worktreePath)
     );
 
     switch (action) {
@@ -332,5 +330,40 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
       uri: vscode.Uri.file(worktreePath),
       name: path.basename(worktreePath),
     });
+  }
+
+  private getCompletionActions(worktreePath: string): string[] {
+    const actions = [ACTION_OPEN_FOLDER, ACTION_OPEN_IN_NEW_WINDOW];
+
+    if (!this.isWorktreeInWorkspace(worktreePath)) {
+      actions.unshift(ACTION_ADD_TO_WORKSPACE);
+    }
+
+    return actions;
+  }
+
+  private isWorktreeInWorkspace(worktreePath: string): boolean {
+    return (vscode.workspace.workspaceFolders ?? []).some((folder) =>
+      this.isSamePath(folder.uri.fsPath, worktreePath)
+    );
+  }
+
+  private isSamePath(left: string, right: string): boolean {
+    return this.normalizePathForComparison(left) === this.normalizePathForComparison(right);
+  }
+
+  private normalizePathForComparison(targetPath: string): string {
+    try {
+      return fs.realpathSync.native(targetPath);
+    } catch {
+      try {
+        return path.join(
+          fs.realpathSync.native(path.dirname(targetPath)),
+          path.basename(targetPath)
+        );
+      } catch {
+        return path.resolve(targetPath);
+      }
+    }
   }
 }

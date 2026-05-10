@@ -19,6 +19,10 @@ import { getGitExecutor } from './utils/getGitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
+import {
+  CopyStagedChangesToWorktreeCommand,
+  CopyWipChangesToWorktreeCommand,
+} from './commands/copyChangesToWorktreeCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
@@ -102,6 +106,18 @@ export function activate(context: vscode.ExtensionContext) {
 
   const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
+
+  const copyStagedChangesToWorktreeCommand = new CopyStagedChangesToWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyStagedChangesToWorktree`,
+    copyStagedChangesToWorktreeCommand
+  );
+
+  const copyWipChangesToWorktreeCommand = new CopyWipChangesToWorktreeCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.copyWipChangesToWorktree`,
+    copyWipChangesToWorktreeCommand
+  );
 
   // Register clone pull request command
   const clonePullRequestCommand = commands.registerCommand(
