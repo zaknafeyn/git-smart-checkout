@@ -54,7 +54,7 @@ const features: Feature[] = [
     title: 'GitHub PR Clone',
     description:
       'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR.',
-    command: 'GitHub: Clone pull request...',
+    command: 'Git Smart Checkout: Clone pull request...',
     tag: 'Beta',
     color: 'orange',
   },
