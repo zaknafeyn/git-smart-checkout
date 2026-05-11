@@ -1,9 +1,13 @@
+import { getCommandPaletteShortcut, getExtensionsPanelShortcut } from '../../utils/shortcuts';
 import styles from './Installation.module.css';
 
 const MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout';
 const OPEN_VSX_URL = 'https://open-vsx.org/extension/vradchuk/git-smart-checkout';
 
 export function Installation() {
+  const commandPaletteShortcut = getCommandPaletteShortcut();
+  const extensionsPanelShortcut = getExtensionsPanelShortcut();
+
   return (
     <section id="install" className={styles.section}>
       <div className="container">
@@ -25,7 +29,7 @@ export function Installation() {
               </div>
             </div>
             <ol className={styles.steps}>
-              <li>Open VS Code and press <kbd>Ctrl+Shift+X</kbd> (or <kbd>⌘ Shift X</kbd> on Mac)</li>
+              <li>Open VS Code and press <kbd>{extensionsPanelShortcut}</kbd></li>
               <li>Search for <strong>Git Smart Checkout</strong></li>
               <li>Click <strong>Install</strong></li>
               <li>That's it — the command is ready in the palette</li>
@@ -40,7 +44,7 @@ export function Installation() {
               <span className={styles.methodNum}>2</span>
               <div>
                 <h3 className={styles.methodTitle}>Open VSX Registry</h3>
-                <p className={styles.methodDesc}>For VSCodium, Eclipse Theia, and open-source builds</p>
+                <p className={styles.methodDesc}>For VSCodium, Cursor, Windsurf, and open-source builds</p>
               </div>
             </div>
             <ol className={styles.steps}>
@@ -62,7 +66,7 @@ export function Installation() {
               <div className={styles.qsNum}>1</div>
               <div>
                 <p className={styles.qsLabel}>Open the Command Palette</p>
-                <kbd className={styles.kbd}>⌘ Shift P</kbd>
+                <kbd className={styles.kbd}>{commandPaletteShortcut}</kbd>
               </div>
             </div>
             <div className={styles.qsArrow}>→</div>
@@ -70,7 +74,7 @@ export function Installation() {
               <div className={styles.qsNum}>2</div>
               <div>
                 <p className={styles.qsLabel}>Type the command</p>
-                <code className={styles.code}>Git: Checkout to... (With Stash)</code>
+                <code className={styles.code}>Git Smart Checkout: Checkout to... (With Stash)</code>
               </div>
             </div>
             <div className={styles.qsArrow}>→</div>

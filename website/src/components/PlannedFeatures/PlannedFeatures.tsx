@@ -1,3 +1,4 @@
+import { FeatureCard } from '../FeatureCard/FeatureCard';
 import styles from './PlannedFeatures.module.css';
 
 interface PlannedFeature {
@@ -30,13 +31,6 @@ const planned: PlannedFeature[] = [
       'A dedicated side panel listing all auto-created stashes with branch, age, file count, diff preview, and one-click Apply / Pop / Drop actions.',
   },
   {
-    icon: '🔃',
-    tier: 1,
-    title: 'Pull with Rebase',
-    description:
-      'Choose between merge, rebase, or fast-forward-only when pulling. Configurable globally or per-repo.',
-  },
-  {
     icon: '⚡',
     tier: 1,
     title: 'Inline Branch Actions',
@@ -63,13 +57,6 @@ const planned: PlannedFeature[] = [
     title: 'Multi-root Workspace',
     description:
       'Proper support for workspaces with multiple git repositories — pick the target repo when a command is ambiguous.',
-  },
-  {
-    icon: '🌲',
-    tier: 2,
-    title: 'Worktree Support',
-    description:
-      'Open any branch in a new git worktree without touching your current workspace. Ideal for running two branches side-by-side.',
   },
   {
     icon: '🌐',
@@ -103,13 +90,14 @@ export function PlannedFeatures() {
           </div>
           <div className={styles.grid}>
             {tier1.map((f) => (
-              <article key={f.title} className={styles.card}>
-                <span className={styles.cardIcon}>{f.icon}</span>
-                <div>
-                  <h4 className={styles.cardTitle}>{f.title}</h4>
-                  <p className={styles.cardDesc}>{f.description}</p>
-                </div>
-              </article>
+              <FeatureCard
+                key={f.title}
+                icon={f.icon}
+                title={f.title}
+                description={f.description}
+                compact
+                titleLevel={4}
+              />
             ))}
           </div>
         </div>
@@ -121,13 +109,14 @@ export function PlannedFeatures() {
           </div>
           <div className={styles.grid}>
             {tier2.map((f) => (
-              <article key={f.title} className={styles.card}>
-                <span className={styles.cardIcon}>{f.icon}</span>
-                <div>
-                  <h4 className={styles.cardTitle}>{f.title}</h4>
-                  <p className={styles.cardDesc}>{f.description}</p>
-                </div>
-              </article>
+              <FeatureCard
+                key={f.title}
+                icon={f.icon}
+                title={f.title}
+                description={f.description}
+                compact
+                titleLevel={4}
+              />
             ))}
           </div>
         </div>

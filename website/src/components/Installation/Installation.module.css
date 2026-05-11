@@ -101,18 +101,6 @@
   font-weight: 600;
 }
 
-kbd {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  font-family: 'Noto Sans Symbols 2', var(--font-mono);
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .methodBtn {
   display: inline-block;
   padding: 10px 18px;
@@ -183,14 +171,11 @@ kbd {
 }
 
 .kbd {
-  display: inline-block;
   padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  font-family: 'Noto Sans Symbols 2', var(--font-mono);
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: rgba(56, 139, 253, 0.25);
 }
 
 .code {
