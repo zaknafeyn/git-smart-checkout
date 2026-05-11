@@ -1,6 +1,6 @@
 # Switch Mode
 
-Command: `Git: Switch Mode`
+Command: `Git Smart Checkout: Switch Mode`
 
 Use this command, or click the extension status bar item, to change the default stash mode used by checkout-style commands.
 
@@ -8,10 +8,10 @@ Use this command, or click the extension status bar item, to change the default 
 
 The selected mode is stored in `git-smart-checkout.mode`. It affects:
 
-- `Git: Checkout to ... (With Stash)`
-- `Git: Checkout previous branch (With Stash)`
-- `Git: Checkout by PR number ... (With Stash)`
-- `Git: Rebase ... (With Stash)`, with rebase-specific mode handling
+- `Git Smart Checkout: Checkout to ... (With Stash)`
+- `Git Smart Checkout: Checkout previous branch (With Stash)`
+- `Git Smart Checkout: Checkout by PR number... (With Stash)`
+- `Git Smart Checkout: Rebase ... (With Stash)`, with rebase-specific mode handling
 
 ## Modes
 

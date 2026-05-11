@@ -2,8 +2,8 @@
 
 Commands:
 
-- `Git: Copy staged changes to worktree ...`
-- `Git: Copy WIP changes to worktree ...`
+- `Git Smart Checkout: Copy staged changes to worktree ...`
+- `Git Smart Checkout: Copy WIP changes to worktree ...`
 - `Git Smart Checkout: Copy WIP from Worktree`
 - `Git Smart Checkout: Move WIP from Worktree`
 
@@ -26,8 +26,8 @@ If no other worktrees exist, the command shows a notification and does not creat
 
 | Command | Behavior |
 | --- | --- |
-| `Git: Copy staged changes to worktree ...` | Copies only staged changes. The copied changes are staged in the target worktree too. If nothing is staged, no files are copied and the target worktree can still be opened or added to the workspace. |
-| `Git: Copy WIP changes to worktree ...` | Copies staged changes, unstaged tracked changes, and non-ignored untracked files. Staged changes stay staged in the target worktree, and unstaged changes stay unstaged. |
+| `Git Smart Checkout: Copy staged changes to worktree ...` | Copies only staged changes. The copied changes are staged in the target worktree too. If nothing is staged, no files are copied and the target worktree can still be opened or added to the workspace. |
+| `Git Smart Checkout: Copy WIP changes to worktree ...` | Copies staged changes, unstaged tracked changes, and non-ignored untracked files. Staged changes stay staged in the target worktree, and unstaged changes stay unstaged. |
 
 The source worktree is left unchanged in both modes.
 

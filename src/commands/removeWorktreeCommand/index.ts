@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -8,6 +7,7 @@ import { IGitWorktree } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { LoggingService } from '../../logging/loggingService';
 import { getStashMessage } from '../utils/getStashMessage';
+import { getWorktreeBranchName, removeWorkspaceFoldersForPath } from '../utils/worktreeRemoval';
 import { BaseCommand } from '../command';
 
 const ACTION_REMOVE_WORKTREE = 'Remove Worktree';
@@ -38,7 +38,7 @@ export class RemoveWorktreeCommand extends BaseCommand {
       const removed = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Git: Remove Worktree',
+          title: 'Git Smart Checkout: Remove Worktree',
           cancellable: false,
         },
         async (progress) => {
@@ -51,7 +51,7 @@ export class RemoveWorktreeCommand extends BaseCommand {
         return;
       }
 
-      await this.removeWorkspaceFoldersForPath(worktree.path);
+      await removeWorkspaceFoldersForPath(worktree.path);
       await vscode.window.showInformationMessage(`Worktree removed: ${worktree.path}`, 'OK');
     } catch (error) {
       captureException(error);
@@ -184,46 +184,10 @@ export class RemoveWorktreeCommand extends BaseCommand {
   }
 
   private getWorktreeBranchName(worktree: IGitWorktree): string | undefined {
-    return worktree.branch?.replace(/^refs\/heads\//, '');
+    return getWorktreeBranchName(worktree.branch);
   }
 
   private getShortHead(worktree: IGitWorktree): string {
     return worktree.head?.slice(0, 7) ?? 'unknown';
-  }
-
-  private async removeWorkspaceFoldersForPath(removedPath: string): Promise<void> {
-    const folders = vscode.workspace.workspaceFolders ?? [];
-    const indexesToRemove = folders
-      .map((folder, index) => ({ folder, index }))
-      .filter(({ folder }) => this.isSameOrChildPath(folder.uri.fsPath, removedPath))
-      .map(({ index }) => index)
-      .sort((a, b) => b - a);
-
-    for (const index of indexesToRemove) {
-      vscode.workspace.updateWorkspaceFolders(index, 1);
-    }
-  }
-
-  private isSameOrChildPath(candidatePath: string, parentPath: string): boolean {
-    const relative = path.relative(
-      this.normalizePathForComparison(parentPath),
-      this.normalizePathForComparison(candidatePath)
-    );
-    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-  }
-
-  private normalizePathForComparison(targetPath: string): string {
-    try {
-      return fs.realpathSync.native(targetPath);
-    } catch {
-      try {
-        return path.join(
-          fs.realpathSync.native(path.dirname(targetPath)),
-          path.basename(targetPath)
-        );
-      } catch {
-        return path.resolve(targetPath);
-      }
-    }
   }
 }

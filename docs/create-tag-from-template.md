@@ -1,6 +1,6 @@
 # Create Tag from Template
 
-Command: `Git: Create Git Tag from Template`
+Command: `Git Smart Checkout: Create Tag from Template`
 
 Generate Git tags from a configurable template with safe token substitution for file values, branch regex matches, script output, and auto-incrementing suffixes.
 

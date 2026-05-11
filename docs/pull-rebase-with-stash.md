@@ -1,6 +1,6 @@
 # Pull Rebase with Stash
 
-Command: `Git: Pull (Rebase With Stash)`
+Command: `Git Smart Checkout: Pull (Rebase With Stash)`
 
 Use this command to pull with rebase while preserving uncommitted local changes.
 
@@ -15,4 +15,4 @@ If the pull rebase fails after a stash was created, the command leaves your chan
 
 ## When To Use It
 
-Use `Git: Pull (Rebase With Stash)` when your team expects linear history and usually runs `git pull --rebase`.
+Use `Git Smart Checkout: Pull (Rebase With Stash)` when your team expects linear history and usually runs `git pull --rebase`.

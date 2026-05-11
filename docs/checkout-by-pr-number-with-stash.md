@@ -1,6 +1,6 @@
 # Checkout by PR Number with Stash
 
-Command: `Git: Checkout by PR number ... (With Stash)`
+Command: `Git Smart Checkout: Checkout by PR number... (With Stash)`
 
 Use this command to switch directly to a GitHub pull request branch by entering a PR number or URL. The checkout uses the same stash behavior as the other checkout commands.
 
@@ -20,7 +20,7 @@ Use this command to switch directly to a GitHub pull request branch by entering 
 6. Checks out the PR branch and restores or transfers local changes according to the selected stash mode.
 
 > [!TIP]
-> Stash behavior is controlled by the same mode setting used by `Git: Checkout to ... (With Stash)`. Set it once with `Git: Switch Mode` or the status bar item, and checkout commands follow it automatically.
+> Stash behavior is controlled by the same mode setting used by `Git Smart Checkout: Checkout to ... (With Stash)`. Set it once with `Git Smart Checkout: Switch Mode` or the status bar item, and checkout commands follow it automatically.
 
 ## Requirements
 
