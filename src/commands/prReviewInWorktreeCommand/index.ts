@@ -9,6 +9,8 @@ import { IGitRef, IGitWorktree } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
+import { PRReviewWorktreeStore } from '../../services/prReviewWorktreeStore';
+import { GitHubPR } from '../../types/dataTypes';
 import { BaseCommand } from '../command';
 import { INVALID_PR_INPUT_MESSAGE, parsePRInput } from '../utils/parsePRInput';
 import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
@@ -18,7 +20,8 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
   constructor(
     private configManager: ConfigurationManager,
     logService: LoggingService,
-    private vscodeGitProvider?: VscodeGitProvider
+    private vscodeGitProvider?: VscodeGitProvider,
+    private prReviewWorktreeStore?: PRReviewWorktreeStore
   ) {
     super(logService);
   }
@@ -64,6 +67,7 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
       const existingWorktree = await this.findWorktreeForBranch(git, headRef);
 
       if (existingWorktree) {
+        await this.recordPRReviewWorktree(git, repoInfo, pr, existingWorktree.path);
         await showWorktreeCompletionActions(
           existingWorktree.path,
           `Branch "${headRef}" is already checked out at ${existingWorktree.path}`
@@ -107,6 +111,7 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
           progress.report({ message: 'Creating worktree...' });
           fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
           await this.createWorktree(git, worktreePath, targetBranch);
+          await this.recordPRReviewWorktree(git, repoInfo, pr, worktreePath);
         }
       );
 
@@ -165,6 +170,26 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
     }
 
     await git.worktreeAddLocalBranch(worktreePath, targetBranch.name);
+  }
+
+  private async recordPRReviewWorktree(
+    git: GitExecutor,
+    repoInfo: { owner: string; repo: string },
+    pr: GitHubPR,
+    worktreePath: string
+  ): Promise<void> {
+    await this.prReviewWorktreeStore?.upsert({
+      repoKey: PRReviewWorktreeStore.createRepoKey(repoInfo.owner, repoInfo.repo, git.repositoryPath),
+      repositoryPath: git.repositoryPath,
+      owner: repoInfo.owner,
+      repo: repoInfo.repo,
+      worktreePath,
+      branchName: pr.head.ref,
+      prNumber: pr.number,
+      prTitle: pr.title,
+      prUrl: pr.html_url,
+      headSha: pr.head.sha,
+    });
   }
 
   private async findWorktreeForBranch(

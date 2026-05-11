@@ -9,6 +9,7 @@ import { GitHubClient } from '../../common/api/ghClient';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
+import { PRReviewWorktreeStore } from '../../services/prReviewWorktreeStore';
 import { GitHubPR } from '../../types/dataTypes';
 
 import { createForkPRTestRepo, createPRTestRepo, ForkPRTestRepo, PRTestRepo } from './helpers/gitTestRepo';
@@ -39,9 +40,10 @@ function makePR(headRef: string, overrides: Partial<GitHubPR> = {}): GitHubPR {
 class TestablePRReviewInWorktreeCommand extends PRReviewInWorktreeCommand {
   constructor(
     private readonly testGit: GitExecutor,
-    private readonly prData: GitHubPR | Error | ((prNumber: number) => GitHubPR)
+    private readonly prData: GitHubPR | Error | ((prNumber: number) => GitHubPR),
+    store?: PRReviewWorktreeStore
   ) {
-    super(makeMockConfigManager(), mockLogService);
+    super(makeMockConfigManager(), mockLogService, undefined, store);
   }
 
   protected async getGitExecutor(_provider?: VscodeGitProvider): Promise<GitExecutor> {
@@ -57,6 +59,24 @@ class TestablePRReviewInWorktreeCommand extends PRReviewInWorktreeCommand {
       },
     } as unknown as GitHubClient;
   }
+}
+
+function makeMemoryMemento(): Pick<vscode.Memento, 'get' | 'update'> {
+  const data = new Map<string, unknown>();
+
+  return {
+    get<T>(key: string): T | undefined {
+      return data.get(key) as T | undefined;
+    },
+    async update(key: string, value: unknown): Promise<void> {
+      if (value === undefined) {
+        data.delete(key);
+        return;
+      }
+
+      data.set(key, value);
+    },
+  } as Pick<vscode.Memento, 'get' | 'update'>;
 }
 
 function stubInputBox(
@@ -111,6 +131,10 @@ async function cleanupWorktree(repo: PRTestRepo, worktreePath: string): Promise<
 
 function execIn(cwd: string, command: string): string {
   return execSync(command, { cwd, encoding: 'utf-8' });
+}
+
+function assertSamePath(actual: string, expected: string): void {
+  assert.strictEqual(fs.realpathSync.native(actual), fs.realpathSync.native(expected));
 }
 
 describe('PRReviewInWorktreeCommand', () => {
@@ -190,6 +214,45 @@ describe('PRReviewInWorktreeCommand', () => {
     }
   });
 
+  it('records PR review worktree metadata after creating a worktree', async () => {
+    const repo = createPRTestRepo();
+    const worktreePath = getDefaultWorktreePath(repo, repo.prBranch);
+    const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
+    const restoreInput = stubInputBox('42', (options) => options.value);
+    const restoreInfo = stubInfoMessages([]);
+    const restoreError = stubErrorMessages([]);
+
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+
+    try {
+      const sut = new TestablePRReviewInWorktreeCommand(
+        repo.git,
+        makePR(repo.prBranch),
+        store
+      );
+
+      await sut.execute();
+
+      const records = await store.getForRepository({
+        repoKey: 'owner/test-repo',
+        repositoryPath: repo.repoPath,
+      });
+      assert.strictEqual(records.length, 1);
+      assertSamePath(records[0].worktreePath, worktreePath);
+      assert.strictEqual(records[0].branchName, repo.prBranch);
+      assert.strictEqual(records[0].prNumber, 42);
+      assert.strictEqual(records[0].prTitle, 'Test PR title');
+      assert.strictEqual(records[0].prUrl, 'https://github.com/owner/repo/pull/42');
+      assert.strictEqual(records[0].headSha, 'abc123');
+    } finally {
+      restoreError();
+      restoreInfo();
+      restoreInput();
+      await cleanupWorktree(repo, worktreePath);
+      repo.cleanup();
+    }
+  });
+
   it('fetches fork PR branches from the fork clone URL and creates a worktree', async () => {
     const repo: ForkPRTestRepo = createForkPRTestRepo();
     const worktreePath = getDefaultWorktreePath(repo, repo.forkBranch);
@@ -253,6 +316,44 @@ describe('PRReviewInWorktreeCommand', () => {
         'Open in Current Window',
         'Open in New Window',
       ]);
+    } finally {
+      restoreError();
+      restoreInfo();
+      restoreInput();
+      await cleanupWorktree(repo, worktreePath);
+      repo.cleanup();
+    }
+  });
+
+  it('records PR review worktree metadata when the PR branch is already checked out', async () => {
+    const repo = createPRTestRepo();
+    const worktreePath = getDefaultWorktreePath(repo, repo.prBranch);
+    const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
+    const restoreInput = stubInputBox('42');
+    const restoreInfo = stubInfoMessages([]);
+    const restoreError = stubErrorMessages([]);
+
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.exec(`git fetch origin ${repo.prBranch}:refs/remotes/origin/${repo.prBranch}`);
+    repo.exec(`git worktree add --track -b ${repo.prBranch} "${worktreePath}" origin/${repo.prBranch}`);
+
+    try {
+      const sut = new TestablePRReviewInWorktreeCommand(
+        repo.git,
+        makePR(repo.prBranch),
+        store
+      );
+
+      await sut.execute();
+
+      const records = await store.getForRepository({
+        repoKey: 'owner/test-repo',
+        repositoryPath: repo.repoPath,
+      });
+      assert.strictEqual(records.length, 1);
+      assertSamePath(records[0].worktreePath, worktreePath);
+      assert.strictEqual(records[0].branchName, repo.prBranch);
+      assert.strictEqual(records[0].prNumber, 42);
     } finally {
       restoreError();
       restoreInfo();

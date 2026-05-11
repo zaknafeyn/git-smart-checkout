@@ -30,8 +30,10 @@ import {
 } from './commands/copyChangesFromWorktreeCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
+import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
+import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
 import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
@@ -75,6 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
   const autoStashService = new AutoStashService(configManager, logService);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
+  const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
@@ -104,7 +107,12 @@ export function activate(context: vscode.ExtensionContext) {
   const checkoutByPRCommand = new CheckoutByPRCommand(configManager, logService, autoStashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutByPR`, checkoutByPRCommand);
 
-  const prReviewInWorktreeCommand = new PRReviewInWorktreeCommand(configManager, logService, vscodeGitProvider);
+  const prReviewInWorktreeCommand = new PRReviewInWorktreeCommand(
+    configManager,
+    logService,
+    vscodeGitProvider,
+    prReviewWorktreeStore
+  );
   commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand);
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
@@ -115,6 +123,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
+
+  const removePRReviewInWorktreeCommand = new RemovePRReviewInWorktreeCommand(
+    logService,
+    prReviewWorktreeStore,
+    vscodeGitProvider
+  );
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.removePRReviewInWorktree`,
+    removePRReviewInWorktreeCommand
+  );
 
   const copyStagedChangesToWorktreeCommand = new CopyStagedChangesToWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(

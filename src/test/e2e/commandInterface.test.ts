@@ -355,6 +355,11 @@ describe('VS Code command interface', () => {
     await setExtensionMode(AUTO_STASH_MODE_MANUAL);
   });
 
+  it('contributes the PR review worktree removal command', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(commands.includes(commandId('removePRReviewInWorktree')));
+  });
+
   describe('checkoutTo', () => {
     const cases = [
       {
