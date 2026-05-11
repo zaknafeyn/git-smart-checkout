@@ -59,6 +59,15 @@ const features: Feature[] = [
     color: 'orange',
   },
   {
+    icon: '🔎',
+    title: 'PR Review in Worktree',
+    description:
+      'Open a GitHub PR in an isolated linked worktree, track its review metadata, and remove the review worktree later with dirty-state stash handling.',
+    command: 'Git Smart Checkout: PR Review in Worktree',
+    tag: 'New',
+    color: 'purple',
+  },
+  {
     icon: '🏷️',
     title: 'Tag from Template',
     description:
@@ -111,7 +120,6 @@ export function Features() {
               description={f.description}
               command={f.command}
               tag={f.tag}
-              // tone={f.color}
             />
           ))}
         </div>
