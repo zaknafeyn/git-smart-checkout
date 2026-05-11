@@ -134,6 +134,16 @@
         "category": "Git Smart Checkout"
       },
       {
+        "command": "git-smart-checkout.prReviewInWorktree",
+        "title": "PR Review in Worktree",
+        "category": "Git Smart Checkout"
+      },
+      {
+        "command": "git-smart-checkout.removePRReviewInWorktree",
+        "title": "Remove PR review in Worktree",
+        "category": "Git Smart Checkout"
+      },
+      {
         "command": "git-smart-checkout.moveToNewWorktree",
         "title": "Move to new worktree",
         "category": "Git Smart Checkout"
@@ -189,6 +199,12 @@
         },
         {
           "command": "git-smart-checkout.checkoutByPR"
+        },
+        {
+          "command": "git-smart-checkout.prReviewInWorktree"
+        },
+        {
+          "command": "git-smart-checkout.removePRReviewInWorktree"
         },
         {
           "command": "git-smart-checkout.moveToNewWorktree"
