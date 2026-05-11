@@ -18,10 +18,8 @@ import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
-
-const ACTION_ADD_TO_WORKSPACE = 'Add to Workspace';
-const ACTION_OPEN_FOLDER = 'Open in Current Window';
-const ACTION_OPEN_IN_NEW_WINDOW = 'Open in New Window';
+import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
+import { selectWorktreePath } from '../utils/worktreePath';
 
 type WorktreeBranchItem = vscode.QuickPickItem & { ref: IGitRef };
 
@@ -49,7 +47,12 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
         return;
       }
 
-      const worktreePath = await this.selectWorktreePath(git, targetBranch.name);
+      const worktreePath = await selectWorktreePath(
+        git.repositoryPath,
+        targetBranch.name,
+        this.configManager.get().defaultWorktreeDirectory,
+        'Move to new worktree'
+      );
       if (!worktreePath) {
         return;
       }
@@ -86,7 +89,7 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
         return;
       }
 
-      await this.showCompletionActions(worktreePath);
+      await showWorktreeCompletionActions(worktreePath, `Worktree created at ${worktreePath}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       message && (await vscode.window.showErrorMessage(message, 'OK'));
@@ -147,75 +150,6 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     });
 
     return (picked as WorktreeBranchItem | undefined)?.ref;
-  }
-
-  private async selectWorktreePath(
-    git: GitExecutor,
-    targetBranchName: string
-  ): Promise<string | undefined> {
-    const baseDirectory = this.getBaseWorktreeDirectory(git.repositoryPath);
-    const suggestedDirectoryName = this.getSuggestedDirectoryName(
-      git.repositoryPath,
-      targetBranchName
-    );
-
-    const directoryName = await vscode.window.showInputBox({
-      title: 'Move to new worktree',
-      prompt: `Create worktree in ${baseDirectory}`,
-      placeHolder: 'Worktree directory name',
-      value: suggestedDirectoryName,
-      validateInput: (value) => {
-        const trimmed = value.trim();
-
-        if (!trimmed) {
-          return 'Worktree directory name is required.';
-        }
-
-        if (path.isAbsolute(trimmed) || trimmed.includes('/') || trimmed.includes('\\')) {
-          return 'Provide a folder name, not a path.';
-        }
-
-        const targetPath = path.join(baseDirectory, trimmed);
-        if (fs.existsSync(targetPath)) {
-          return 'A folder with this name already exists.';
-        }
-
-        return undefined;
-      },
-    });
-
-    if (!directoryName) {
-      return undefined;
-    }
-
-    return path.join(baseDirectory, directoryName.trim());
-  }
-
-  private getBaseWorktreeDirectory(repositoryPath: string): string {
-    const configuredDirectory = this.configManager.get().defaultWorktreeDirectory.trim();
-    const fallbackDirectory = path.dirname(repositoryPath);
-
-    if (!configuredDirectory) {
-      return fallbackDirectory;
-    }
-
-    const expandedDirectory = configuredDirectory.startsWith('~')
-      ? path.join(process.env.HOME ?? '', configuredDirectory.slice(1))
-      : configuredDirectory;
-
-    return path.isAbsolute(expandedDirectory)
-      ? expandedDirectory
-      : path.resolve(fallbackDirectory, expandedDirectory);
-  }
-
-  private getSuggestedDirectoryName(repositoryPath: string, targetBranchName: string): string {
-    const repositoryName = path.basename(repositoryPath);
-    const safeBranchName = targetBranchName
-      .replace(/[\\/]+/g, '-')
-      .replace(/[^a-zA-Z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    return `${repositoryName}-${safeBranchName || 'worktree'}`;
   }
 
   private async createWorktreeWithStash(
@@ -305,65 +239,4 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     return choice === 'Continue';
   }
 
-  private async showCompletionActions(worktreePath: string): Promise<void> {
-    const action = await vscode.window.showInformationMessage(
-      `Worktree created at ${worktreePath}`,
-      ...this.getCompletionActions(worktreePath)
-    );
-
-    switch (action) {
-      case ACTION_ADD_TO_WORKSPACE:
-        this.addToWorkspace(worktreePath);
-        break;
-      case ACTION_OPEN_FOLDER:
-        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(worktreePath), false);
-        break;
-      case ACTION_OPEN_IN_NEW_WINDOW:
-        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(worktreePath), true);
-        break;
-    }
-  }
-
-  private addToWorkspace(worktreePath: string): void {
-    const folders = vscode.workspace.workspaceFolders ?? [];
-    vscode.workspace.updateWorkspaceFolders(folders.length, null, {
-      uri: vscode.Uri.file(worktreePath),
-      name: path.basename(worktreePath),
-    });
-  }
-
-  private getCompletionActions(worktreePath: string): string[] {
-    const actions = [ACTION_OPEN_FOLDER, ACTION_OPEN_IN_NEW_WINDOW];
-
-    if (!this.isWorktreeInWorkspace(worktreePath)) {
-      actions.unshift(ACTION_ADD_TO_WORKSPACE);
-    }
-
-    return actions;
-  }
-
-  private isWorktreeInWorkspace(worktreePath: string): boolean {
-    return (vscode.workspace.workspaceFolders ?? []).some((folder) =>
-      this.isSamePath(folder.uri.fsPath, worktreePath)
-    );
-  }
-
-  private isSamePath(left: string, right: string): boolean {
-    return this.normalizePathForComparison(left) === this.normalizePathForComparison(right);
-  }
-
-  private normalizePathForComparison(targetPath: string): string {
-    try {
-      return fs.realpathSync.native(targetPath);
-    } catch {
-      try {
-        return path.join(
-          fs.realpathSync.native(path.dirname(targetPath)),
-          path.basename(targetPath)
-        );
-      } catch {
-        return path.resolve(targetPath);
-      }
-    }
-  }
 }

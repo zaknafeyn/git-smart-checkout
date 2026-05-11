@@ -14,6 +14,7 @@ export enum AnalyticsEvent {
   PrCloneCompleted = 'pr_clone_completed',
   PrCloneAborted = 'pr_clone_aborted',
   CheckoutByPR = 'checkout_by_pr',
+  PrReviewInWorktree = 'pr_review_in_worktree',
   WorktreeRemoved = 'worktree_removed',
   CopyStagedChangesToWorktree = 'copy_staged_changes_to_worktree',
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',

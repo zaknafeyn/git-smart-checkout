@@ -8,18 +8,7 @@ import { AutoStashService } from '../../services/autoStashService';
 import { IGitRef } from '../../common/git/types';
 import { BaseCommand } from '../command';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
-
-function parsePRInput(input: string): number | null {
-  const num = input.trim().match(/^#?(\d+)$/);
-  if (num) {
-    return parseInt(num[1], 10);
-  }
-  const url = input.trim().match(/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/);
-  if (url) {
-    return parseInt(url[1], 10);
-  }
-  return null;
-}
+import { INVALID_PR_INPUT_MESSAGE, parsePRInput } from '../utils/parsePRInput';
 
 export class CheckoutByPRCommand extends BaseCommand {
   constructor(
@@ -48,7 +37,7 @@ export class CheckoutByPRCommand extends BaseCommand {
 
       const prNumber = parsePRInput(input);
       if (!prNumber) {
-        await this.showErrorMessage('Invalid input. Enter a PR number (e.g. 123 or #123) or a GitHub PR URL.', 'OK');
+        await this.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
         return;
       }
 
