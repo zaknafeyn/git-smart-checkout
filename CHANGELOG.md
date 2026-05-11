@@ -1,3 +1,16 @@
+# [0.5.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.4.0...v0.5.0) (2026-05-11)
+
+
+### Bug Fixes
+
+* update command names to include 'Git Smart Checkout' prefix for consistency ([401a842](https://github.com/zaknafeyn/git-smart-checkout/commit/401a842be7faa7b3264fd55eff31c15e8ae15058))
+
+
+### Features
+
+* pr review in worktree ([#50](https://github.com/zaknafeyn/git-smart-checkout/issues/50)) ([31e9929](https://github.com/zaknafeyn/git-smart-checkout/commit/31e992995e0dc996010314f270d38364dcd43afc))
+* update website with new icon and add 'Pull with Rebase' feature ([#46](https://github.com/zaknafeyn/git-smart-checkout/issues/46)) ([fa474e7](https://github.com/zaknafeyn/git-smart-checkout/commit/fa474e7a218c5e0b54aee2330fcf1c5588907ebb))
+
 # [0.4.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.3.0...v0.4.0) (2026-05-10)
 
 
