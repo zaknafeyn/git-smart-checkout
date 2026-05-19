@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.5.0...v0.5.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* capture extension activation event in analytics ([477a054](https://github.com/zaknafeyn/git-smart-checkout/commit/477a054f89710d11fdd51c4ada827680873ed5a7))
+
 # [0.5.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.4.0...v0.5.0) (2026-05-11)
 
 
