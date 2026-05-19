@@ -34,7 +34,7 @@ import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWork
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
-import { initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
+import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 
@@ -61,6 +61,8 @@ export function activate(context: vscode.ExtensionContext) {
     setAnalyticsEnabled(vscode.env.isTelemetryEnabled && configManager.get().telemetry.enabled);
 
   updateTelemetryState();
+  capture(AnalyticsEvent.ExtensionActivated);
+
   const logService = new LoggingService(configManager);
   const statusBarManager = new StatusBarManager(configManager, logService);
   const prCloneService = new PrCloneService(context, logService, configManager);

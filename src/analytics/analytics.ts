@@ -1,6 +1,7 @@
 import { PostHog } from 'posthog-node';
 
 export enum AnalyticsEvent {
+  ExtensionActivated = 'extension_activated',
   CheckoutToBranch = 'checkout_to_branch',
   CheckoutPreviousBranch = 'checkout_previous_branch',
   BranchCreated = 'branch_created',
