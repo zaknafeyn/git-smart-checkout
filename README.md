@@ -32,6 +32,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Pull with rebase while preserving local changes | `Git Smart Checkout: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
 | Rebase the current branch onto another ref while preserving local changes | `Git Smart Checkout: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
 | Copy staged or WIP changes between existing worktrees | `Git Smart Checkout: Copy staged changes to worktree ...`, `Git Smart Checkout: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
+| Open a terminal in a selected worktree's directory | `Git Smart Checkout: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |

@@ -22,8 +22,8 @@ export abstract class BaseCommand implements ICommand {
     return await vscode.window.showInputBox(options);
   }
 
-  protected async getGitExecutor(vscodeGitProvider?: VscodeGitProvider) {
-    return getGitExecutor(this.logService, vscodeGitProvider);
+  protected async getGitExecutor(vscodeGitProvider?: VscodeGitProvider, title?: string) {
+    return getGitExecutor(this.logService, vscodeGitProvider, title);
   }
 
   protected async showInformationMessage(

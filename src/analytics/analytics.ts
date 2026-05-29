@@ -22,6 +22,7 @@ export enum AnalyticsEvent {
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
   CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',
   MoveWipChangesFromWorktree = 'move_wip_changes_from_worktree',
+  WorktreeDevTerminalOpened = 'worktree_dev_terminal_opened',
 }
 
 let client: PostHog | null = null;
@@ -47,6 +48,7 @@ export function initAnalytics(
   _commonProperties = commonProperties;
   client = new PostHog(process.env.POSTHOG_API_KEY!, {
     host: process.env.POSTHOG_HOST,
+    enableExceptionAutocapture: true,
   });
 }
 

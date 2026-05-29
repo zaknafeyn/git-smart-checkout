@@ -172,6 +172,11 @@
         "command": "git-smart-checkout.removeWorktree",
         "title": "Remove Worktree...",
         "category": "Git Smart Checkout"
+      },
+      {
+        "command": "git-smart-checkout.openWorktreeDevTerminal",
+        "title": "Open Worktree Dev Terminal...",
+        "category": "Git Smart Checkout"
       }
     ],
     "menus": {
@@ -223,6 +228,9 @@
         },
         {
           "command": "git-smart-checkout.removeWorktree"
+        },
+        {
+          "command": "git-smart-checkout.openWorktreeDevTerminal"
         }
       ],
       "view/title": [
