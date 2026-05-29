@@ -32,8 +32,8 @@ export const getRefLabelWithStar = (ref: IGitRef, isPreferred: boolean) => {
   if (isPreferred) {
     dataArr.unshift(ICON_STAR_FILLED);
   }
-  
-  return [getRefIcon(ref), ref.fullName].join(' ');
+
+  return dataArr.join(' ');
 };
 
 export const getRefDescription = (ref: IGitRef) => {
