@@ -64,8 +64,16 @@ const features: Feature[] = [
     description:
       'Open a GitHub PR in an isolated linked worktree, track its review metadata, and remove the review worktree later with dirty-state stash handling.',
     command: 'Git Smart Checkout: PR Review in Worktree',
-    tag: 'New',
     color: 'purple',
+  },
+  {
+    icon: '🖥️',
+    title: 'Worktree Dev Terminal',
+    description:
+      'Open a new integrated terminal straight in any worktree directory. Pick a project, choose the worktree, and get a shell in the right working directory — no manual navigation.',
+    command: 'Git Smart Checkout: Open Worktree Dev Terminal...',
+    tag: 'New',
+    color: 'blue',
   },
   {
     icon: '🏷️',
