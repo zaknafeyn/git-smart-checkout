@@ -20,6 +20,7 @@ import {
   getRefLabel,
   getRefLabelWithStar,
   ICON_BRANCH,
+  ICON_FOLDER,
   ICON_PLUS,
   ICON_REMOTE_BRANCH
 } from '../utils/refFormatting';
@@ -104,6 +105,12 @@ export class CheckoutToCommand extends BaseCommand {
 
     const repoId = await getRepoId(git);
     const { useFastBranchList } = this.configManager.get();
+    const checkedOutBranchNames = new Set(
+      (await git.worktreeListDetailed(true))
+        .filter((worktree) => !worktree.bare && !worktree.prunable && worktree.branch)
+        .map((worktree) => worktree.branch?.replace(/^refs\/heads\//, ''))
+        .filter((branch): branch is string => Boolean(branch))
+    );
 
     // Mutable branch list — upgraded in-place when Phase 2 resolves.
     let branchList: IGitRef[] = [];
@@ -121,9 +128,11 @@ export class CheckoutToCommand extends BaseCommand {
 
     const toItem = (ref: IGitRef): (vscode.QuickPickItem & { ref: IGitRef; type: 'ref' }) => {
       const isPreferred = this.configManager.isPreferred(repoId, ref);
+      const isCheckedOutInWorktree = !ref.remote && !ref.isTag && checkedOutBranchNames.has(ref.name);
+      const label = getRefLabelWithStar(ref, isPreferred);
 
       return {
-        label: getRefLabelWithStar(ref, isPreferred),
+        label: isCheckedOutInWorktree ? `${ICON_FOLDER} ${label}` : label,
         description: getRefDescription(ref),
         detail: getRefDetails(ref),
         buttons: [

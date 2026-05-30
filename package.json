@@ -182,6 +182,10 @@
     "menus": {
       "commandPalette": [
         {
+          "command": "git-smart-checkout.prConflictsResolvedMenu",
+          "when": "false"
+        },
+        {
           "command": "git-smart-checkout.checkoutTo"
         },
         {

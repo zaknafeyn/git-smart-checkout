@@ -5,6 +5,7 @@ export const ICON_BRANCH = '$(source-control)';
 export const ICON_REMOTE_BRANCH = '$(cloud)';
 export const ICON_TAG = '$(tag)';
 export const ICON_PLUS = '$(plus)';
+export const ICON_FOLDER = '$(folder)';
 export const ICON_ARROW_UP = '↑';
 export const ICON_ARROW_DOWN = '↓';
 export const ICON_STAR_FILLED = '★';

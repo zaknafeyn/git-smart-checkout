@@ -423,6 +423,49 @@ describe('VS Code command interface', () => {
       });
     }
 
+    it('marks branches already checked out in another worktree with a folder icon', async () => {
+      const repo = createTestRepo();
+      const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
+      let inspectedBranchPicker = false;
+
+      repo.exec(`git worktree add "${worktreePath}" ${repo.featureBranch}`);
+
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a branch to checkout');
+        inspectedBranchPicker = true;
+        const featureItem = items.find((item) =>
+          item.ref?.name === repo.featureBranch &&
+          !item.ref.remote &&
+          !item.ref.isTag
+        );
+
+        assert.ok(featureItem, 'feature branch should be listed');
+        assert.ok(
+          featureItem.label.startsWith('$(folder) '),
+          'checked-out worktree branch should be marked with a folder icon'
+        );
+
+        return undefined;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('checkoutTo'));
+          await delay();
+
+          assert.strictEqual(inspectedBranchPicker, true);
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(await repo.git.getCurrentBranch(), repo.mainBranch);
+        });
+      } finally {
+        errors.restore();
+        restoreQuickPick();
+        await cleanupWorktree(repo, worktreePath);
+        repo.cleanup();
+      }
+    });
+
     it('creates a new branch from the command picker action', async () => {
       const repo = createTestRepo();
       const restoreQuickPick = stubCreateQuickPick((items) =>
