@@ -278,7 +278,7 @@
         "git-smart-checkout.useFastBranchList": {
           "type": "boolean",
           "default": true,
-          "description": "Use VS Code's cached git model for the branch picker (instant on large repos) and lazily load commit details for the highlighted branch. Disable to always build the list with a full 'git for-each-ref' scan."
+          "description": "Use VS Code's cached git model for branch pickers, preload details for the first visible refs, and cache ref details for 48 hours. Disable to always build lists with a full 'git for-each-ref' scan."
         },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",
