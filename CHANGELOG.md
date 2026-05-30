@@ -1,3 +1,18 @@
+# [0.6.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.5.1...v0.6.0) (2026-05-30)
+
+
+### Bug Fixes
+
+* include locale in analytics initialization and enable geoip properties ([860d088](https://github.com/zaknafeyn/git-smart-checkout/commit/860d088d33d59b9c28293341eb681ff9b9b3441f))
+* update execCommand to use execFile and improve argument handling ([#63](https://github.com/zaknafeyn/git-smart-checkout/issues/63)) ([ad8bf54](https://github.com/zaknafeyn/git-smart-checkout/commit/ad8bf542836b7fcb86e706833fa2aadfa6bc0ae8))
+
+
+### Features
+
+* add 'Open Worktree Dev Terminal' command and documentation ([#62](https://github.com/zaknafeyn/git-smart-checkout/issues/62)) ([f623535](https://github.com/zaknafeyn/git-smart-checkout/commit/f623535b97c815b48be974e6b4b4cdca3958742e))
+* implement worktree branch conflict handling in checkout commands ([#64](https://github.com/zaknafeyn/git-smart-checkout/issues/64)) ([d9d5558](https://github.com/zaknafeyn/git-smart-checkout/commit/d9d5558472b6879e7e03895fecb5c8ad59f2b38f))
+* Refactor configuration management and enhance ref details caching ([#65](https://github.com/zaknafeyn/git-smart-checkout/issues/65)) ([1f52ce6](https://github.com/zaknafeyn/git-smart-checkout/commit/1f52ce6cc48e880e4739fe39a44585cc0088eb16))
+
 ## [0.5.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.5.0...v0.5.1) (2026-05-19)
 
 
