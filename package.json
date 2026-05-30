@@ -182,6 +182,10 @@
     "menus": {
       "commandPalette": [
         {
+          "command": "git-smart-checkout.prConflictsResolvedMenu",
+          "when": "false"
+        },
+        {
           "command": "git-smart-checkout.checkoutTo"
         },
         {
@@ -271,15 +275,10 @@
           "default": true,
           "description": "Enable logging output"
         },
-        "git-smart-checkout.refetchBeforeCheckout": {
-          "type": "boolean",
-          "default": false,
-          "description": "Refetch remotes each time before checkout"
-        },
         "git-smart-checkout.useFastBranchList": {
           "type": "boolean",
           "default": true,
-          "description": "Seed the branch picker instantly from VS Code's cached git model, then enrich with full details in the background. Disable if the picker shows stale branches."
+          "description": "Use VS Code's cached git model for branch pickers, preload details for the first visible refs, and cache ref details for 48 hours. Disable to always build lists with a full 'git for-each-ref' scan."
         },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",

@@ -83,6 +83,10 @@ export class GitExecutor {
     return this.#vscodeGitProvider?.getRefsForRepo(this.#repositoryPath);
   }
 
+  async getRefDetailsFast(ref: IGitRef): Promise<Partial<IGitRef> | undefined> {
+    return this.#vscodeGitProvider?.getRefDetails(this.#repositoryPath, ref);
+  }
+
   // #region private
 
   async #execGitCommandWithOptions(args: string[], options?: ExecFileOptions) {
@@ -255,11 +259,7 @@ export class GitExecutor {
     await this.#execGitCommand(['clean', '-fd']);
   }
 
-  async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
-    if (fetchRemotes) {
-      await this.fetchAllRemoteBranchesAndTags();
-    }
-
+  async getAllRefListExtended(): Promise<IGitRef[]> {
     const SEPARATOR = '|';
     const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
     const { stdout: branchesOutput } = await this.#execGitCommand([
@@ -695,7 +695,7 @@ export class GitExecutor {
           // Skip if it's the same as current branch or if it's a detached HEAD
           if (fromBranch !== 'HEAD' && fromBranch !== toBranch && !fromBranch.includes('detached')) {
             // Try to resolve full ref info using existing ref listing
-            const allRefs = await this.getAllRefListExtended(false);
+            const allRefs = await this.getAllRefListExtended();
             const matchByName = allRefs.find(ref => !ref.isTag && ref.name === fromBranch);
             if (matchByName) {
               return matchByName;

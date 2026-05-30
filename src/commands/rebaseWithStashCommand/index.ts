@@ -5,7 +5,10 @@ import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
+import { RefDetailsCache } from '../../services/refDetailsCache';
 import { BaseCommand } from '../command';
+import { attachLazyEnrichment } from '../utils/enrichOnActive';
+import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
 import { getRefDescription, getRefLabel } from '../utils/refFormatting';
 import { GitExecutor } from '../../common/git/gitExecutor';
@@ -15,7 +18,8 @@ export class RebaseWithStashCommand extends BaseCommand {
     private configManager: ConfigurationManager,
     logService: LoggingService,
     private autoStashService: AutoStashService,
-    private vscodeGitProvider?: VscodeGitProvider
+    private vscodeGitProvider?: VscodeGitProvider,
+    private refDetailsCache?: RefDetailsCache
   ) {
     super(logService);
   }
@@ -59,17 +63,25 @@ export class RebaseWithStashCommand extends BaseCommand {
   }
 
   private async selectRebaseTarget(git: GitExecutor, currentBranch: string): Promise<IGitRef | undefined> {
+    const { useFastBranchList } = this.configManager.get();
+
+    // Load instantly from VS Code's cached model; fall back to a local listing.
     let branchList: IGitRef[];
-    try {
-      branchList = await git.getAllRefListExtended(false);
-    } catch {
-      throw new Error('Failed to fetch branch list.');
+    let useEnrichment = false;
+    const fastRefs = useFastBranchList ? await git.getAllRefListFast() : undefined;
+    if (fastRefs && fastRefs.length > 0) {
+      branchList = fastRefs;
+      useEnrichment = true;
+    } else {
+      try {
+        branchList = await git.getAllRefListExtended();
+        void this.refDetailsCache?.upsertFromRefs(git.repositoryPath, branchList);
+      } catch {
+        throw new Error('Failed to fetch branch list.');
+      }
     }
 
-    const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
-    const tags = branchList.filter((r) => r.isTag);
-
-    type RefItem = vscode.QuickPickItem & { ref: IGitRef };
+    type RefItem = vscode.QuickPickItem & { ref?: IGitRef };
 
     const toItem = (ref: IGitRef): RefItem => ({
       label: getRefLabel(ref),
@@ -77,20 +89,66 @@ export class RebaseWithStashCommand extends BaseCommand {
       ref,
     });
 
-    const items: (vscode.QuickPickItem | RefItem)[] = [
-      { label: 'Branches', kind: vscode.QuickPickItemKind.Separator },
-      ...locals.map(toItem),
-      { label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator },
-      ...remotes.map(toItem),
-      { label: 'Tags', kind: vscode.QuickPickItemKind.Separator },
-      ...tags.map(toItem),
-    ];
+    const buildItems = (): RefItem[] => {
+      const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
+      const tags = branchList.filter((r) => r.isTag);
+      return [
+        { label: 'Branches', kind: vscode.QuickPickItemKind.Separator },
+        ...locals.map(toItem),
+        { label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator },
+        ...remotes.map(toItem),
+        { label: 'Tags', kind: vscode.QuickPickItemKind.Separator },
+        ...tags.map(toItem),
+      ];
+    };
 
-    const picked = await vscode.window.showQuickPick(items, {
-      title: 'Rebase onto...',
-      placeHolder: 'Select a branch or tag to rebase onto',
+    const qp = vscode.window.createQuickPick<RefItem>();
+    qp.title = 'Rebase onto...';
+    qp.placeholder = 'Select a branch or tag to rebase onto';
+    if (useEnrichment) {
+      await prepareInitialRefDetails({
+        repoKey: git.repositoryPath,
+        refs: branchList,
+        git,
+        cache: this.refDetailsCache,
+        buildItems,
+      });
+    }
+    qp.items = buildItems();
+
+    const enrichSub = useEnrichment
+      ? attachLazyEnrichment({
+        quickPick: qp,
+        git,
+        rebuild: buildItems,
+        repoKey: git.repositoryPath,
+        cache: this.refDetailsCache,
+      })
+      : undefined;
+
+    const picked = await new Promise<IGitRef | undefined>((resolve) => {
+      qp.onDidAccept(() => {
+        resolve(qp.selectedItems[0]?.ref);
+        qp.hide();
+      });
+      qp.onDidHide(() => resolve(undefined));
+      qp.show();
+      if (useEnrichment) {
+        refreshRemainingRefDetails({
+          repoKey: git.repositoryPath,
+          refs: branchList,
+          git,
+          cache: this.refDetailsCache,
+          buildItems,
+          quickPick: qp,
+          rebuild: buildItems,
+        });
+      }
     });
 
-    return (picked as RefItem | undefined)?.ref;
+    qp.dispose();
+    enrichSub?.dispose();
+
+    return picked;
   }
 }

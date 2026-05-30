@@ -7,13 +7,20 @@ Use this command to switch to a local branch, remote branch, or tag while the ex
 ## What It Does
 
 1. Opens a branch picker for local branches, remote branches, and tags.
-2. Lets you star preferred refs so they stay easy to find in this repository.
-3. Uses the configured stash mode, or asks you to choose one when the mode is `manual`.
-4. Checks out the selected ref.
-5. Pulls the branch after checkout when the selected branch has an upstream.
-6. Restores or transfers local changes depending on the stash mode.
+2. Shows commit details, author, relative date, and upstream ahead/behind information when available.
+3. Marks local branches that are already checked out in another worktree with a folder icon.
+4. Lets you star preferred refs so they stay easy to find in this repository.
+5. Lets you create a new branch from the current branch, or create a new branch from a selected base ref.
+6. Uses the configured stash mode, or asks you to choose one when the mode is `manual`.
+7. Checks out the selected ref.
+8. Pulls the branch after checkout when the selected branch has an upstream.
+9. Restores or transfers local changes depending on the stash mode.
 
-When `git-smart-checkout.useFastBranchList` is enabled, the picker opens quickly from VS Code's cached Git model and enriches the list in the background. Enable `git-smart-checkout.refetchBeforeCheckout` when you want the extension to fetch remotes before showing the final branch list.
+When `git-smart-checkout.useFastBranchList` is enabled, the picker opens from VS Code's cached Git model. Before the picker appears, the extension preloads missing or expired details for the first visible refs and applies any valid cached details immediately. Details are cached for 48 hours and are invalidated when a ref points to a different commit.
+
+After the picker opens, the extension refreshes remaining missing or expired details in the background. If you focus a ref whose details are still missing, the same cache-backed enrichment is used as a fallback.
+
+If a branch is already checked out in another Git worktree, the checkout picker shows a folder icon next to that local branch before you select it.
 
 ## Stash Modes
 

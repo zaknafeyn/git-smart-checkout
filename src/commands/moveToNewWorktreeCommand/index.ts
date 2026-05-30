@@ -17,18 +17,22 @@ import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
+import { RefDetailsCache } from '../../services/refDetailsCache';
 import { BaseCommand } from '../command';
+import { attachLazyEnrichment } from '../utils/enrichOnActive';
+import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
 
-type WorktreeBranchItem = vscode.QuickPickItem & { ref: IGitRef };
+type WorktreeBranchItem = vscode.QuickPickItem & { ref?: IGitRef };
 
 export class MoveToNewWorktreeCommand extends BaseCommand {
   constructor(
     private configManager: ConfigurationManager,
     logService: LoggingService,
     private autoStashService: AutoStashService,
-    private vscodeGitProvider?: VscodeGitProvider
+    private vscodeGitProvider?: VscodeGitProvider,
+    private refDetailsCache?: RefDetailsCache
   ) {
     super(logService);
   }
@@ -100,7 +104,20 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     git: GitExecutor,
     currentBranch: string
   ): Promise<IGitRef | undefined> {
-    const branchList = await git.getAllRefListExtended(this.configManager.get().refetchBeforeCheckout);
+    const { useFastBranchList } = this.configManager.get();
+
+    // Load instantly from VS Code's cached model; fall back to a local listing.
+    let branchList: IGitRef[];
+    let useEnrichment = false;
+    const fastRefs = useFastBranchList ? await git.getAllRefListFast() : undefined;
+    if (fastRefs && fastRefs.length > 0) {
+      branchList = fastRefs;
+      useEnrichment = true;
+    } else {
+      branchList = await git.getAllRefListExtended();
+      void this.refDetailsCache?.upsertFromRefs(git.repositoryPath, branchList);
+    }
+
     const worktrees = await git.worktreeListDetailed(true);
     const checkedOutBranches = new Set(
       worktrees
@@ -137,19 +154,61 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
       ref,
     });
 
-    const items: Array<vscode.QuickPickItem | WorktreeBranchItem> = [
+    const buildItems = (): WorktreeBranchItem[] => [
       { label: 'Branches', kind: vscode.QuickPickItemKind.Separator },
       ...locals.map(toItem),
       { label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator },
       ...remotes.map(toItem),
     ];
 
-    const picked = await vscode.window.showQuickPick(items, {
-      title: 'Move to new worktree',
-      placeHolder: 'Select a target branch for the new worktree',
+    const qp = vscode.window.createQuickPick<WorktreeBranchItem>();
+    qp.title = 'Move to new worktree';
+    qp.placeholder = 'Select a target branch for the new worktree';
+    if (useEnrichment) {
+      await prepareInitialRefDetails({
+        repoKey: git.repositoryPath,
+        refs: branchList,
+        git,
+        cache: this.refDetailsCache,
+        buildItems,
+      });
+    }
+    qp.items = buildItems();
+
+    const enrichSub = useEnrichment
+      ? attachLazyEnrichment({
+        quickPick: qp,
+        git,
+        rebuild: buildItems,
+        repoKey: git.repositoryPath,
+        cache: this.refDetailsCache,
+      })
+      : undefined;
+
+    const picked = await new Promise<IGitRef | undefined>((resolve) => {
+      qp.onDidAccept(() => {
+        resolve(qp.selectedItems[0]?.ref);
+        qp.hide();
+      });
+      qp.onDidHide(() => resolve(undefined));
+      qp.show();
+      if (useEnrichment) {
+        refreshRemainingRefDetails({
+          repoKey: git.repositoryPath,
+          refs: branchList,
+          git,
+          cache: this.refDetailsCache,
+          buildItems,
+          quickPick: qp,
+          rebuild: buildItems,
+        });
+      }
     });
 
-    return (picked as WorktreeBranchItem | undefined)?.ref;
+    qp.dispose();
+    enrichSub?.dispose();
+
+    return picked;
   }
 
   private async createWorktreeWithStash(

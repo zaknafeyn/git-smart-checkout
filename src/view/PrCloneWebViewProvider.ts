@@ -181,7 +181,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async getBranches(git: GitExecutor): Promise<string[]> {
-    const refs = await git.getAllRefListExtended(false);
+    const refs = await git.getAllRefListExtended();
     return refs.filter((ref) => !ref.remote && !ref.isTag).map((ref) => ref.name);
   }
 

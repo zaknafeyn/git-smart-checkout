@@ -1,13 +1,17 @@
 import * as vscode from 'vscode';
 
 import { GitExecutor } from '../../common/git/gitExecutor';
+import { getFullRefname } from '../../common/git/refName';
 import { IGitRef } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
+import { RefDetailsCache } from '../../services/refDetailsCache';
 import { getRepoId } from '../../utils/getRepoId';
 import { BaseCommand } from '../command';
+import { attachLazyEnrichment } from '../utils/enrichOnActive';
+import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import {
@@ -16,6 +20,7 @@ import {
   getRefLabel,
   getRefLabelWithStar,
   ICON_BRANCH,
+  ICON_FOLDER,
   ICON_PLUS,
   ICON_REMOTE_BRANCH
 } from '../utils/refFormatting';
@@ -29,7 +34,8 @@ export class CheckoutToCommand extends BaseCommand {
     private configManager: ConfigurationManager,
     logService: LoggingService,
     private autoStashService: AutoStashService,
-    private vscodeGitProvider?: VscodeGitProvider
+    private vscodeGitProvider?: VscodeGitProvider,
+    private refDetailsCache?: RefDetailsCache
   ) {
     super(logService);
     this.logService = logService;
@@ -87,36 +93,6 @@ export class CheckoutToCommand extends BaseCommand {
     }
   }
 
-  async getBranchList(git: GitExecutor): Promise<IGitRef[]> {
-    const { refetchBeforeCheckout } = this.configManager.get();
-
-    // Only show progress if refetchBeforeCheckout is true
-    if (refetchBeforeCheckout) {
-      return await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Git Smart Checkout',
-          cancellable: true,
-        },
-        async (progress, token) => {
-          progress.report({ message: 'Fetching branch list...' });
-          progress.report({ message: 'Fetching from remotes...' });
-
-          const branchList = await git.getAllRefListExtended(refetchBeforeCheckout);
-
-          if (token.isCancellationRequested) {
-            throw new Error('Operation was cancelled');
-          }
-
-          return branchList;
-        }
-      );
-    } else {
-      // No progress needed for local-only fetching
-      return await git.getAllRefListExtended(refetchBeforeCheckout);
-    }
-  }
-
   async getSelectedOption(
     git: GitExecutor
   ): Promise<{ currentBranch: string; selection: string; branchList: IGitRef[] }> {
@@ -129,6 +105,12 @@ export class CheckoutToCommand extends BaseCommand {
 
     const repoId = await getRepoId(git);
     const { useFastBranchList } = this.configManager.get();
+    const checkedOutBranchNames = new Set(
+      (await git.worktreeListDetailed(true))
+        .filter((worktree) => !worktree.bare && !worktree.prunable && worktree.branch)
+        .map((worktree) => worktree.branch?.replace(/^refs\/heads\//, ''))
+        .filter((branch): branch is string => Boolean(branch))
+    );
 
     // Mutable branch list — upgraded in-place when Phase 2 resolves.
     let branchList: IGitRef[] = [];
@@ -146,9 +128,11 @@ export class CheckoutToCommand extends BaseCommand {
 
     const toItem = (ref: IGitRef): (vscode.QuickPickItem & { ref: IGitRef; type: 'ref' }) => {
       const isPreferred = this.configManager.isPreferred(repoId, ref);
+      const isCheckedOutInWorktree = !ref.remote && !ref.isTag && checkedOutBranchNames.has(ref.name);
+      const label = getRefLabelWithStar(ref, isPreferred);
 
       return {
-        label: getRefLabelWithStar(ref, isPreferred),
+        label: isCheckedOutInWorktree ? `${ICON_FOLDER} ${label}` : label,
         description: getRefDescription(ref),
         detail: getRefDetails(ref),
         buttons: [
@@ -194,18 +178,11 @@ export class CheckoutToCommand extends BaseCommand {
     });
 
     // Promise that resolves when the user makes a selection (or dismisses).
-    let resolveSelection!: (
-      value:
-        | { kind: 'action'; label: string }
-        | { kind: 'ref'; ref: IGitRef; label: string }
-        | undefined
-    ) => void;
     const selectionPromise = new Promise<
       | { kind: 'action'; label: string }
       | { kind: 'ref'; ref: IGitRef; label: string }
       | undefined
     >((resolve) => {
-      resolveSelection = resolve;
       qp.onDidAccept(() => {
         const sel = qp.selectedItems[0] as any;
         if (!sel) {
@@ -225,59 +202,55 @@ export class CheckoutToCommand extends BaseCommand {
       qp.onDidHide(() => resolve(undefined));
     });
 
-    // Phase 1: seed picker immediately from VS Code's cached git model.
+    // Load the ref list from VS Code's cached git model (instant, no spawned git).
+    // Highlighted items are enriched lazily via the VS Code API. When the fast
+    // path is unavailable (built-in git ext not ready, or disabled via setting),
+    // fall back to a local `git for-each-ref` listing — already fully enriched.
     const fastRefs = useFastBranchList ? await git.getAllRefListFast() : undefined;
+    let enrichSub: vscode.Disposable | undefined;
     if (fastRefs && fastRefs.length > 0) {
       branchList = fastRefs;
-      qp.items = buildItems();
-      qp.busy = true;
-      qp.show();
+      await prepareInitialRefDetails({
+        repoKey: git.repositoryPath,
+        refs: branchList,
+        git,
+        cache: this.refDetailsCache,
+        buildItems,
+      });
+      enrichSub = attachLazyEnrichment({
+        quickPick: qp,
+        git,
+        rebuild: buildItems,
+        repoKey: git.repositoryPath,
+        cache: this.refDetailsCache,
+      });
+    } else {
+      branchList = await git.getAllRefListExtended();
+      void this.refDetailsCache?.upsertFromRefs(git.repositoryPath, branchList);
     }
 
-    // Phase 2: fetch full data (may include a network fetch when refetchBeforeCheckout is on).
-    // Fire-and-forget — updates the picker when ready.
-    let phase2Error: Error | undefined;
-    const phase2Done = this.getBranchList(git)
-      .then((richRefs) => {
-        branchList = richRefs;
-        qp.items = buildItems();
-        qp.busy = false;
-
-        const existingFullSet = new Set(
-          richRefs.map((ref) =>
-            ref.isTag
-              ? `refs/tags/${ref.name}`
-              : ref.remote
-              ? `refs/remotes/${ref.remote}/${ref.name}`
-              : `refs/heads/${ref.name}`
-          )
-        );
-        this.configManager.cleanupMissing(repoId, existingFullSet);
-
-        if (!fastRefs || fastRefs.length === 0) {
-          qp.items = buildItems();
-          qp.show();
-        }
-      })
-      .catch((err) => {
-        phase2Error = err instanceof Error ? err : new Error(String(err));
-        if (!fastRefs || fastRefs.length === 0) {
-          // No fast data was ever shown — propagate by resolving the selection as cancelled.
-          resolveSelection(undefined);
-        }
+    qp.items = buildItems();
+    qp.show();
+    if (fastRefs && fastRefs.length > 0) {
+      refreshRemainingRefDetails({
+        repoKey: git.repositoryPath,
+        refs: branchList,
+        git,
+        cache: this.refDetailsCache,
+        buildItems,
+        quickPick: qp,
+        rebuild: buildItems,
       });
+    }
 
-    // Await user selection (picker is already visible or will appear when Phase 2 resolves).
+    // Drop preferred-ref entries for branches/tags that no longer exist.
+    // The list (fast or fallback) contains all refs, so the set is complete.
+    const existingFullSet = new Set(branchList.map((ref) => getFullRefname(ref)));
+    void this.configManager.cleanupMissing(repoId, existingFullSet);
+
     const picked = await selectionPromise;
     qp.dispose();
-
-    // If we had no fast data and Phase 2 failed, surface the error.
-    if (phase2Error && (!fastRefs || fastRefs.length === 0)) {
-      throw phase2Error;
-    }
-
-    // Suppress unused-promise lint warning — we intentionally don't await phase2Done here.
-    void phase2Done;
+    enrichSub?.dispose();
 
     if (!picked) {
       throw new Error();

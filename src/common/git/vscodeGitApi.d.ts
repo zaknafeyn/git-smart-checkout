@@ -16,6 +16,28 @@ export interface Ref {
   readonly remote?: string;
 }
 
+export interface UpstreamRef {
+  readonly remote: string;
+  readonly name: string;
+  readonly commit?: string;
+}
+
+export interface Branch extends Ref {
+  readonly upstream?: UpstreamRef;
+  readonly ahead?: number;
+  readonly behind?: number;
+}
+
+export interface Commit {
+  readonly hash: string;
+  readonly message: string;
+  readonly parents: string[];
+  readonly authorDate?: Date;
+  readonly authorName?: string;
+  readonly authorEmail?: string;
+  readonly commitDate?: Date;
+}
+
 export interface RepositoryState {
   readonly HEAD: Ref | undefined;
   readonly refs: Ref[];
@@ -32,6 +54,8 @@ export interface Repository {
   readonly rootUri: { readonly fsPath: string };
   readonly state: RepositoryState;
   getRefs(query: RefQuery, cancellationToken?: unknown): Promise<Ref[]>;
+  getBranch(name: string): Promise<Branch>;
+  getCommit(ref: string): Promise<Commit>;
   rebase(branch: string): Promise<void>;
 }
 

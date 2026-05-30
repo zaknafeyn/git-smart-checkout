@@ -141,7 +141,7 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
   }
 
   private async resolveFetchedBranch(git: GitExecutor, headRef: string): Promise<IGitRef> {
-    const refs = await git.getAllRefListExtended(false);
+    const refs = await git.getAllRefListExtended();
     const localBranch = refs.find((ref) => !ref.isTag && !ref.remote && ref.name === headRef);
 
     if (localBranch) {
