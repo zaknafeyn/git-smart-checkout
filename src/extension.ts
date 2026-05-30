@@ -35,6 +35,7 @@ import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWork
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
+import { RefDetailsCache } from './services/refDetailsCache';
 import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
@@ -84,6 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
   const autoStashService = new AutoStashService(configManager, logService);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
+  const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
@@ -93,7 +95,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
-  const checkoutToCommand = new CheckoutToCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  const checkoutToCommand = new CheckoutToCommand(
+    configManager,
+    logService,
+    autoStashService,
+    vscodeGitProvider,
+    refDetailsCache
+  );
   const checkoutPreviousCommand = new CheckoutPreviousCommand(logService, autoStashService);
   const pullWithStashCommand = new PullWithStashCommand(logService, autoStashService);
   const pullRebaseWithStashCommand = new PullRebaseWithStashCommand(logService, autoStashService);
@@ -107,7 +115,13 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
   commandManager.registerCommand(`${EXTENSION_NAME}.pullRebaseWithStash`, pullRebaseWithStashCommand);
 
-  const rebaseWithStashCommand = new RebaseWithStashCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  const rebaseWithStashCommand = new RebaseWithStashCommand(
+    configManager,
+    logService,
+    autoStashService,
+    vscodeGitProvider,
+    refDetailsCache
+  );
   commandManager.registerCommand(`${EXTENSION_NAME}.rebaseWithStash`, rebaseWithStashCommand);
 
   const checkoutByPRCommand = new CheckoutByPRCommand(configManager, logService, autoStashService, vscodeGitProvider);
@@ -124,7 +138,13 @@ export function activate(context: vscode.ExtensionContext) {
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
 
-  const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(configManager, logService, autoStashService, vscodeGitProvider);
+  const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(
+    configManager,
+    logService,
+    autoStashService,
+    vscodeGitProvider,
+    refDetailsCache
+  );
   commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
 
   const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { LoggingService } from '../../logging/loggingService';
 
 import { IGitRef } from './types';
-import type { API, GitExtension, Ref } from './vscodeGitApi';
+import type { API, Commit, GitExtension, Ref } from './vscodeGitApi';
 
 // Numeric literals matching the RefType const enum in vscodeGitApi.d.ts.
 // We cannot import const enum values at runtime from a .d.ts file.
@@ -65,7 +65,7 @@ export class VscodeGitProvider {
       if (!repo) {
         return undefined;
       }
-      const refs = await repo.getRefs({ sort: 'alphabetically' });
+      const refs = await repo.getRefs({ sort: 'committerdate' });
       return refs
         .map((ref) => this.mapRef(ref))
         .filter((ref): ref is IGitRef => ref !== undefined);
@@ -73,6 +73,62 @@ export class VscodeGitProvider {
       this.logService.error(`VscodeGitProvider.getRefsForRepo failed: ${err}`);
       return undefined;
     }
+  }
+
+  /**
+   * Enrich a single ref with commit details (and ahead/behind for local branches)
+   * using the VS Code Git API only — no child git processes. Returns a partial
+   * IGitRef containing only the fields that could be resolved; never throws.
+   */
+  async getRefDetails(repoPath: string, ref: IGitRef): Promise<Partial<IGitRef>> {
+    const repo = this.findRepo(repoPath);
+    if (!repo) {
+      return {};
+    }
+
+    const result: Partial<IGitRef> = {};
+
+    // Commit-ish to resolve. For tags use the name (annotated tags carry a tag
+    // object SHA in `hash`, which getCommit can't resolve); for branches prefer
+    // the resolved hash, falling back to the (full) ref name.
+    const commitRef = ref.isTag
+      ? ref.name
+      : ref.hash ?? (ref.remote ? ref.fullName : ref.name);
+
+    try {
+      const commit = await repo.getCommit(commitRef);
+      Object.assign(result, this.mapCommit(commit));
+    } catch (err) {
+      this.logService.error(
+        `VscodeGitProvider.getRefDetails getCommit(${commitRef}) failed: ${err}`
+      );
+    }
+
+    // ahead/behind is only meaningful for a local branch.
+    if (!ref.isTag && !ref.remote) {
+      try {
+        const branch = await repo.getBranch(ref.name);
+        if (typeof branch.ahead === 'number' || typeof branch.behind === 'number') {
+          result.parsedUpstreamTrack = [branch.ahead ?? 0, branch.behind ?? 0];
+        }
+      } catch (err) {
+        this.logService.error(
+          `VscodeGitProvider.getRefDetails getBranch(${ref.name}) failed: ${err}`
+        );
+      }
+    }
+
+    return result;
+  }
+
+  private mapCommit(commit: Commit): Partial<IGitRef> {
+    const date = commit.commitDate ?? commit.authorDate;
+    return {
+      hash: commit.hash ? commit.hash.slice(0, 7) : undefined,
+      comment: commit.message ? commit.message.split('\n', 1)[0] : undefined,
+      authorName: commit.authorName ?? '',
+      committerDate: date ? String(Math.floor(date.getTime() / 1000)) : undefined,
+    };
   }
 
   async rebase(repoPath: string, target: string): Promise<boolean> {

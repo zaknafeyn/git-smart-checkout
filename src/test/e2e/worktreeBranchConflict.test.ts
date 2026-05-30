@@ -34,7 +34,7 @@ import { mockLogService } from './helpers/mockLogService';
 
 function makeMockConfig(mode = AUTO_STASH_MODE_BRANCH): ConfigurationManager {
   return {
-    get: () => ({ mode, useFastBranchList: false, refetchBeforeCheckout: false }),
+    get: () => ({ mode, useFastBranchList: false }),
     isPreferred: () => false,
     cleanupMissing: () => {},
   } as unknown as ConfigurationManager;

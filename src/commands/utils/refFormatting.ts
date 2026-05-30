@@ -43,16 +43,14 @@ export const getRefDescription = (ref: IGitRef) => {
   const upstream = ref.parsedUpstreamTrack
     ? `${ICON_ARROW_UP}${ref.parsedUpstreamTrack[0]} ${ICON_ARROW_DOWN}${ref.parsedUpstreamTrack[1]}`
     : null;
-  const result = [
-    ...(upstream ? [upstream, '•'] : []),
-    ...(formattedDateDistance ? [formattedDateDistance] : []),
-  ];
 
-  return result.join(' ');
+  return [upstream, formattedDateDistance]
+    .filter((part): part is string => !!part && part.length > 0)
+    .join(' • ');
 };
 
 export const getRefDetails = (ref: IGitRef) => {
-  const result = [ref.authorName, ref.hash, ref.comment];
-
-  return result.join(' • ');
+  return [ref.authorName, ref.hash, ref.comment]
+    .filter((part): part is string => !!part && part.trim().length > 0)
+    .join(' • ');
 };

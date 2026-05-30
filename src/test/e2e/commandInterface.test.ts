@@ -93,7 +93,10 @@ async function setExtensionMode(mode: string | undefined): Promise<void> {
 }
 
 function stubCreateQuickPick(
-  pick: (items: readonly QuickPickLikeItem[]) => QuickPickLikeItem | undefined
+  pick: (
+    items: readonly QuickPickLikeItem[],
+    quickPick: { title: string; placeholder: string }
+  ) => QuickPickLikeItem | undefined
 ): () => void {
   const original = vscode.window.createQuickPick.bind(vscode.window);
 
@@ -109,13 +112,18 @@ function stubCreateQuickPick(
         return;
       }
 
-      const selected = pick(currentItems);
+      const selected = pick(currentItems, quickPick);
       if (!selected) {
+        accepted = true;
+        setTimeout(() => {
+          hideListeners.forEach((listener) => listener());
+        }, 0);
         return;
       }
 
       accepted = true;
       quickPick.selectedItems = [selected];
+      quickPick.activeItems = [selected];
       setTimeout(() => {
         acceptListeners.forEach((listener) => listener());
       }, 0);
@@ -126,6 +134,7 @@ function stubCreateQuickPick(
       placeholder: '',
       busy: false,
       selectedItems: [] as QuickPickLikeItem[],
+      activeItems: [] as QuickPickLikeItem[],
       buttons: [],
       get items() {
         return currentItems;
@@ -143,6 +152,9 @@ function stubCreateQuickPick(
         return new vscode.Disposable(() => undefined);
       },
       onDidTriggerItemButton() {
+        return new vscode.Disposable(() => undefined);
+      },
+      onDidChangeActive() {
         return new vscode.Disposable(() => undefined);
       },
       show() {
@@ -267,8 +279,15 @@ function stubErrorMessages(): { messages: string[]; restore: () => void } {
 }
 
 function pickBranch(branchName: string): (items: readonly QuickPickLikeItem[]) => QuickPickLikeItem | undefined {
-  return (items) =>
-    items.find((item) => item.ref?.name === branchName && !item.ref.remote && !item.ref.isTag);
+  return (items) => {
+    const item = items.find((candidate) =>
+      candidate.ref?.name === branchName &&
+      !candidate.ref.remote &&
+      !candidate.ref.isTag
+    );
+    assert.ok(item?.detail, 'selected branch should include enriched details before display');
+    return item;
+  };
 }
 
 async function executeCheckoutTo(
@@ -474,23 +493,17 @@ describe('VS Code command interface', () => {
       repo.exec(`git branch ${otherBranch}`);
       repo.exec(`git worktree add "${featureWorktreePath}" ${repo.featureBranch}`);
 
-      const restoreQuickPick = stubShowQuickPick((items, options) => {
-        if (options?.placeHolder === 'Select a target branch for the new worktree') {
-          inspectedBranchPicker = true;
-          const refs = items
-            .filter((item): item is QuickPickLikeItem => typeof item !== 'string' && Boolean((item as QuickPickLikeItem).ref))
-            .map((item) => item.ref?.name);
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a target branch for the new worktree');
+        inspectedBranchPicker = true;
+        const refs = items
+          .filter((item) => Boolean(item.ref))
+          .map((item) => item.ref?.name);
 
-          assert.ok(!refs.includes(repo.mainBranch), 'current branch should be hidden');
-          assert.ok(!refs.includes(repo.featureBranch), 'checked-out worktree branch should be hidden');
+        assert.ok(!refs.includes(repo.mainBranch), 'current branch should be hidden');
+        assert.ok(!refs.includes(repo.featureBranch), 'checked-out worktree branch should be hidden');
 
-          return items.find((item) =>
-            typeof item !== 'string' &&
-            (item as QuickPickLikeItem).ref?.name === otherBranch
-          ) as vscode.QuickPickItem;
-        }
-
-        return undefined;
+        return items.find((item) => item.ref?.name === otherBranch);
       });
       const restoreInput = stubInputBox((options) => {
         assert.strictEqual(options.value, `${path.basename(repo.repoPath)}-${otherBranch}`);
@@ -529,16 +542,12 @@ describe('VS Code command interface', () => {
     it('creates a local tracking worktree from a remote-only branch', async () => {
       const repo = createPRTestRepo();
       const worktreePath = getDefaultWorktreePath(repo, repo.prBranch);
-      const restoreQuickPick = stubShowQuickPick((items, options) => {
-        if (options?.placeHolder === 'Select a target branch for the new worktree') {
-          return items.find((item) =>
-            typeof item !== 'string' &&
-            (item as QuickPickLikeItem).ref?.name === repo.prBranch &&
-            (item as QuickPickLikeItem).ref?.remote === 'origin'
-          ) as vscode.QuickPickItem;
-        }
-
-        return undefined;
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a target branch for the new worktree');
+        return items.find((item) =>
+          item.ref?.name === repo.prBranch &&
+          item.ref?.remote === 'origin'
+        );
       });
       const restoreInput = stubInputBox((options) => options.value);
       const info = stubInformationMessages((_message, _items) => undefined);
@@ -571,15 +580,9 @@ describe('VS Code command interface', () => {
       const worktreePath = getDefaultWorktreePath(repo, branchName);
       repo.exec(`git branch ${branchName}`);
 
-      const restoreQuickPick = stubShowQuickPick((items, options) => {
-        if (options?.placeHolder === 'Select a target branch for the new worktree') {
-          return items.find((item) =>
-            typeof item !== 'string' &&
-            (item as QuickPickLikeItem).ref?.name === branchName
-          ) as vscode.QuickPickItem;
-        }
-
-        return undefined;
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a target branch for the new worktree');
+        return items.find((item) => item.ref?.name === branchName);
       });
       const restoreInput = stubInputBox((options) => {
         assert.strictEqual(options.value, `${path.basename(repo.repoPath)}-topic-nested-name`);
@@ -608,14 +611,11 @@ describe('VS Code command interface', () => {
     it('moves dirty changes into the new worktree with stash pop mode', async () => {
       const repo = createTestRepo();
       const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
-      const restoreQuickPick = stubShowQuickPick((items, options) => {
-        if (options?.placeHolder === 'Select a target branch for the new worktree') {
-          return items.find((item) =>
-            typeof item !== 'string' &&
-            (item as QuickPickLikeItem).ref?.name === repo.featureBranch
-          ) as vscode.QuickPickItem;
-        }
-
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a target branch for the new worktree');
+        return items.find((item) => item.ref?.name === repo.featureBranch);
+      });
+      const restoreModePick = stubShowQuickPick((items, options) => {
         if (options?.placeHolder === 'Select auto stash mode') {
           return items.find((item) =>
             typeof item !== 'string' &&
@@ -645,6 +645,7 @@ describe('VS Code command interface', () => {
         errors.restore();
         info.restore();
         restoreInput();
+        restoreModePick();
         restoreQuickPick();
         await cleanupWorktree(repo, worktreePath);
         repo.cleanup();
@@ -654,14 +655,11 @@ describe('VS Code command interface', () => {
     it('leaves dirty changes in the source repo with no auto stash mode', async () => {
       const repo = createTestRepo();
       const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);
-      const restoreQuickPick = stubShowQuickPick((items, options) => {
-        if (options?.placeHolder === 'Select a target branch for the new worktree') {
-          return items.find((item) =>
-            typeof item !== 'string' &&
-            (item as QuickPickLikeItem).ref?.name === repo.featureBranch
-          ) as vscode.QuickPickItem;
-        }
-
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a target branch for the new worktree');
+        return items.find((item) => item.ref?.name === repo.featureBranch);
+      });
+      const restoreModePick = stubShowQuickPick((items, options) => {
         if (options?.placeHolder === 'Select auto stash mode') {
           return items.find((item) =>
             typeof item !== 'string' &&
@@ -690,6 +688,7 @@ describe('VS Code command interface', () => {
         errors.restore();
         info.restore();
         restoreInput();
+        restoreModePick();
         restoreQuickPick();
         await cleanupWorktree(repo, worktreePath);
         repo.cleanup();
@@ -1611,17 +1610,19 @@ describe('VS Code command interface', () => {
 
   it('rebaseWithStash selects mode and target through VS Code prompts', async () => {
     const repo = createRebaseTestRepo();
-    const restoreQuickPick = stubShowQuickPick((items, options) => {
+    const restoreModePick = stubShowQuickPick((items, options) => {
       if (options?.placeHolder === 'Select auto stash mode for rebase') {
         return items.find((item) => typeof item !== 'string' && item.label === AUTO_STASH_CURRENT_BRANCH) as vscode.QuickPickItem;
       }
 
-      assert.strictEqual(options?.placeHolder, 'Select a branch or tag to rebase onto');
+      return undefined;
+    });
+    const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+      assert.strictEqual(quickPick.placeholder, 'Select a branch or tag to rebase onto');
       return items.find((item) =>
-        typeof item !== 'string' &&
-        (item as QuickPickLikeItem).ref?.name === repo.mainBranch &&
-        !(item as QuickPickLikeItem).ref?.remote
-      ) as vscode.QuickPickItem;
+        item.ref?.name === repo.mainBranch &&
+        !item.ref?.remote
+      );
     });
     const errors = stubErrorMessages();
 
@@ -1639,6 +1640,7 @@ describe('VS Code command interface', () => {
       });
     } finally {
       errors.restore();
+      restoreModePick();
       restoreQuickPick();
       repo.cleanup();
     }

@@ -271,15 +271,10 @@
           "default": true,
           "description": "Enable logging output"
         },
-        "git-smart-checkout.refetchBeforeCheckout": {
-          "type": "boolean",
-          "default": false,
-          "description": "Refetch remotes each time before checkout"
-        },
         "git-smart-checkout.useFastBranchList": {
           "type": "boolean",
           "default": true,
-          "description": "Seed the branch picker instantly from VS Code's cached git model, then enrich with full details in the background. Disable if the picker shows stale branches."
+          "description": "Use VS Code's cached git model for the branch picker (instant on large repos) and lazily load commit details for the highlighted branch. Disable to always build the list with a full 'git for-each-ref' scan."
         },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",

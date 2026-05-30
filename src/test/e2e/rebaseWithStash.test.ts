@@ -19,7 +19,9 @@ import {
 } from './helpers/gitTestRepo';
 import { mockLogService } from './helpers/mockLogService';
 
-const mockConfigManager = {} as unknown as ConfigurationManager;
+const mockConfigManager = {
+  get: () => ({ useFastBranchList: false }),
+} as unknown as ConfigurationManager;
 const sut = new AutoStashService(mockConfigManager, mockLogService);
 
 function assertHeadContains(repo: TestRepo, target: string): void {
@@ -36,12 +38,41 @@ function assertRebaseInProgress(repo: TestRepo): void {
   );
 }
 
-function stubQuickPick(
+function stubCreateQuickPick(
   pick: (items: readonly vscode.QuickPickItem[]) => vscode.QuickPickItem | undefined
 ): () => void {
-  const original = vscode.window.showQuickPick.bind(vscode.window);
-  (vscode.window as any).showQuickPick = async (items: readonly vscode.QuickPickItem[]) => pick(items);
-  return () => { (vscode.window as any).showQuickPick = original; };
+  const original = vscode.window.createQuickPick.bind(vscode.window);
+  (vscode.window as any).createQuickPick = () => {
+    let currentItems: readonly vscode.QuickPickItem[] = [];
+    const acceptListeners: Array<() => void> = [];
+    const hideListeners: Array<() => void> = [];
+    const quickPick: any = {
+      title: '',
+      placeholder: '',
+      busy: false,
+      selectedItems: [] as vscode.QuickPickItem[],
+      activeItems: [] as vscode.QuickPickItem[],
+      get items() { return currentItems; },
+      set items(items: readonly vscode.QuickPickItem[]) { currentItems = items; },
+      onDidAccept(listener: () => void) { acceptListeners.push(listener); return new vscode.Disposable(() => undefined); },
+      onDidHide(listener: () => void) { hideListeners.push(listener); return new vscode.Disposable(() => undefined); },
+      onDidChangeActive() { return new vscode.Disposable(() => undefined); },
+      onDidTriggerItemButton() { return new vscode.Disposable(() => undefined); },
+      show() {
+        const selected = pick(currentItems);
+        if (selected) {
+          quickPick.selectedItems = [selected];
+          setTimeout(() => acceptListeners.forEach((listener) => listener()), 0);
+        } else {
+          setTimeout(() => hideListeners.forEach((listener) => listener()), 0);
+        }
+      },
+      hide() { hideListeners.forEach((listener) => listener()); },
+      dispose() { return undefined; },
+    };
+    return quickPick;
+  };
+  return () => { (vscode.window as any).createQuickPick = original; };
 }
 
 function stubErrorMessages(messages: string[]): () => void {
@@ -280,7 +311,7 @@ describe('RebaseWithStashCommand', () => {
         calls.push({ currentBranch, targetRef, mode });
       },
     } as unknown as AutoStashService;
-    const restoreQuickPick = stubQuickPick((items) =>
+    const restoreQuickPick = stubCreateQuickPick((items) =>
       items.find((item) => (item as vscode.QuickPickItem & { ref?: { remote?: string } }).ref?.remote === 'origin')
     );
 
@@ -324,7 +355,7 @@ describe('RebaseWithStashCommand', () => {
       getRebaseStashMode: async () => AUTO_STASH_CURRENT_BRANCH,
       rebaseAndStashChanges: async () => { rebaseCalled = true; },
     } as unknown as AutoStashService;
-    const restoreQuickPick = stubQuickPick(() => undefined);
+    const restoreQuickPick = stubCreateQuickPick(() => undefined);
 
     try {
       await new TestableRebaseWithStashCommand(repo.git, fakeAutoStashService).execute();

@@ -1,6 +1,7 @@
 import { ConfigurationTarget, workspace } from 'vscode';
 import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, PreferredRefsMap, PreferredRefsRepo } from './extensionConfig';
 import { EXTENSION_NAME } from '../const';
+import { getFullRefname } from '../common/git/refName';
 import { IGitRef } from '../common/git/types';
 
 export class ConfigurationManager {
@@ -11,7 +12,6 @@ export class ConfigurationManager {
 
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
-      refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
@@ -36,7 +36,6 @@ export class ConfigurationManager {
 
     this.config = {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
-      refetchBeforeCheckout: vscodeConfig.get('refetchBeforeCheckout', false),
       useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
@@ -70,11 +69,6 @@ export class ConfigurationManager {
     await config.update('logging.enabled', enabled, ConfigurationTarget.Global);
   }
 
-  public async updateRefetchBeforeCheckoutEnabled(enabled: boolean): Promise<void> {
-    const config = workspace.getConfiguration(EXTENSION_NAME);
-    await config.update('refetchBeforeCheckout', enabled, ConfigurationTarget.Global);
-  }
-
   public async updateShowStatusBar(enabled: boolean): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
     await config.update('showStatusBar', enabled, ConfigurationTarget.Global);
@@ -92,7 +86,7 @@ export class ConfigurationManager {
 
   public isPreferred(repoId: string, ref: IGitRef): boolean {
     const pref = this.getPreferredRefs(repoId);
-    const fullRef = this.getFullRefname(ref);
+    const fullRef = getFullRefname(ref);
     if (ref.isTag) {
       return pref.tags.includes(fullRef);
     }
@@ -120,7 +114,7 @@ export class ConfigurationManager {
     };
 
     if (ref.isTag) {
-      const full = this.getFullRefname(ref);
+      const full = getFullRefname(ref);
       if (repoPrefs.tags.includes(full)) {
         remove(repoPrefs.tags, full);
       } else {
@@ -128,7 +122,7 @@ export class ConfigurationManager {
       }
     } else if (ref.remote) {
       // toggle remote
-      const remoteFull = this.getFullRefname(ref);
+      const remoteFull = getFullRefname(ref);
       const localFull = `refs/heads/${ref.name}`;
       const existsLocal = existingRefs.some(r => !r.remote && !r.isTag && r.name === ref.name);
       if (repoPrefs.remotes.includes(remoteFull)) {
@@ -140,7 +134,7 @@ export class ConfigurationManager {
       }
     } else {
       // toggle local
-      const localFull = this.getFullRefname(ref);
+      const localFull = getFullRefname(ref);
       const remoteFulls = existingRefs
         .filter(r => r.remote && !r.isTag && r.name === ref.name)
         .map(r => `refs/remotes/${r.remote}/${r.name}`);
@@ -184,9 +178,4 @@ export class ConfigurationManager {
     }
   }
 
-  private getFullRefname(ref: IGitRef): string {
-    if (ref.isTag) {return `refs/tags/${ref.name}`;}
-    if (ref.remote) {return `refs/remotes/${ref.remote}/${ref.name}`;}
-    return `refs/heads/${ref.name}`;
-  }
 }
