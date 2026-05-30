@@ -19,6 +19,7 @@ import {
   ICON_PLUS,
   ICON_REMOTE_BRANCH
 } from '../utils/refFormatting';
+import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 
 export const LABEL_CREATE_NEW_BRANCH = `${ICON_PLUS} Create new branch...`;
 export const LABEL_CREATE_NEW_BRANCH_FROM = `${ICON_PLUS} Create new branch from...`;
@@ -47,6 +48,22 @@ export class CheckoutToCommand extends BaseCommand {
         selection === LABEL_CREATE_NEW_BRANCH_FROM;
 
       if (!isNewBranch) {
+        const conflictWorktree = await findWorktreeForBranch(git, newBranch.name);
+        if (conflictWorktree) {
+          const result = await handleWorktreeBranchConflict(newBranch.fullName, conflictWorktree.path);
+          if (result.action === 'createBranch') {
+            try {
+              await git.createBranch(result.newBranchName, newBranch.fullName);
+              capture(AnalyticsEvent.BranchCreated);
+            } catch (e) {
+              captureException(e);
+              const msg = e instanceof Error ? e.message : String(e);
+              await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
+            }
+          }
+          return;
+        }
+
         const autoStashMode = await this.autoStashService.getAutoStashMode();
 
         if (!autoStashMode) {

@@ -329,6 +329,79 @@ export function createForkPRTestRepo(): ForkPRTestRepo {
   };
 }
 
+export interface WorktreeTestRepo extends TestRepo {
+  worktreePath: string;
+  worktreeBranch: string;
+}
+
+/**
+ * Repo where a feature branch is already checked out in a sibling worktree.
+ * Main is the active branch. The reflog naturally points back to the worktree
+ * branch, making it the "previous branch" for CheckoutPreviousCommand tests.
+ */
+export function createWorktreeTestRepo(): WorktreeTestRepo {
+  const worktreeBranch = 'feature-in-worktree';
+
+  const base = buildRepo('gsc-wt-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+
+    exec(`git checkout -b ${worktreeBranch}`);
+    fs.writeFileSync(path.join(repoPath, 'feature.txt'), 'feature content\n');
+    exec('git add feature.txt');
+    exec('git commit -m "feat: add feature file"');
+  });
+
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-wt-'));
+  fs.rmSync(worktreePath, { recursive: true, force: true });
+  base.exec(`git worktree add "${worktreePath}" ${worktreeBranch}`);
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    worktreePath,
+    worktreeBranch,
+    cleanup() {
+      try { base.exec(`git worktree remove --force "${worktreePath}"`); } catch {}
+      fs.rmSync(worktreePath, { recursive: true, force: true });
+      originalCleanup();
+    },
+  };
+}
+
+export interface PRWorktreeTestRepo extends PRTestRepo {
+  prWorktreePath: string;
+}
+
+/**
+ * Extends PRTestRepo with the PR branch also checked out in a local worktree,
+ * simulating the case where a previous PR review left the branch attached.
+ */
+export function createPRWorktreeTestRepo(): PRWorktreeTestRepo {
+  const base = createPRTestRepo();
+
+  // Recreate the local branch from the remote so we can attach it to a worktree.
+  base.exec(`git fetch origin ${base.prBranch}:${base.prBranch}`);
+
+  const prWorktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-pr-wt-'));
+  fs.rmSync(prWorktreePath, { recursive: true, force: true });
+  base.exec(`git worktree add "${prWorktreePath}" ${base.prBranch}`);
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    prWorktreePath,
+    cleanup() {
+      try { base.exec(`git worktree remove --force "${prWorktreePath}"`); } catch {}
+      fs.rmSync(prWorktreePath, { recursive: true, force: true });
+      originalCleanup();
+    },
+  };
+}
+
 /**
  * Rebase-conflict repo. feature and main both commit different versions of
  * file1.txt, and the working branch is feature.
