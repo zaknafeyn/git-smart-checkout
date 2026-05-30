@@ -22,6 +22,7 @@ export enum AnalyticsEvent {
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
   CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',
   MoveWipChangesFromWorktree = 'move_wip_changes_from_worktree',
+  WorktreeDevTerminalOpened = 'worktree_dev_terminal_opened',
 }
 
 let client: PostHog | null = null;
@@ -33,30 +34,50 @@ function isAnalyticsDisabledByEnvironment(): boolean {
   return process.env.GSC_DISABLE_TELEMETRY === '1' || Boolean(process.env.GSC_E2E_MODE);
 }
 
+function hasApiKey(): boolean {
+  return Boolean(process.env.POSTHOG_API_KEY);
+}
+
+function createClient(): void {
+  if (client) { return; }
+  client = new PostHog(process.env.POSTHOG_API_KEY!, {
+    host: process.env.POSTHOG_HOST,
+    // Autocapture would auto-send exceptions (stack traces, file paths, branch
+    // names) bypassing the opt-out gate. Keep it off and rely solely on the
+    // sanitized, opt-out-gated captureException below.
+    enableExceptionAutocapture: false,
+  });
+}
+
+function destroyClient(): void {
+  void client?.shutdown();
+  client = null;
+}
+
 export function initAnalytics(
   anonymousId: string,
   commonProperties: Record<string, unknown>
 ): void {
-  if (isAnalyticsDisabledByEnvironment()) {
-    client = null;
-    _enabled = false;
-    return;
-  }
-
+  // Only retain identity/metadata here. The client is created lazily by
+  // setAnalyticsEnabled once we know telemetry is actually enabled, so that no
+  // network client exists for opted-out users (or builds without an API key).
   _distinctId = anonymousId;
   _commonProperties = commonProperties;
-  client = new PostHog(process.env.POSTHOG_API_KEY!, {
-    host: process.env.POSTHOG_HOST,
-  });
 }
 
 export function setAnalyticsEnabled(enabled: boolean): void {
-  if (isAnalyticsDisabledByEnvironment()) {
+  if (isAnalyticsDisabledByEnvironment() || !hasApiKey()) {
     _enabled = false;
+    destroyClient();
     return;
   }
 
   _enabled = enabled;
+  if (enabled) {
+    createClient();
+  } else {
+    destroyClient();
+  }
 }
 
 export function capture(event: AnalyticsEvent, properties?: Record<string, unknown>): void {

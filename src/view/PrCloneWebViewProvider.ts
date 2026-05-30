@@ -10,6 +10,7 @@ import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { getNonce } from '../utils/getNonce';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 import {
   setContextIsCloning,
@@ -429,6 +430,9 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       // Read the built HTML file
       let html = fs.readFileSync(indexHtmlPath, 'utf8');
 
+      // Generate a per-load nonce so scripts can be whitelisted without 'unsafe-inline'
+      const nonce = getNonce();
+
       // Replace asset paths with webview URIs
       html = html.replace(/(href|src)="([^"]+)"/g, (match, attr, assetPath) => {
         if (assetPath.startsWith('/') || assetPath.startsWith('http')) {
@@ -440,10 +444,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         return `${attr}="${assetUri}"`;
       });
 
-      // Update CSP to allow the webview resources
+      // Tag every script with the nonce so the CSP permits it
+      html = html.replace(/<script\b/g, `<script nonce="${nonce}"`);
+
+      // Update CSP to allow the webview resources (nonce-based, no 'unsafe-inline' scripts)
       html = html.replace(
         /content="[^"]*"/,
-        `content="default-src 'none'; img-src ${webview.cspSource} https:; script-src ${webview.cspSource} 'unsafe-inline'; style-src ${webview.cspSource} 'unsafe-inline';"`
+        `content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"`
       );
 
       return html;

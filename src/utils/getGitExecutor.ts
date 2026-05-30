@@ -4,7 +4,11 @@ import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { getWorkspaceFoldersFormatted } from '../common/vscode';
 import { LoggingService } from '../logging/loggingService';
 
-export const getGitExecutor = async (logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) => {
+export const getGitExecutor = async (
+  logService: LoggingService,
+  vscodeGitProvider?: VscodeGitProvider,
+  title = 'Checkout to ...'
+) => {
   const wsFolders = getWorkspaceFoldersFormatted();
 
   if (!wsFolders || wsFolders.length === 0) {
@@ -21,7 +25,7 @@ export const getGitExecutor = async (logService: LoggingService, vscodeGitProvid
 
   const selectedOption = await window.showQuickPick(repositoryOptions, {
     placeHolder: 'Choose a repository',
-    title: 'Checkout to ...',
+    title,
   });
 
   if (!selectedOption) {
