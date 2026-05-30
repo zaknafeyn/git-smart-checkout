@@ -1,30 +1,34 @@
-import { exec, ExecSyncOptions } from 'child_process';
-import { promisify } from 'util';
+import { execFile, ExecFileOptions } from 'child_process';
 
 import { LoggingService } from '../logging/loggingService';
-import { createPromiseWithResolvers } from './createPromiseWithResolvers';
-
-const execAsync = promisify(exec);
 
 export type TPromiseResponse = { stdout: string; stderr: string };
 
 export async function execCommand(
-  command: string,
+  file: string,
+  args: string[],
   logService: LoggingService,
-  options?: ExecSyncOptions
+  options?: ExecFileOptions
 ): Promise<TPromiseResponse> {
-  const { promise, resolve, reject } = createPromiseWithResolvers<TPromiseResponse>();
+  const commandStr = [file, ...args].join(' ');
+  const combinedOptions = { encoding: 'utf-8' as const, ...options };
 
-  try {
-    const { stdout, stderr } = await execAsync(command, { encoding: 'utf-8', ...options });
+  return new Promise((resolve, reject) => {
+    execFile(file, args, combinedOptions, (err, stdout, stderr) => {
+      const stdoutStr = String(stdout ?? '');
+      const stderrStr = String(stderr ?? '');
 
-    logService.info(command, { stdout, stderr });
-
-    resolve({ stdout, stderr });
-  } catch (err) {
-    logService.error(command, err);
-    reject(err);
-  }
-
-  return promise;
+      if (err) {
+        // Attach stdout/stderr to the error so callers can inspect partial output
+        // (e.g. cherryPick reads exit code+stderr, getStashConflictPreview reads stdout).
+        (err as any).stdout = stdoutStr;
+        (err as any).stderr = stderrStr;
+        logService.error(commandStr, err);
+        reject(err);
+      } else {
+        logService.info(commandStr, { stdout: stdoutStr, stderr: stderrStr });
+        resolve({ stdout: stdoutStr, stderr: stderrStr });
+      }
+    });
+  });
 }
