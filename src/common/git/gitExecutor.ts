@@ -1,4 +1,4 @@
-import { ExecException, ExecSyncOptions } from 'child_process';
+import { ExecException, ExecFileOptions } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -85,12 +85,12 @@ export class GitExecutor {
 
   // #region private
 
-  async #execGitCommandWithOptions(command: string, options?: ExecSyncOptions) {
-    return execCommand(command, this.#logService, { cwd: this.#repositoryPath, ...options });
+  async #execGitCommandWithOptions(args: string[], options?: ExecFileOptions) {
+    return execCommand('git', args, this.#logService, { cwd: this.#repositoryPath, ...options });
   }
 
-  async #execGitCommand(command: string) {
-    return await this.#execGitCommandWithOptions(command, {});
+  async #execGitCommand(args: string[]) {
+    return await this.#execGitCommandWithOptions(args, {});
   }
 
   /*
@@ -121,11 +121,8 @@ export class GitExecutor {
   }
 
   async #checkLocalBranchExists(branchName: string): Promise<boolean> {
-    const command = `git show-ref --verify --quiet refs/heads/${branchName}`;
-
     try {
-      await this.#execGitCommand(command);
-
+      await this.#execGitCommand(['show-ref', '--verify', '--quiet', `refs/heads/${branchName}`]);
       return true;
     } catch {
       return false;
@@ -137,10 +134,9 @@ export class GitExecutor {
     includeRemoteName = false,
     remoteName = 'origin'
   ): Promise<boolean> {
-    const command = `git show-ref --verify --quiet refs/remotes${includeRemoteName ? `/${remoteName}` : ''}/${branchName}`;
-
+    const ref = `refs/remotes${includeRemoteName ? `/${remoteName}` : ''}/${branchName}`;
     try {
-      await this.#execGitCommand(command);
+      await this.#execGitCommand(['show-ref', '--verify', '--quiet', ref]);
       return true;
     } catch {
       return false;
@@ -150,30 +146,21 @@ export class GitExecutor {
   // #endregion private
 
   async fetchAllRemoteBranchesAndTags() {
-    const commandFetchAllBranches = 'git fetch --all';
+    await this.#execGitCommand(['fetch', '--all']);
     // fetch all tags and overwrite local tags with remote if remote one has changed
-    const commandFetchAllTags = 'git fetch --tags --force';
-
-    await this.#execGitCommand(commandFetchAllBranches);
-    await this.#execGitCommand(commandFetchAllTags);
+    await this.#execGitCommand(['fetch', '--tags', '--force']);
   }
 
   async fetchSpecificBranch(branchName: string, remoteName = 'origin') {
-    const command = `git fetch ${remoteName} ${branchName}:refs/remotes/${remoteName}/${branchName}`;
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['fetch', remoteName, `${branchName}:refs/remotes/${remoteName}/${branchName}`]);
   }
 
   async fetchFromUrl(remoteUrl: string, headRef: string) {
-    const command = `git fetch "${remoteUrl}" ${headRef}:${headRef}`;
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['fetch', remoteUrl, `${headRef}:${headRef}`]);
   }
 
   async pullCurrentBranch() {
-    const command = 'git pull';
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['pull']);
   }
 
   async createUniqueFeatureBranch(baseBranchName: string, sourceBranch: string): Promise<string> {
@@ -197,13 +184,11 @@ export class GitExecutor {
 
     if (!localBranchExists && remoteBranchExists) {
       // Create a local tracked branch for the remote branch
-      const command = `git checkout -b ${branchName} ${remoteName}/${branchName}`;
-      const { stdout } = await this.#execGitCommand(command);
+      const { stdout } = await this.#execGitCommand(['checkout', '-b', branchName, `${remoteName}/${branchName}`]);
       return stdout;
     } else {
       // Regular checkout for existing local branches
-      const command = `git checkout ${branchName}`;
-      const { stdout } = await this.#execGitCommand(command);
+      const { stdout } = await this.#execGitCommand(['checkout', branchName]);
       return stdout;
     }
   }
@@ -212,10 +197,8 @@ export class GitExecutor {
    * @deprecated consider using checkout with string parameter
    */
   async checkoutBranch(branch: IGitRef) {
-    const command = `git checkout ${branch.name} ${branch.remote ? `${branch.fullName}` : ''}`;
-
-    const { stdout } = await this.#execGitCommand(command);
-
+    const args = ['checkout', branch.name, ...(branch.remote ? [branch.fullName] : [])];
+    const { stdout } = await this.#execGitCommand(args);
     return stdout;
   }
 
@@ -223,14 +206,15 @@ export class GitExecutor {
     branchName: string,
     sourceBranch: string | undefined = undefined
   ): Promise<IGitRef> {
-    const command = `git checkout -b ${branchName} ${sourceBranch ? sourceBranch : ''}`;
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['checkout', '-b', branchName, ...(sourceBranch ? [sourceBranch] : [])]);
 
     // Get detailed information about the newly created branch
     const SEPARATOR = '|';
-    const branchInfoCommand = `git for-each-ref --format="%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(authorname)" refs/heads/${branchName}`;
-    const { stdout: branchInfo } = await this.#execGitCommand(branchInfoCommand);
+    const { stdout: branchInfo } = await this.#execGitCommand([
+      'for-each-ref',
+      `--format=%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(authorname)`,
+      `refs/heads/${branchName}`,
+    ]);
 
     const [, hash, committerDate, comment, authorName] = branchInfo.trim().split(SEPARATOR);
 
@@ -245,15 +229,13 @@ export class GitExecutor {
   }
 
   async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked') {
-    const commandArr = [
-      `git stash push -m "${stashName}"`,
+    const args = [
+      'stash', 'push', '-m', stashName,
       ...(include === 'all' ? ['-a'] : []),
       ...(include === 'untracked' ? ['-u'] : []),
     ];
 
-    const command = commandArr.join(' ');
-
-    const { stdout } = await this.#execGitCommand(command);
+    const { stdout } = await this.#execGitCommand(args);
 
     if (stdout.includes('No local changes to save')) {
       throw new Error('No local changes to save');
@@ -261,21 +243,16 @@ export class GitExecutor {
   }
 
   async resetLocalChanges() {
-    // Discard all local changes
-    const command = 'git restore .';
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['restore', '.']);
   }
 
   async reset(hard = false) {
-    const command = `git reset ${hard ? '--hard' : ''}`.trimEnd();
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['reset', ...(hard ? ['--hard'] : [])]);
   }
 
   async discardAllWorktreeChanges() {
-    await this.#execGitCommand('git reset --hard');
-    await this.#execGitCommand('git clean -fd');
+    await this.#execGitCommand(['reset', '--hard']);
+    await this.#execGitCommand(['clean', '-fd']);
   }
 
   async getAllRefListExtended(fetchRemotes = false): Promise<IGitRef[]> {
@@ -284,8 +261,13 @@ export class GitExecutor {
     }
 
     const SEPARATOR = '|';
-    const command = `git for-each-ref --sort -committerdate --format="%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)" refs/heads refs/remotes refs/tags`;
-    const { stdout: branchesOutput } = await this.#execGitCommand(command);
+    const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
+    const { stdout: branchesOutput } = await this.#execGitCommand([
+      'for-each-ref',
+      '--sort', '-committerdate',
+      `--format=${format}`,
+      'refs/heads', 'refs/remotes', 'refs/tags',
+    ]);
 
     // Split the output into lines and remove leading/trailing whitespace
     const branches = branchesOutput
@@ -349,27 +331,21 @@ export class GitExecutor {
   }
 
   async getCurrentBranch() {
-    const command = 'git branch --show-current';
-
-    const { stdout } = await this.#execGitCommand(command);
-
+    const { stdout } = await this.#execGitCommand(['branch', '--show-current']);
     return stdout.trim();
   }
 
   async pullFromRemoteBranch(options: { rebase?: boolean } = {}) {
-    const command = `git pull${options.rebase ? ' --rebase' : ''}`;
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['pull', ...(options.rebase ? ['--rebase'] : [])]);
   }
 
   async rebase(target: string): Promise<void> {
-    await this.#execGitCommand(`git rebase ${target}`);
+    await this.#execGitCommand(['rebase', target]);
   }
 
   async popStash(stashName: string, apply = false) {
-    const command = 'git --no-pager stash list --format="%gs"';
     // Get the list of stashes
-    const { stdout: stdoutGitStashList } = await this.#execGitCommand(command);
+    const { stdout: stdoutGitStashList } = await this.#execGitCommand(['--no-pager', 'stash', 'list', '--format=%gs']);
 
     // Split the output into lines
     const stashesStrings = stdoutGitStashList.split('\n').filter((line) => line.trim() !== '');
@@ -392,28 +368,22 @@ export class GitExecutor {
       throw new Error(`No stash found`);
     }
 
-    const popStashCommand = `git stash ${apply ? 'apply' : 'pop'} stash@{${stashIndex}}`;
-
     // Pop the stash
-    await this.#execGitCommand(popStashCommand);
+    await this.#execGitCommand(['stash', apply ? 'apply' : 'pop', `stash@{${stashIndex}}`]);
   }
 
   async isWorkdirHasChanges() {
-    const command = 'git status --porcelain';
-
-    const { stdout } = await this.#execGitCommand(command);
-    const uncommittedChanges = stdout.trim();
-
-    return uncommittedChanges.length !== 0;
+    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
+    return stdout.trim().length !== 0;
   }
 
   async getStagedChangesPatch(): Promise<string> {
-    const { stdout } = await this.#execGitCommand('git diff --cached --binary');
+    const { stdout } = await this.#execGitCommand(['diff', '--cached', '--binary']);
     return stdout;
   }
 
   async getUnstagedChangesPatch(): Promise<string> {
-    const { stdout } = await this.#execGitCommand('git diff --binary');
+    const { stdout } = await this.#execGitCommand(['diff', '--binary']);
     return stdout;
   }
 
@@ -427,15 +397,14 @@ export class GitExecutor {
 
     try {
       fs.writeFileSync(patchPath, patch);
-      await this.#execGitCommand(`git apply ${options.staged ? '--index ' : ''}"${patchPath}"`);
+      await this.#execGitCommand(['apply', ...(options.staged ? ['--index'] : []), patchPath]);
     } finally {
       fs.rmSync(tempDirectory, { recursive: true, force: true });
     }
   }
 
   async getUntrackedFiles(): Promise<string[]> {
-    const { stdout } = await this.#execGitCommand('git ls-files --others --exclude-standard -z');
-
+    const { stdout } = await this.#execGitCommand(['ls-files', '--others', '--exclude-standard', '-z']);
     return stdout.split('\0').filter((file) => file.length > 0);
   }
 
@@ -471,10 +440,8 @@ export class GitExecutor {
   }
 
   async isStashWithMessageExists(message: string) {
-    const command = 'git stash list --format="%gs"';
-
     try {
-      const { stdout } = await this.#execGitCommand(command);
+      const { stdout } = await this.#execGitCommand(['stash', 'list', '--format=%gs']);
       const stashesStrings = stdout
         .trim()
         .split('\n')
@@ -491,7 +458,7 @@ export class GitExecutor {
   }
 
   async getRemoteUrl(remoteName = 'origin'): Promise<string> {
-    const { stdout } = await this.#execGitCommand(`git remote get-url ${remoteName}`);
+    const { stdout } = await this.#execGitCommand(['remote', 'get-url', remoteName]);
     return stdout.trim();
   }
 
@@ -502,15 +469,14 @@ export class GitExecutor {
   // `merge-tree` exits non-zero and writes conflicting paths to stdout when conflicts
   // are found, so we capture stdout from both the success and error paths.
   async getStashConflictPreview(targetRef: string): Promise<string[]> {
-    const { stdout: stashSha } = await this.#execGitCommand('git stash create');
+    const { stdout: stashSha } = await this.#execGitCommand(['stash', 'create']);
     const sha = stashSha.trim();
-    if (!sha) { 
+    if (!sha) {
       return [];
     }
 
-    const command = `git merge-tree --write-tree --name-only --no-messages ${targetRef} ${sha}`;
     try {
-      await this.#execGitCommand(command);
+      await this.#execGitCommand(['merge-tree', '--write-tree', '--name-only', '--no-messages', targetRef, sha]);
       return []; // exit 0 = clean merge, no conflicts
     } catch (e: any) {
       // exit 1 = conflicts; stdout is "<tree-oid>\nfile1\nfile2\n…"
@@ -521,11 +487,8 @@ export class GitExecutor {
   }
 
   async getConflictedFiles() {
-    const command = 'git diff --name-only --diff-filter=U';
-
-    const { stdout } = await this.#execGitCommand(command);
-    const conflictedFiles = stdout.trim().split('\n').filter(Boolean);
-    return conflictedFiles;
+    const { stdout } = await this.#execGitCommand(['diff', '--name-only', '--diff-filter=U']);
+    return stdout.trim().split('\n').filter(Boolean);
   }
 
   async hasConflicts(): Promise<boolean> {
@@ -538,11 +501,13 @@ export class GitExecutor {
     parseError = false,
     emptyCommit: 'skip' | 'allow' = 'skip'
   ): Promise<{ conflicts: boolean } | void> {
-    const commits = Array.isArray(commitSha) ? commitSha.join(' ') : commitSha;
+    const commits = Array.isArray(commitSha) ? commitSha : [commitSha];
     try {
-      await this.#execGitCommand(
-        `git cherry-pick ${commits} ${emptyCommit === 'allow' ? '--allow-empty' : ''}`
-      );
+      await this.#execGitCommand([
+        'cherry-pick',
+        ...commits,
+        ...(emptyCommit === 'allow' ? ['--allow-empty'] : []),
+      ]);
     } catch (error) {
       if (!parseError) {
         throw error;
@@ -569,20 +534,20 @@ export class GitExecutor {
   }
 
   async cherryPickContinue(): Promise<void> {
-    await this.#execGitCommand('git cherry-pick --continue');
+    await this.#execGitCommand(['cherry-pick', '--continue']);
   }
 
   async cherryPickAbort(): Promise<void> {
-    await this.#execGitCommand('git cherry-pick --abort');
+    await this.#execGitCommand(['cherry-pick', '--abort']);
   }
 
   async cherryPickSkip(): Promise<void> {
-    await this.#execGitCommand('git cherry-pick --skip');
+    await this.#execGitCommand(['cherry-pick', '--skip']);
   }
 
   async isCherryPickInProgress(): Promise<boolean> {
     try {
-      const { stdout } = await this.#execGitCommand('git status --porcelain=v1');
+      const { stdout } = await this.#execGitCommand(['status', '--porcelain=v1']);
       return stdout.includes('You are currently cherry-picking');
     } catch {
       return false;
@@ -590,17 +555,13 @@ export class GitExecutor {
   }
 
   async deleteLocalBranch(branchName: string) {
-    const { stdout } = await this.#execGitCommand(`git branch -D ${branchName}`);
-
+    const { stdout } = await this.#execGitCommand(['branch', '-D', branchName]);
     return stdout.trim();
   }
 
   async worktreeList(muteError = false) {
-    const command = 'git worktree list --porcelain';
-
     try {
-      const { stdout } = await this.#execGitCommand(command);
-
+      const { stdout } = await this.#execGitCommand(['worktree', 'list', '--porcelain']);
       return parseWorktreeListPorcelain(stdout).map((worktree) => worktree.path);
     } catch (error) {
       if (muteError) {
@@ -612,11 +573,8 @@ export class GitExecutor {
   }
 
   async worktreeListDetailed(muteError = false): Promise<IGitWorktree[]> {
-    const command = 'git worktree list --porcelain';
-
     try {
-      const { stdout } = await this.#execGitCommand(command);
-
+      const { stdout } = await this.#execGitCommand(['worktree', 'list', '--porcelain']);
       return parseWorktreeListPorcelain(stdout);
     } catch (error) {
       if (muteError) {
@@ -628,33 +586,24 @@ export class GitExecutor {
   }
 
   async worktreeRemove(workTreePath: string, force = true) {
-    const command = `git worktree remove "${workTreePath}" ${force ? '--force' : ''}`;
-    const { stdout } = await this.#execGitCommand(command);
-
+    const { stdout } = await this.#execGitCommand(['worktree', 'remove', workTreePath, ...(force ? ['--force'] : [])]);
     return stdout;
   }
 
   async worktreeAdd(workTreePath: string, targetBranch: string) {
-    const command = `git worktree add "${workTreePath}" ${targetBranch} --force`;
-
-    const { stdout } = await this.#execGitCommand(command);
-
+    const { stdout } = await this.#execGitCommand(['worktree', 'add', workTreePath, targetBranch, '--force']);
     return stdout;
   }
 
   async worktreeAddLocalBranch(workTreePath: string, targetBranch: string) {
-    const command = `git worktree add "${workTreePath}" "${targetBranch}"`;
-
-    const { stdout } = await this.#execGitCommand(command);
-
+    const { stdout } = await this.#execGitCommand(['worktree', 'add', workTreePath, targetBranch]);
     return stdout;
   }
 
   async worktreeAddRemoteBranch(workTreePath: string, localBranch: string, remoteRef: string) {
-    const command = `git worktree add --track -b "${localBranch}" "${workTreePath}" "${remoteRef}"`;
-
-    const { stdout } = await this.#execGitCommand(command);
-
+    const { stdout } = await this.#execGitCommand([
+      'worktree', 'add', '--track', '-b', localBranch, workTreePath, remoteRef,
+    ]);
     return stdout;
   }
 
@@ -667,10 +616,8 @@ export class GitExecutor {
   }
 
   async hasUpstreamBranch(branchName: string): Promise<boolean> {
-    const command = `git rev-parse --abbrev-ref ${branchName}@{upstream}`;
-
     try {
-      await this.#execGitCommand(command);
+      await this.#execGitCommand(['rev-parse', '--abbrev-ref', `${branchName}@{upstream}`]);
       return true;
     } catch {
       return false;
@@ -678,16 +625,12 @@ export class GitExecutor {
   }
 
   async pushBranchToGitHub(branchName: string): Promise<void> {
-    const command = `git push -u origin ${branchName}`;
-
-    await this.#execGitCommand(command);
+    await this.#execGitCommand(['push', '-u', 'origin', branchName]);
   }
 
   async getCommitTimestamp(sha: string) {
-    const command = `git show --format="%ct" --no-patch ${sha}`;
-
     try {
-      const { stdout } = await this.#execGitCommand(command);
+      const { stdout } = await this.#execGitCommand(['show', '--format=%ct', '--no-patch', sha]);
       const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
       return { sha, timestamp };
     } catch (error) {
@@ -697,7 +640,7 @@ export class GitExecutor {
 
   async tagExists(tagName: string): Promise<boolean> {
     try {
-      await this.#execGitCommand(`git show-ref --verify --quiet refs/tags/${tagName}`);
+      await this.#execGitCommand(['show-ref', '--verify', '--quiet', `refs/tags/${tagName}`]);
       return true;
     } catch {
       return false;
@@ -705,15 +648,15 @@ export class GitExecutor {
   }
 
   async createTag(tagName: string): Promise<void> {
-    await this.#execGitCommand(`git tag ${tagName}`);
+    await this.#execGitCommand(['tag', tagName]);
   }
 
   async pushTag(tagName: string, remoteName = 'origin'): Promise<void> {
-    await this.#execGitCommand(`git push ${remoteName} refs/tags/${tagName}`);
+    await this.#execGitCommand(['push', remoteName, `refs/tags/${tagName}`]);
   }
 
   async listTags(): Promise<string[]> {
-    const { stdout } = await this.#execGitCommand('git tag --list');
+    const { stdout } = await this.#execGitCommand(['tag', '--list']);
     return stdout.split('\n').map((l) => l.trim()).filter(Boolean);
   }
 
@@ -737,11 +680,10 @@ export class GitExecutor {
   async getPreviousBranch(numOfLastCommands = 10): Promise<IGitRef | null> {
     try {
       // Get the reflog entries for HEAD
-      const command = `git reflog --format="%gs" -n ${numOfLastCommands}`;
-      const { stdout } = await this.#execGitCommand(command);
-      
+      const { stdout } = await this.#execGitCommand(['reflog', '--format=%gs', `-n`, String(numOfLastCommands)]);
+
       const reflogEntries = stdout.trim().split('\n').filter(line => line.trim() !== '');
-      
+
       // Look for checkout operations to find the previous branch
       for (const entry of reflogEntries) {
         // Match patterns like "checkout: moving from branch1 to branch2"
@@ -749,7 +691,7 @@ export class GitExecutor {
         if (checkoutMatch) {
           const fromBranch = checkoutMatch[1];
           const toBranch = checkoutMatch[2];
-          
+
           // Skip if it's the same as current branch or if it's a detached HEAD
           if (fromBranch !== 'HEAD' && fromBranch !== toBranch && !fromBranch.includes('detached')) {
             // Try to resolve full ref info using existing ref listing
@@ -773,7 +715,7 @@ export class GitExecutor {
           }
         }
       }
-      
+
       return null;
     } catch (error) {
       this.#logService.error(`Failed to get previous branch: ${error}`);
