@@ -26,6 +26,7 @@ interface RepoOptions {
   branches?: Record<string, object>;
   onGetRefs?: (query: object | undefined) => void;
   onGetBranch?: (name: string) => void;
+  sortRefs?: boolean;
 }
 
 function makeRepo(fsPath: string, refs: object[], headName?: string, options: RepoOptions = {}) {
@@ -37,7 +38,10 @@ function makeRepo(fsPath: string, refs: object[], headName?: string, options: Re
     },
     getRefs: async (query?: object) => {
       options.onGetRefs?.(query);
-      return refs;
+      if (!options.sortRefs || (query as { sort?: string } | undefined)?.sort !== 'committerdate') {
+        return refs;
+      }
+      return [...refs].sort((left: any, right: any) => (right.commitDate ?? 0) - (left.commitDate ?? 0));
     },
     getCommit: async (ref: string) => {
       const commit = options.commits?.[ref];
@@ -214,6 +218,30 @@ describe('VscodeGitProvider', () => {
       await provider.getRefsForRepo('/repo');
 
       assert.deepStrictEqual(queries, [{ sort: 'committerdate' }]);
+    });
+
+    it('preserves the VS Code committer-date ref order after mapping refs', async () => {
+      const fakeApi = makeApi([
+        makeRepo(
+          '/repo',
+          [
+            { type: REF_TYPE_HEAD, name: 'older-local', commit: '111', commitDate: 10 },
+            { type: REF_TYPE_REMOTE_HEAD, name: 'origin/newer-remote', remote: 'origin', commit: '222', commitDate: 30 },
+            { type: REF_TYPE_TAG, name: 'middle-tag', commit: '333', commitDate: 20 },
+          ],
+          undefined,
+          { sortRefs: true }
+        ),
+      ]);
+      const provider = new VscodeGitProvider(mockLogService, () => fakeApi as any);
+
+      const refs = await provider.getRefsForRepo('/repo');
+
+      assert.deepStrictEqual(refs?.map((ref) => ref.fullName), [
+        'origin/newer-remote',
+        'middle-tag',
+        'older-local',
+      ]);
     });
   });
 

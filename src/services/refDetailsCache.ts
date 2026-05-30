@@ -46,7 +46,8 @@ export class RefDetailsCache {
       return undefined;
     }
 
-    if (entry.refHash !== this.getRefHash(ref)) {
+    const refHash = this.getRefHash(ref);
+    if (entry.refHash !== refHash && entry.details.hash !== refHash) {
       return undefined;
     }
 

@@ -30,13 +30,14 @@ export async function prepareInitialRefDetails<T extends EnrichableItem>(
     return;
   }
 
-  cache.apply(repoKey, refs);
   const selectableRefs = getSelectableRefs(buildItems());
   const topRefs = selectableRefs.slice(0, TOP_PREFETCH_COUNT);
+  const missingTopRefs = topRefs.filter((ref) => cache.isMissing(repoKey, ref));
+  cache.apply(repoKey, refs);
 
   await refreshRefs({
     repoKey,
-    refs: topRefs.filter((ref) => cache.isMissing(repoKey, ref)),
+    refs: missingTopRefs,
     git,
     cache,
     concurrency: BACKGROUND_CONCURRENCY,

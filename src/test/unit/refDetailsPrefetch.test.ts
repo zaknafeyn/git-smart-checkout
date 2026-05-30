@@ -51,6 +51,17 @@ function buildItems(refs: IGitRef[]): EnrichableItem[] {
   ];
 }
 
+function buildGroupedItems(refs: IGitRef[]): EnrichableItem[] {
+  return [
+    { label: 'Create new branch...' },
+    { label: 'Branches', kind: vscode.QuickPickItemKind.Separator },
+    { label: refs[2].name, ref: refs[2] },
+    { label: refs[0].name, ref: refs[0] },
+    { label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator },
+    { label: refs[1].name, ref: refs[1] },
+  ];
+}
+
 async function waitForMicrotasks(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -71,8 +82,27 @@ describe('refDetailsPrefetch', () => {
 
     assert.deepStrictEqual(calls, refs.slice(0, 20).map((ref) => ref.name));
     assert.strictEqual(refs[0].comment, 'subject branch-0');
+    assert.strictEqual(refs[0].authorName, 'author branch-0');
+    assert.strictEqual(refs[0].committerDate, '1700000000');
+    assert.strictEqual(refs[0].hash, 'hash-0-display');
     assert.strictEqual(refs[19].comment, 'subject branch-19');
     assert.strictEqual(refs[20].comment, undefined);
+  });
+
+  it('prefetches refs in displayed selectable order while ignoring actions and separators', async () => {
+    const refs = [makeRef(0), makeRef(1), makeRef(2)];
+    const calls: string[] = [];
+    const cache = new RefDetailsCache(makeMemoryMemento());
+
+    await prepareInitialRefDetails({
+      repoKey: 'repo',
+      refs,
+      git: makeGit(calls),
+      cache,
+      buildItems: () => buildGroupedItems(refs),
+    });
+
+    assert.deepStrictEqual(calls, ['branch-2', 'branch-0', 'branch-1']);
   });
 
   it('uses cached top refs without fetching them again', async () => {
@@ -91,6 +121,56 @@ describe('refDetailsPrefetch', () => {
 
     assert.strictEqual(refs[0].comment, 'cached subject');
     assert.deepStrictEqual(calls, ['branch-1', 'branch-2']);
+  });
+
+  it('refreshes a cached branch when the branch hash changes before showing the list', async () => {
+    const refs = [makeRef(0)];
+    const calls: string[] = [];
+    const cache = new RefDetailsCache(makeMemoryMemento());
+
+    await cache.upsert('repo', makeRef(0), { comment: 'old cached subject' });
+    refs[0].hash = 'new-hash-0';
+
+    await prepareInitialRefDetails({
+      repoKey: 'repo',
+      refs,
+      git: makeGit(calls),
+      cache,
+      buildItems: () => buildItems(refs),
+    });
+
+    assert.deepStrictEqual(calls, ['branch-0']);
+    assert.strictEqual(refs[0].comment, 'subject branch-0');
+    assert.strictEqual(refs[0].hash, 'new-hash-0-display');
+  });
+
+  it('uses cached branch details after a previous refresh populated the cache', async () => {
+    const cache = new RefDetailsCache(makeMemoryMemento());
+    const firstOpenRefs = [makeRef(0)];
+    const firstCalls: string[] = [];
+
+    await prepareInitialRefDetails({
+      repoKey: 'repo',
+      refs: firstOpenRefs,
+      git: makeGit(firstCalls),
+      cache,
+      buildItems: () => buildItems(firstOpenRefs),
+    });
+
+    const secondOpenRefs = [makeRef(0)];
+    const secondCalls: string[] = [];
+    await prepareInitialRefDetails({
+      repoKey: 'repo',
+      refs: secondOpenRefs,
+      git: makeGit(secondCalls),
+      cache,
+      buildItems: () => buildItems(secondOpenRefs),
+    });
+
+    assert.deepStrictEqual(firstCalls, ['branch-0']);
+    assert.deepStrictEqual(secondCalls, []);
+    assert.strictEqual(secondOpenRefs[0].comment, 'subject branch-0');
+    assert.strictEqual(secondOpenRefs[0].authorName, 'author branch-0');
   });
 
   it('refreshes remaining missing refs in the background and repaints', async () => {
@@ -129,6 +209,36 @@ describe('refDetailsPrefetch', () => {
     assert.deepStrictEqual(calls, ['branch-20', 'branch-21']);
     assert.strictEqual(refs[20].comment, 'subject branch-20');
     assert.ok(rebuilds >= 1);
+  });
+
+  it('does not fetch or repaint background refs when all remaining refs are cached', async () => {
+    const refs = Array.from({ length: 22 }, (_, index) => makeRef(index));
+    const cache = new RefDetailsCache(makeMemoryMemento());
+    const quickPick = {
+      activeItems: [] as EnrichableItem[],
+      items: [] as EnrichableItem[],
+    } as unknown as vscode.QuickPick<EnrichableItem>;
+    let rebuilds = 0;
+
+    for (const ref of refs) {
+      await cache.upsert('repo', ref, { comment: `cached ${ref.name}` });
+    }
+
+    refreshRemainingRefDetails({
+      repoKey: 'repo',
+      refs,
+      git: makeGit([]),
+      cache,
+      buildItems: () => buildItems(refs),
+      quickPick,
+      rebuild: () => {
+        rebuilds++;
+        return buildItems(refs);
+      },
+    });
+    await waitForMicrotasks();
+
+    assert.strictEqual(rebuilds, 0);
   });
 
   it('focused enrichment writes through the persistent cache', async () => {
