@@ -468,10 +468,26 @@ describe('VS Code command interface', () => {
 
     it('creates a new branch from the command picker action', async () => {
       const repo = createTestRepo();
-      const restoreQuickPick = stubCreateQuickPick((items) =>
-        items.find((item) => item.type === 'action' && item.label.includes('Create new branch...'))
-      );
-      const restoreInput = stubInputBox('command-created-branch');
+      const newBranchName = 'command-created-branch';
+      const startingHead = repo.exec('git rev-parse HEAD').trim();
+      let inspectedCommandPicker = false;
+      let inspectedInput = false;
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a branch to checkout');
+        inspectedCommandPicker = true;
+        const createAction = items.find((item) =>
+          item.type === 'action' && item.label.includes('Create new branch...')
+        );
+
+        assert.ok(createAction, 'create-new-branch action should be listed');
+        return createAction;
+      });
+      const restoreInput = stubInputBox((options) => {
+        inspectedInput = true;
+        assert.strictEqual(options.placeHolder, 'Branch name');
+        assert.strictEqual(options.prompt, 'Please provide a new branch name');
+        return newBranchName;
+      });
       const errors = stubErrorMessages();
 
       try {
@@ -479,8 +495,15 @@ describe('VS Code command interface', () => {
           await vscode.commands.executeCommand(commandId('checkoutTo'));
           await delay();
 
+          assert.strictEqual(inspectedCommandPicker, true);
+          assert.strictEqual(inspectedInput, true);
           assert.deepStrictEqual(errors.messages, []);
-          assert.strictEqual(await repo.git.getCurrentBranch(), 'command-created-branch');
+          assert.strictEqual(await repo.git.getCurrentBranch(), newBranchName);
+          assert.strictEqual(repo.exec(`git rev-parse ${newBranchName}`).trim(), startingHead);
+          assertHeadContains(repo, repo.mainBranch);
+          assert.strictEqual(repo.fileExists('feature.txt'), false);
+          assert.strictEqual(await repo.git.isWorkdirHasChanges(), false);
+          assert.strictEqual(repo.stashCount(), 0);
         });
       } finally {
         errors.restore();
@@ -492,14 +515,41 @@ describe('VS Code command interface', () => {
 
     it('creates a new branch from a selected base and restores dirty changes', async () => {
       const repo = createTestRepo();
-      const restoreQuickPick = stubCreateQuickPick((items) =>
-        items.find((item) => item.type === 'action' && item.label.includes('Create new branch from...'))
-      );
-      const restoreShowQuickPick = stubShowQuickPick((items, options) => {
-        assert.strictEqual(options?.placeHolder, 'Select a branch to base the new branch on');
-        return items.find((item) => typeof item === 'string' && item.includes(repo.featureBranch));
+      const newBranchName = 'command-created-from-feature';
+      const featureHead = repo.exec(`git rev-parse ${repo.featureBranch}`).trim();
+      let inspectedCommandPicker = false;
+      let inspectedBasePicker = false;
+      let inspectedInput = false;
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a branch to checkout');
+        inspectedCommandPicker = true;
+        const createFromAction = items.find((item) =>
+          item.type === 'action' && item.label.includes('Create new branch from...')
+        );
+
+        assert.ok(createFromAction, 'create-new-branch-from action should be listed');
+        return createFromAction;
       });
-      const restoreInput = stubInputBox('command-created-from-feature');
+      const restoreShowQuickPick = stubShowQuickPick((items, options) => {
+        inspectedBasePicker = true;
+        assert.strictEqual(options?.placeHolder, 'Select a branch to base the new branch on');
+        assert.ok(
+          items.some((item) => typeof item === 'string' && item.includes(repo.mainBranch)),
+          'base picker should include the main branch'
+        );
+        const featureItem = items.find((item) =>
+          typeof item === 'string' && item.includes(repo.featureBranch)
+        );
+
+        assert.ok(featureItem, 'base picker should include the feature branch');
+        return featureItem;
+      });
+      const restoreInput = stubInputBox((options) => {
+        inspectedInput = true;
+        assert.strictEqual(options.placeHolder, 'Branch name');
+        assert.strictEqual(options.prompt, 'Please provide a new branch name');
+        return newBranchName;
+      });
       const errors = stubErrorMessages();
 
       try {
@@ -509,10 +559,16 @@ describe('VS Code command interface', () => {
           await vscode.commands.executeCommand(commandId('checkoutTo'));
           await delay();
 
+          assert.strictEqual(inspectedCommandPicker, true);
+          assert.strictEqual(inspectedBasePicker, true);
+          assert.strictEqual(inspectedInput, true);
           assert.deepStrictEqual(errors.messages, []);
-          assert.strictEqual(await repo.git.getCurrentBranch(), 'command-created-from-feature');
+          assert.strictEqual(await repo.git.getCurrentBranch(), newBranchName);
+          assert.strictEqual(repo.exec(`git rev-parse ${newBranchName}`).trim(), featureHead);
+          assertHeadContains(repo, repo.featureBranch);
           assert.strictEqual(repo.fileExists('feature.txt'), true);
           assert.strictEqual(repo.readFile('file1.txt'), 'command dirty change\n');
+          assert.strictEqual(await repo.git.isWorkdirHasChanges(), true);
           assert.strictEqual(repo.stashCount(), 0);
         });
       } finally {
