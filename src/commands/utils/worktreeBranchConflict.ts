@@ -19,7 +19,14 @@ export async function findWorktreeForBranch(
 ): Promise<IGitWorktree | undefined> {
   const expectedRef = `refs/heads/${branchName}`;
   const worktrees = await git.worktreeListDetailed(true);
-  return worktrees.find((wt) => !wt.bare && !wt.prunable && wt.branch === expectedRef);
+  // Skip the main worktree (the repo we're operating in) — it's not a conflict.
+  return worktrees.find(
+    (wt) =>
+      !wt.bare &&
+      !wt.prunable &&
+      wt.branch === expectedRef &&
+      wt.path !== git.repositoryPath
+  );
 }
 
 export async function handleWorktreeBranchConflict(

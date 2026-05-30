@@ -329,7 +329,12 @@ describe('CheckoutPreviousCommand — no worktree conflict', () => {
       await sut.execute();
 
       assert.strictEqual(await repo.git.getCurrentBranch(), repo.featureBranch);
-      assert.strictEqual(infoStub.calls.length, 0, 'no conflict dialog should appear');
+      // The success message "Switched to previous branch: ..." is expected.
+      // Assert that no conflict dialog (which mentions the worktree path) was shown.
+      assert.ok(
+        !infoStub.calls.some((c) => c.message.includes('already checked out in another worktree')),
+        'no conflict dialog should appear'
+      );
     } finally {
       infoStub.restore();
       repo.cleanup();
