@@ -48,10 +48,13 @@ export function activate(context: vscode.ExtensionContext) {
     return id;
   })();
 
+  const locale = vscode.env.language;
+
   initAnalytics(anonymousId, {
     vscode_version: vscode.version,
     extension_version: context.extension.packageJSON.version as string,
     os: process.platform,
+    locale,
   });
 
   const commandManager = new CommandManager();

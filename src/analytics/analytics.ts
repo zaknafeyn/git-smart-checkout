@@ -42,6 +42,9 @@ function createClient(): void {
   if (client) { return; }
   client = new PostHog(process.env.POSTHOG_API_KEY!, {
     host: process.env.POSTHOG_HOST,
+    // Include PostHog's standard $geoip_* properties (including country) on
+    // captured events instead of suppressing them via the SDK default.
+    disableGeoip: false,
     // Autocapture would auto-send exceptions (stack traces, file paths, branch
     // names) bypassing the opt-out gate. Keep it off and rely solely on the
     // sanitized, opt-out-gated captureException below.
