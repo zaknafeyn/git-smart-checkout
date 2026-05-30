@@ -2,6 +2,7 @@ import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
+import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 
 export class CheckoutPreviousCommand extends BaseCommand {
   constructor(
@@ -29,6 +30,22 @@ export class CheckoutPreviousCommand extends BaseCommand {
       }
 
       this.logService.info(`Switching from ${currentBranch} to previous branch: ${previousBranch.fullName}`);
+
+      const conflictWorktree = await findWorktreeForBranch(git, previousBranch.name);
+      if (conflictWorktree) {
+        const result = await handleWorktreeBranchConflict(previousBranch.fullName, conflictWorktree.path);
+        if (result.action === 'createBranch') {
+          try {
+            await git.createBranch(result.newBranchName, previousBranch.fullName);
+            capture(AnalyticsEvent.BranchCreated);
+          } catch (e) {
+            captureException(e);
+            const msg = e instanceof Error ? e.message : String(e);
+            await this.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
+          }
+        }
+        return;
+      }
 
       // Get auto stash mode
       const autoStashMode = await this.autoStashService.getAutoStashMode();

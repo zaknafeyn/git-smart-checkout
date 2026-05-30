@@ -9,6 +9,7 @@ import { IGitRef } from '../../common/git/types';
 import { BaseCommand } from '../command';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import { INVALID_PR_INPUT_MESSAGE, parsePRInput } from '../utils/parsePRInput';
+import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 
 export class CheckoutByPRCommand extends BaseCommand {
   constructor(
@@ -89,6 +90,22 @@ export class CheckoutByPRCommand extends BaseCommand {
         authorName: '',
         comment: pr.title,
       };
+
+      const conflictWorktree = await findWorktreeForBranch(git, prBranch.name);
+      if (conflictWorktree) {
+        const result = await handleWorktreeBranchConflict(prBranch.fullName, conflictWorktree.path);
+        if (result.action === 'createBranch') {
+          try {
+            await git.createBranch(result.newBranchName, prBranch.fullName);
+            capture(AnalyticsEvent.BranchCreated);
+          } catch (e) {
+            captureException(e);
+            const msg = e instanceof Error ? e.message : String(e);
+            await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
+          }
+        }
+        return;
+      }
 
       await this.autoStashService.checkoutAndStashChanges(git, currentBranch, prBranch, autoStashMode);
 
