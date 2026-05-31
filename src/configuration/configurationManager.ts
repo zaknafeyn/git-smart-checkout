@@ -28,6 +28,12 @@ export class ConfigurationManager {
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
       tagRemote: vscodeConfig.get('tagRemote', 'origin'),
+      branchTemplate: vscodeConfig.get('branchTemplate', ''),
+      jira: {
+        domain: vscodeConfig.get('jira.domain', ''),
+        email: vscodeConfig.get('jira.email', ''),
+        token: vscodeConfig.get('jira.token', ''),
+      },
     };
   }
 
@@ -52,6 +58,12 @@ export class ConfigurationManager {
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
       tagRemote: vscodeConfig.get('tagRemote', 'origin'),
+      branchTemplate: vscodeConfig.get('branchTemplate', ''),
+      jira: {
+        domain: vscodeConfig.get('jira.domain', ''),
+        email: vscodeConfig.get('jira.email', ''),
+        token: vscodeConfig.get('jira.token', ''),
+      },
     };
   }
 

@@ -22,6 +22,12 @@ export interface PreferredRefsRepo {
 
 export type PreferredRefsMap = Record<string, PreferredRefsRepo>;
 
+export interface JiraConfig {
+  domain: string;
+  email: string;
+  token: string;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -40,6 +46,8 @@ export interface ExtensionConfig {
   tagTemplate: string;
   pushTagWithoutConfirmation: boolean;
   tagRemote: string;
+  branchTemplate: string;
+  jira: JiraConfig;
 }
 
 export interface IAutoStashMode {
