@@ -45,13 +45,6 @@ const planned: PlannedFeature[] = [
       'See ⇡N ⇣M (ahead/behind) counts in the status bar for the current branch, with a click-to-fetch shortcut.',
   },
   {
-    icon: '🌿',
-    tier: 2,
-    title: 'Branch Templates',
-    description:
-      'Auto-fill new branch names from configurable templates like feature/{issue}-{slug}, parsing issue IDs from clipboard or active ticket.',
-  },
-  {
     icon: '🗂️',
     tier: 2,
     title: 'Multi-root Workspace',

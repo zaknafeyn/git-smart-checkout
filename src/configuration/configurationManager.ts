@@ -1,8 +1,14 @@
 import { ConfigurationTarget, workspace } from 'vscode';
 import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, PreferredRefsMap, PreferredRefsRepo } from './extensionConfig';
 import { EXTENSION_NAME } from '../const';
-import { getFullRefname } from '../common/git/refName';
 import { IGitRef } from '../common/git/types';
+import {
+  cleanupMissingRefs,
+  getRepoPrefs,
+  isRefPreferred,
+  sortByPreferredOrder,
+  togglePreferredRef,
+} from './preferredRefs';
 
 export class ConfigurationManager {
   private config: ExtensionConfig;
@@ -91,79 +97,25 @@ export class ConfigurationManager {
 
   // Preferred refs helpers
   public getPreferredRefs(repoId: string): PreferredRefsRepo {
-    const map = this.config.preferredRefs || {};
-    const existing = map[repoId];
-    if (existing) {
-      return existing;
-    }
-    return { locals: [], remotes: [], tags: [] };
+    return getRepoPrefs(this.config.preferredRefs, repoId);
   }
 
   public isPreferred(repoId: string, ref: IGitRef): boolean {
-    const pref = this.getPreferredRefs(repoId);
-    const fullRef = getFullRefname(ref);
-    if (ref.isTag) {
-      return pref.tags.includes(fullRef);
-    }
-    if (ref.remote) {
-      return pref.remotes.includes(fullRef);
-    }
-    return pref.locals.includes(fullRef);
+    return isRefPreferred(this.getPreferredRefs(repoId), ref);
+  }
+
+  /** Sort refs by the order they were starred in (non-preferred refs sort last). */
+  public sortByPreferredOrder<T extends IGitRef>(repoId: string, refs: T[]): T[] {
+    return sortByPreferredOrder(refs, this.getPreferredRefs(repoId));
   }
 
   public async togglePreferred(repoId: string, ref: IGitRef, existingRefs: IGitRef[]): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
-    // fetch plain configuration object rather than proxied one
+    // fetch the plain stored value rather than the proxied/merged one
     const map = (config.inspect<PreferredRefsMap>('preferredRefs')?.globalValue || {}) as PreferredRefsMap;
-    const repoPrefs: PreferredRefsRepo = map[repoId] || { locals: [], remotes: [], tags: [] };
+    const nextPrefs = togglePreferredRef(getRepoPrefs(map, repoId), ref, existingRefs);
 
-    const add = (arr: string[], val: string) => {
-      if (!arr.includes(val)) {
-        arr.push(val);
-      }
-    };
-    
-    const remove = (arr: string[], val: string) => {
-      const idx = arr.indexOf(val);
-      if (idx >= 0) {arr.splice(idx, 1);}
-    };
-
-    if (ref.isTag) {
-      const full = getFullRefname(ref);
-      if (repoPrefs.tags.includes(full)) {
-        remove(repoPrefs.tags, full);
-      } else {
-        add(repoPrefs.tags, full);
-      }
-    } else if (ref.remote) {
-      // toggle remote
-      const remoteFull = getFullRefname(ref);
-      const localFull = `refs/heads/${ref.name}`;
-      const existsLocal = existingRefs.some(r => !r.remote && !r.isTag && r.name === ref.name);
-      if (repoPrefs.remotes.includes(remoteFull)) {
-        remove(repoPrefs.remotes, remoteFull);
-        if (existsLocal) {remove(repoPrefs.locals, localFull);}
-      } else {
-        add(repoPrefs.remotes, remoteFull);
-        if (existsLocal) {add(repoPrefs.locals, localFull);}
-      }
-    } else {
-      // toggle local
-      const localFull = getFullRefname(ref);
-      const remoteFulls = existingRefs
-        .filter(r => r.remote && !r.isTag && r.name === ref.name)
-        .map(r => `refs/remotes/${r.remote}/${r.name}`);
-      const isPreferredLocal = repoPrefs.locals.includes(localFull);
-      if (isPreferredLocal) {
-        remove(repoPrefs.locals, localFull);
-        remoteFulls.forEach(rf => remove(repoPrefs.remotes, rf));
-      } else {
-        add(repoPrefs.locals, localFull);
-        remoteFulls.forEach(rf => add(repoPrefs.remotes, rf));
-      }
-    }
-
-    const updated: PreferredRefsMap = { ...(this.config.preferredRefs || {}), [repoId]: repoPrefs };
+    const updated: PreferredRefsMap = { ...map, [repoId]: nextPrefs };
     await config.update('preferredRefs', updated, ConfigurationTarget.Global);
     this.reload();
   }
@@ -171,20 +123,11 @@ export class ConfigurationManager {
   public async cleanupMissing(repoId: string, existingFullRefnames: Set<string>): Promise<void> {
     const map = (this.config.preferredRefs || {}) as PreferredRefsMap;
     const prefs = map[repoId];
-    if (!prefs) {return;}
+    if (!prefs) {
+      return;
+    }
 
-    const filterExisting = (arr: string[]) => arr.filter(full => existingFullRefnames.has(full));
-    const newPrefs: PreferredRefsRepo = {
-      locals: filterExisting(prefs.locals),
-      remotes: filterExisting(prefs.remotes),
-      tags: filterExisting(prefs.tags),
-    };
-
-    const changed =
-      newPrefs.locals.length !== prefs.locals.length ||
-      newPrefs.remotes.length !== prefs.remotes.length ||
-      newPrefs.tags.length !== prefs.tags.length;
-
+    const { prefs: newPrefs, changed } = cleanupMissingRefs(prefs, existingFullRefnames);
     if (changed) {
       const config = workspace.getConfiguration(EXTENSION_NAME);
       const updated: PreferredRefsMap = { ...map, [repoId]: newPrefs };
@@ -192,5 +135,4 @@ export class ConfigurationManager {
       this.reload();
     }
   }
-
 }

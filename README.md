@@ -35,7 +35,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Open a terminal in a selected worktree's directory | `Git Smart Checkout: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
-| Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template ...` | [Create branch from template](docs/create-branch-from-template.md) |
+| Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
 
 ## Extension Settings

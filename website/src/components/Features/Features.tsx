@@ -38,6 +38,14 @@ const features: Feature[] = [
     color: 'orange',
   },
   {
+    icon: '🔀',
+    title: 'Rebase with Stash',
+    description:
+      'Rebase the current branch onto any other branch, tag, or ref while your local changes are stashed and restored automatically — no need to commit or clean up first.',
+    command: 'Git Smart Checkout: Rebase ... (With Stash)',
+    color: 'purple',
+  },
+  {
     icon: '⬅️',
     title: 'Checkout Previous Branch',
     description: (
@@ -56,6 +64,14 @@ const features: Feature[] = [
       'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR.',
     command: 'Git Smart Checkout: Clone pull request...',
     tag: 'Beta',
+    color: 'orange',
+  },
+  {
+    icon: '#️⃣',
+    title: 'Checkout by PR Number',
+    description:
+      "Check out any GitHub pull request's branch by its PR number or URL, with the same auto-stash handling as a regular checkout. No more copying branch names by hand.",
+    command: 'Git Smart Checkout: Checkout by PR number... (With Stash)',
     color: 'orange',
   },
   {
@@ -82,6 +98,15 @@ const features: Feature[] = [
       'Generate version tags from a configurable template. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
     command: 'Git Smart Checkout: Create Tag from Template',
     color: 'blue',
+  },
+  {
+    icon: '🌿',
+    title: 'Branch from Template',
+    description:
+      'Create and check out a branch from a reusable template. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
+    command: 'Git Smart Checkout: Create Branch from Template...',
+    tag: 'New',
+    color: 'green',
   },
   {
     icon: '🌲',
