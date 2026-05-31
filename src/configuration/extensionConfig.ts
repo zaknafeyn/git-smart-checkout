@@ -24,7 +24,7 @@ export type PreferredRefsMap = Record<string, PreferredRefsRepo>;
 
 export interface JiraConfig {
   domain: string;
-  email: string;
+  username: string;
   token: string;
 }
 

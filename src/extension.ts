@@ -148,8 +148,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   const refreshBranchTemplateCommandVisibility = () => {
+    logService.info('[Create Branch] Re-evaluating command visibility after configuration change');
     void canShowCreateBranchFromTemplateCommand(configManager.get(), logService).then(
-      (visible) => setContextCanCreateBranchFromTemplate(visible)
+      (visible) => {
+        logService.info(`[Create Branch] Command palette visibility set to ${visible}`);
+        return setContextCanCreateBranchFromTemplate(visible);
+      }
     );
   };
 

@@ -6,7 +6,7 @@ import { mockLogService } from '../e2e/helpers/mockLogService';
 
 function baseConfig(overrides: {
   branchTemplate?: string;
-  jira?: { domain: string; email: string; token: string };
+  jira?: { domain: string; username: string; token: string };
 } = {}): ExtensionConfig {
   return {
     mode: AUTO_STASH_MODE_MANUAL,
@@ -22,7 +22,7 @@ function baseConfig(overrides: {
     pushTagWithoutConfirmation: false,
     tagRemote: 'origin',
     branchTemplate: overrides.branchTemplate ?? '',
-    jira: overrides.jira ?? { domain: '', email: '', token: '' },
+    jira: overrides.jira ?? { domain: '', username: '', token: '' },
   };
 }
 
@@ -60,7 +60,7 @@ describe('branchTemplateAvailability', () => {
     const visible = await canShowCreateBranchFromTemplateCommand(
       baseConfig({
         branchTemplate: '{jira-title:25:-}',
-        jira: { domain: 'company.atlassian.net', email: 'user@example.com', token: '' },
+        jira: { domain: 'company.atlassian.net', username: 'user@example.com', token: '' },
       }),
       mockLogService
     );

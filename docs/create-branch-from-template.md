@@ -5,19 +5,19 @@ Command: `Git Smart Checkout: Create Branch from Template ...`
 Create and check out a new Git branch from a configurable template. Supports Jira issue keys and titles, file JSON values, branch regex matches, script output, and auto-incrementing suffixes when a branch name already exists.
 
 > [!TIP]
-> Set `git-smart-checkout.branchTemplate` once per project. When the template uses Jira tokens, configure Jira settings and pick an issue from your current sprint.
+> Set `git-smart-checkout.branchTemplate` once per project. When the template uses Jira tokens, configure Jira settings and pick an issue assigned to you.
 
 ## Jira Configuration
 
 | Setting | Description |
 | --- | --- |
 | `git-smart-checkout.jira.domain` | Jira Cloud host, e.g. `your-company.atlassian.net` |
-| `git-smart-checkout.jira.email` | Atlassian account email |
+| `git-smart-checkout.jira.username` | Atlassian account username (usually your Atlassian account email) |
 | `git-smart-checkout.jira.token` | API token from [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 
 **Unscoped token (recommended):** use **Create API token** (classic). It works with `https://<domain>.atlassian.net` and needs no scope selection.
 
-**Scoped token (optional):** grant at least `read:jira-work`, `read:jira-user`, `read:board-scope:jira-software`, `read:sprint:jira-software`, `read:issue-details:jira`, and `read:project:jira`.
+**Scoped token (optional):** grant at least `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, and `read:project:jira`.
 
 ## Command Visibility
 
@@ -26,13 +26,11 @@ The command appears in the palette only when:
 - `git-smart-checkout.branchTemplate` is non-empty, and
 - If the template contains `{jira-key}` or `{jira-title...}`, Jira settings are configured and a connection test succeeds.
 
-The connection is re-checked on extension activation and when settings change.
+The connection is re-checked on extension activation and when settings change. Open the **Git Smart Checkout** output channel and look for `[Jira]` and `[Create Branch]` log lines to diagnose connection issues after saving credentials (without logging your token).
 
 ## Jira Issue Picker
 
-When the template uses Jira tokens, the command loads issues assigned to you in the current active sprint (`assignee = currentUser() AND sprint in openSprints()`).
-
-Issues are sorted by status category: **To Do** first, **In Progress** second, then all other statuses. Within each group, issues are sorted by key.
+When the template uses Jira tokens, the command loads all issues assigned to you (`assignee = currentUser()`), sorted by issue key in ascending order.
 
 Each list item shows:
 

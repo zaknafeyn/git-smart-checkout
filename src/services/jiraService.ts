@@ -13,15 +13,17 @@ export interface JiraIssueSummary {
 
 const JIRA_KEY_PATTERN = /^[A-Z][A-Z0-9]+-\d+$/i;
 
-const STATUS_CATEGORY_ORDER: Record<string, number> = {
-  new: 0,
-  indeterminate: 1,
-};
+export function describeJiraConfigFields(config: JiraConfig): string {
+  const domain = config.domain.trim() !== '' ? 'set' : 'missing';
+  const username = config.username.trim() !== '' ? 'set' : 'missing';
+  const token = config.token.trim() !== '' ? 'set' : 'missing';
+  return `domain=${domain}, username=${username}, token=${token}`;
+}
 
 export function isJiraConfigured(config: JiraConfig): boolean {
   return (
     config.domain.trim() !== '' &&
-    config.email.trim() !== '' &&
+    config.username.trim() !== '' &&
     config.token.trim() !== ''
   );
 }
@@ -33,8 +35,14 @@ export function normalizeJiraDomain(domain: string): string {
     .replace(/\/+$/, '');
 }
 
-export function createJiraClient(config: JiraConfig): JiraApi | undefined {
+export function createJiraClient(
+  config: JiraConfig,
+  logService?: LoggingService
+): JiraApi | undefined {
   if (!isJiraConfigured(config)) {
+    logService?.warn(
+      `[Jira] Cannot create client: incomplete configuration (${describeJiraConfigFields(config)})`
+    );
     return undefined;
   }
 
@@ -43,38 +51,61 @@ export function createJiraClient(config: JiraConfig): JiraApi | undefined {
   return new JiraApi({
     protocol: 'https',
     host,
-    username: config.email.trim(),
+    username: config.username.trim(),
     password: config.token.trim(),
     apiVersion: '2',
     strictSSL: true,
   });
 }
 
+function formatJiraError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 export async function testJiraConnection(
   config: JiraConfig,
   logService?: LoggingService
 ): Promise<boolean> {
-  const client = createJiraClient(config);
+  logService?.info(`[Jira] Testing connection (${describeJiraConfigFields(config)})`);
+
+  if (!isJiraConfigured(config)) {
+    logService?.warn('[Jira] Connection test skipped: domain, username, and token are all required');
+    return false;
+  }
+
+  const host = normalizeJiraDomain(config.domain);
+  logService?.info(
+    `[Jira] Authenticating to https://${host} as ${config.username.trim()}`
+  );
+
+  const client = createJiraClient(config, logService);
   if (!client) {
     return false;
   }
 
   try {
-    await client.getCurrentUser();
-    logService?.info('[Jira] Connection test succeeded');
+    const user = await client.getCurrentUser();
+    const accountId = (user as { accountId?: string }).accountId;
+    const displayName = (user as { displayName?: string }).displayName;
+    const emailAddress = (user as { emailAddress?: string }).emailAddress;
+
+    logService?.info('[Jira] Connection test succeeded', {
+      host,
+      accountId,
+      displayName,
+      emailAddress,
+    });
     return true;
   } catch (e) {
-    logService?.warn('[Jira] Connection test failed', e);
+    logService?.warn(`[Jira] Connection test failed: ${formatJiraError(e)}`, e);
     return false;
   }
 }
 
 export function compareJiraIssuesForPicker(a: JiraIssueSummary, b: JiraIssueSummary): number {
-  const orderA = STATUS_CATEGORY_ORDER[a.statusCategoryKey] ?? 2;
-  const orderB = STATUS_CATEGORY_ORDER[b.statusCategoryKey] ?? 2;
-  if (orderA !== orderB) {
-    return orderA - orderB;
-  }
   return a.key.localeCompare(b.key, undefined, { sensitivity: 'base' });
 }
 
@@ -97,17 +128,72 @@ function mapSearchIssue(issue: {
   };
 }
 
-export async function fetchActiveSprintAssignedIssues(
-  client: JiraApi
-): Promise<JiraIssueSummary[]> {
-  const jql = 'assignee = currentUser() AND sprint in openSprints() ORDER BY rank ASC';
-  const result = await client.searchJira(jql, {
-    maxResults: 100,
-    fields: ['summary', 'status'],
-  });
+const JIRA_SEARCH_PAGE_SIZE = 100;
+const JIRA_SEARCH_MAX_PAGES = 100;
 
-  const issues = (result.issues ?? []).map(mapSearchIssue);
-  return sortJiraIssuesForPicker(issues);
+interface JiraEnhancedSearchResponse {
+  issues?: Array<Parameters<typeof mapSearchIssue>[0]>;
+  nextPageToken?: string;
+  isLast?: boolean;
+}
+
+/**
+ * Runs the JQL search through the Enhanced JQL Search endpoint
+ * (`/rest/api/2/search/jql`). The legacy `/rest/api/2/search` endpoint used by
+ * jira-client's `searchJira` has been removed from Jira Cloud, so requests to
+ * it fail even when authentication succeeds. The new endpoint uses cursor-based
+ * pagination via `nextPageToken` instead of `startAt`/`total`.
+ */
+async function searchIssuesWithJql(
+  client: JiraApi,
+  jql: string,
+  fields: string[]
+): Promise<Array<Parameters<typeof mapSearchIssue>[0]>> {
+  const issues: Array<Parameters<typeof mapSearchIssue>[0]> = [];
+  const seenTokens = new Set<string>();
+  let nextPageToken: string | undefined;
+  let page = 0;
+
+  while (page < JIRA_SEARCH_MAX_PAGES) {
+    page += 1;
+
+    const params = new URLSearchParams({
+      jql,
+      maxResults: String(JIRA_SEARCH_PAGE_SIZE),
+      fields: fields.join(','),
+    });
+    if (nextPageToken) {
+      params.set('nextPageToken', nextPageToken);
+    }
+
+    const result = (await client.genericGet(
+      `search/jql?${params.toString()}`
+    )) as JiraEnhancedSearchResponse;
+
+    issues.push(...(result.issues ?? []));
+
+    const token = result.nextPageToken;
+    // Guard against the known Jira Cloud bug where nextPageToken chains
+    // endlessly while re-serving the first page.
+    if (result.isLast === true || !token || seenTokens.has(token)) {
+      break;
+    }
+    seenTokens.add(token);
+    nextPageToken = token;
+  }
+
+  return issues;
+}
+
+export async function fetchAssignedIssuesForCurrentUser(
+  client: JiraApi,
+  logService?: LoggingService
+): Promise<JiraIssueSummary[]> {
+  const jql = 'assignee = currentUser() ORDER BY key ASC';
+  const rawIssues = await searchIssuesWithJql(client, jql, ['summary', 'status']);
+  const sorted = sortJiraIssuesForPicker(rawIssues.map(mapSearchIssue));
+  logService?.info(`[Jira] Loaded ${sorted.length} issue(s) assigned to current user`);
+  return sorted;
 }
 
 export async function fetchJiraIssueByKey(
@@ -145,7 +231,7 @@ export async function pickJiraIssue(
   config: JiraConfig,
   logService: LoggingService
 ): Promise<JiraIssueSummary | undefined> {
-  const client = createJiraClient(config);
+  const client = createJiraClient(config, logService);
 
   if (!client) {
     logService.warn('[Jira] Not configured; falling back to manual key entry');
@@ -158,9 +244,9 @@ export async function pickJiraIssue(
 
   let issues: JiraIssueSummary[] = [];
   try {
-    issues = await fetchActiveSprintAssignedIssues(client);
+    issues = await fetchAssignedIssuesForCurrentUser(client, logService);
   } catch (e) {
-    logService.warn('[Jira] Failed to fetch sprint issues; falling back to manual key entry', e);
+    logService.warn('[Jira] Failed to fetch assigned issues; falling back to manual key entry', e);
     const key = await promptForJiraIssueKey();
     if (!key) {
       return undefined;

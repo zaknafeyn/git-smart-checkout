@@ -65,7 +65,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     if (branchTemplateNeedsJira(template)) {
       if (!isJiraConfigured(cfg.jira)) {
         await this.showErrorMessage(
-          'Branch template requires Jira. Configure git-smart-checkout.jira.domain, jira.email, and jira.token.'
+          'Branch template requires Jira. Configure git-smart-checkout.jira.domain, jira.username, and jira.token.'
         );
         return;
       }
@@ -79,7 +79,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
       jiraTitle = issue.summary;
 
       if (!jiraTitle) {
-        const client = createJiraClient(cfg.jira);
+        const client = createJiraClient(cfg.jira, this.logService);
         if (client) {
           const fetched = await fetchJiraIssueByKey(client, jiraKey);
           jiraTitle = fetched?.summary ?? '';

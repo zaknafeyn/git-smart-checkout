@@ -8,7 +8,7 @@ import {
   ScriptTokenError,
   BranchTemplateContext,
 } from '../../services/branchTemplateService';
-import { compareJiraIssuesForPicker, sortJiraIssuesForPicker } from '../../services/jiraService';
+import { sortJiraIssuesForPicker } from '../../services/jiraService';
 
 const WORKSPACE = '/workspace';
 
@@ -300,24 +300,14 @@ describe('branchTemplateService', () => {
 });
 
 describe('jiraService sorting', () => {
-  it('sorts To Do before In Progress before other statuses, then by key', () => {
+  it('sorts issues by key ascending', () => {
     const issues = [
       { key: 'B-2', summary: '', statusName: 'Done', statusCategoryKey: 'done' },
       { key: 'A-3', summary: '', statusName: 'In Progress', statusCategoryKey: 'indeterminate' },
-      { key: 'C-1', summary: '', statusName: 'To Do', statusCategoryKey: 'new' },
       { key: 'A-1', summary: '', statusName: 'To Do', statusCategoryKey: 'new' },
     ];
 
     const sorted = sortJiraIssuesForPicker(issues);
-    assert.deepStrictEqual(
-      sorted.map((i) => i.key),
-      ['A-1', 'C-1', 'A-3', 'B-2']
-    );
-  });
-
-  it('compareJiraIssuesForPicker orders by category then key', () => {
-    const a = { key: 'Z-9', summary: '', statusName: 'To Do', statusCategoryKey: 'new' };
-    const b = { key: 'A-1', summary: '', statusName: 'To Do', statusCategoryKey: 'new' };
-    assert.ok(compareJiraIssuesForPicker(a, b) > 0);
+    assert.deepStrictEqual(sorted.map((i) => i.key), ['A-1', 'A-3', 'B-2']);
   });
 });

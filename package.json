@@ -334,15 +334,15 @@
           "default": "",
           "description": "Jira Cloud host (e.g. your-company.atlassian.net). Required when the branch template uses Jira tokens."
         },
-        "git-smart-checkout.jira.email": {
+        "git-smart-checkout.jira.username": {
           "type": "string",
           "default": "",
-          "description": "Atlassian account email for Jira API authentication."
+          "description": "Atlassian account username for Jira API authentication (usually the email address of your Atlassian account)."
         },
         "git-smart-checkout.jira.token": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Jira API token. Create one at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).\n\n**Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select.\n\n**Scoped token (optional):** if you use a scoped token, grant at least: `read:jira-work`, `read:jira-user`, `read:board-scope:jira-software`, `read:sprint:jira-software`, `read:issue-details:jira`, `read:project:jira`. Scoped tokens may require the `api.atlassian.com` gateway; this extension expects an unscoped token with the domain setting above."
+          "markdownDescription": "Jira API token. Create one at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).\n\n**Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select.\n\n**Scoped token (optional):** if you use a scoped token, grant at least: `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, `read:project:jira`. Scoped tokens may require the `api.atlassian.com` gateway; this extension expects an unscoped token with the domain setting above."
         },
         "git-smart-checkout.pushTagWithoutConfirmation": {
           "type": "boolean",
