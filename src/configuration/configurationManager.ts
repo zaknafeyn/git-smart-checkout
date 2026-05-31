@@ -28,6 +28,8 @@ export class ConfigurationManager {
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
       tagRemote: vscodeConfig.get('tagRemote', 'origin'),
+      branchTemplate: vscodeConfig.get('branchTemplate', ''),
+      jira: this.readJiraConfig(vscodeConfig),
     };
   }
 
@@ -52,6 +54,19 @@ export class ConfigurationManager {
       tagTemplate: vscodeConfig.get('tagTemplate', ''),
       pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
       tagRemote: vscodeConfig.get('tagRemote', 'origin'),
+      branchTemplate: vscodeConfig.get('branchTemplate', ''),
+      jira: this.readJiraConfig(vscodeConfig),
+    };
+  }
+
+  private readJiraConfig(vscodeConfig: ReturnType<typeof workspace.getConfiguration>) {
+    const username =
+      vscodeConfig.get<string>('jira.username', '') ||
+      vscodeConfig.get<string>('jira.email', '');
+    return {
+      domain: vscodeConfig.get('jira.domain', ''),
+      username,
+      token: vscodeConfig.get('jira.token', ''),
     };
   }
 

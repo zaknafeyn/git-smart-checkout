@@ -20,3 +20,7 @@ export const setContextIsCloning = async (value: boolean) => {
 export const setContextIsCherryPickConflict = async (value: boolean) => {
   await setContextKey(`${EXTENSION_NAME}.isConflict`, value);
 };
+
+export const setContextCanCreateBranchFromTemplate = async (value: boolean) => {
+  await setContextKey(`${EXTENSION_NAME}.canCreateBranchFromTemplate`, value);
+};
