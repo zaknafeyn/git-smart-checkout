@@ -129,6 +129,11 @@
         "category": "Git Smart Checkout"
       },
       {
+        "command": "git-smart-checkout.createBranchFromTemplate",
+        "title": "Create Branch from Template...",
+        "category": "Git Smart Checkout"
+      },
+      {
         "command": "git-smart-checkout.checkoutByPR",
         "title": "Checkout by PR number... (With Stash)",
         "category": "Git Smart Checkout"
@@ -205,6 +210,10 @@
         },
         {
           "command": "git-smart-checkout.createTagFromTemplate"
+        },
+        {
+          "command": "git-smart-checkout.createBranchFromTemplate",
+          "when": "git-smart-checkout.canCreateBranchFromTemplate"
         },
         {
           "command": "git-smart-checkout.checkoutByPR"
@@ -315,6 +324,26 @@
           "default": "",
           "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}-{r:1}`"
         },
+        "git-smart-checkout.branchTemplate": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Template used to generate Git branch names when running **Create Branch from Template ...**. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}-{r:1}` — fetches a Jira issue, uppercases the key (e.g. `KEY-123`), slugifies the title (max 25 chars, `-` separator), and auto-increments `{r:1}` until the branch name is available. The resolved name is lowercased except the Jira key."
+        },
+        "git-smart-checkout.jira.domain": {
+          "type": "string",
+          "default": "",
+          "description": "Jira Cloud host (e.g. your-company.atlassian.net). Required when the branch template uses Jira tokens."
+        },
+        "git-smart-checkout.jira.username": {
+          "type": "string",
+          "default": "",
+          "description": "Atlassian account username for Jira API authentication (usually the email address of your Atlassian account)."
+        },
+        "git-smart-checkout.jira.token": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Jira API token. Create one at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).\n\n**Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select.\n\n**Scoped token (optional):** if you use a scoped token, grant at least: `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, `read:project:jira`. Scoped tokens may require the `api.atlassian.com` gateway; this extension expects an unscoped token with the domain setting above."
+        },
         "git-smart-checkout.pushTagWithoutConfirmation": {
           "type": "boolean",
           "default": false,
@@ -366,6 +395,7 @@
     "@semantic-release/exec": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@types/jest": "^30.0.0",
+    "@types/jira-client": "^7.1.9",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
     "@types/react": "^18.2.0",
@@ -388,18 +418,19 @@
     "ovsx": "^0.10.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "semantic-release": "^24.2.3",
     "style-loader": "^3.3.3",
     "ts-loader": "^9.4.4",
     "tslib": "^2.0.0",
     "typescript": "^5.4.5",
     "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4",
-    "semantic-release": "^24.2.3",
     "webpack-dev-server": "^5.2.4"
   },
   "dependencies": {
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
+    "jira-client": "^8.2.2",
     "posthog-node": "^5.33.0"
   },
   "resolutions": {

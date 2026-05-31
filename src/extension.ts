@@ -28,7 +28,10 @@ import {
   CopyWipChangesFromWorktreeCommand,
   MoveWipChangesFromWorktreeCommand,
 } from './commands/copyChangesFromWorktreeCommand';
+import { CreateBranchFromTemplateCommand } from './commands/createBranchFromTemplateCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
+import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplateAvailability';
+import { setContextCanCreateBranchFromTemplate } from './utils/setContext';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { OpenWorktreeDevTerminalCommand } from './commands/openWorktreeDevTerminalCommand';
 import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
@@ -137,6 +140,25 @@ export function activate(context: vscode.ExtensionContext) {
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
+
+  const createBranchFromTemplateCommand = new CreateBranchFromTemplateCommand(configManager, logService);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.createBranchFromTemplate`,
+    createBranchFromTemplateCommand
+  );
+
+  const refreshBranchTemplateCommandVisibility = () => {
+    logService.info('[Create Branch] Re-evaluating command visibility after configuration change');
+    void canShowCreateBranchFromTemplateCommand(configManager.get(), logService).then(
+      (visible) => {
+        logService.info(`[Create Branch] Command palette visibility set to ${visible}`);
+        return setContextCanCreateBranchFromTemplate(visible);
+      }
+    );
+  };
+
+  void setContextCanCreateBranchFromTemplate(false);
+  refreshBranchTemplateCommandVisibility();
 
   const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(
     configManager,
@@ -270,6 +292,7 @@ export function activate(context: vscode.ExtensionContext) {
       configManager.reload();
       statusBarManager.onConfigurationChanged();
       updateTelemetryState();
+      refreshBranchTemplateCommandVisibility();
     }
   });
 

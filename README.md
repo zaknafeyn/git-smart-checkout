@@ -35,6 +35,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Open a terminal in a selected worktree's directory | `Git Smart Checkout: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
+| Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template ...` | [Create branch from template](docs/create-branch-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
 
 ## Extension Settings
@@ -53,6 +54,10 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.useInPlaceCherryPick`](vscode://settings/git-smart-checkout.useInPlaceCherryPick) (Use in-place cherry-pick) | `boolean` | Uses in-place cherry-pick instead of a temporary worktree for PR cloning. This works best when cherry-pick conflicts are not expected. |
 | ⚙️ [`git-smart-checkout.preferredRefs`](vscode://settings/git-smart-checkout.preferredRefs) (Preferred refs) | `object` | Per-user map of preferred refs by repository. Keys are `<owner>/<repo>` or workspace folder names; values contain `locals`, `remotes`, and `tags` arrays with full ref names. |
 | ⚙️ [`git-smart-checkout.tagTemplate`](vscode://settings/git-smart-checkout.tagTemplate) (Tag template) | `string` | Template used to generate Git tag names. Supports `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}`, and `{s:stderr:<script>}` tokens. |
+| ⚙️ [`git-smart-checkout.branchTemplate`](vscode://settings/git-smart-checkout.branchTemplate) (Branch template) | `string` | Template for **Create Branch from Template ...**. Supports `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:...}`, `{b:...}`, `{r:...}`, `{s:...}`. Example: `vradchuk/{jira-key}-{jira-title:25:-}-{r:1}`. |
+| ⚙️ [`git-smart-checkout.jira.domain`](vscode://settings/git-smart-checkout.jira.domain) (Jira domain) | `string` | Jira Cloud host (e.g. `your-company.atlassian.net`). Required when the branch template uses Jira tokens. |
+| ⚙️ [`git-smart-checkout.jira.username`](vscode://settings/git-smart-checkout.jira.username) (Jira username) | `string` | Atlassian account username for Jira API authentication (usually your Atlassian account email). |
+| ⚙️ [`git-smart-checkout.jira.token`](vscode://settings/git-smart-checkout.jira.token) (Jira API token) | `string` | Jira API token. See setting description for unscoped vs scoped token guidance. |
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
