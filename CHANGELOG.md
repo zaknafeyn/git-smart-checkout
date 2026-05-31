@@ -1,3 +1,11 @@
+# [0.7.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.6.0...v0.7.0) (2026-05-31)
+
+
+### Features
+
+* add 'Create Branch from Template' command and Jira integration ([#67](https://github.com/zaknafeyn/git-smart-checkout/issues/67)) ([b2b889b](https://github.com/zaknafeyn/git-smart-checkout/commit/b2b889ba23b70676b15672cd19cda32031a253f1))
+* enhance branch management with preferred refs and new commands ([#68](https://github.com/zaknafeyn/git-smart-checkout/issues/68)) ([0c6691d](https://github.com/zaknafeyn/git-smart-checkout/commit/0c6691d239574cf0446efaf8d608c1bfa82095ec))
+
 # [0.6.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.5.1...v0.6.0) (2026-05-30)
 
 
