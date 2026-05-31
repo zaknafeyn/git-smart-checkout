@@ -521,25 +521,25 @@ describe('VS Code command interface', () => {
       let inspectedBasePicker = false;
       let inspectedInput = false;
       const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
-        assert.strictEqual(quickPick.placeholder, 'Select a branch to checkout');
-        inspectedCommandPicker = true;
-        const createFromAction = items.find((item) =>
-          item.type === 'action' && item.label.includes('Create new branch from...')
-        );
+        // The command picker and the base-branch picker both use createQuickPick;
+        // distinguish them by placeholder.
+        if (quickPick.placeholder === 'Select a branch to checkout') {
+          inspectedCommandPicker = true;
+          const createFromAction = items.find((item) =>
+            item.type === 'action' && item.label.includes('Create new branch from...')
+          );
 
-        assert.ok(createFromAction, 'create-new-branch-from action should be listed');
-        return createFromAction;
-      });
-      const restoreShowQuickPick = stubShowQuickPick((items, options) => {
+          assert.ok(createFromAction, 'create-new-branch-from action should be listed');
+          return createFromAction;
+        }
+
         inspectedBasePicker = true;
-        assert.strictEqual(options?.placeHolder, 'Select a branch to base the new branch on');
+        assert.strictEqual(quickPick.placeholder, 'Select a branch to base the new branch on');
         assert.ok(
-          items.some((item) => typeof item === 'string' && item.includes(repo.mainBranch)),
+          items.some((item) => item.ref?.name === repo.mainBranch),
           'base picker should include the main branch'
         );
-        const featureItem = items.find((item) =>
-          typeof item === 'string' && item.includes(repo.featureBranch)
-        );
+        const featureItem = items.find((item) => item.ref?.name === repo.featureBranch);
 
         assert.ok(featureItem, 'base picker should include the feature branch');
         return featureItem;
@@ -574,7 +574,6 @@ describe('VS Code command interface', () => {
       } finally {
         errors.restore();
         restoreInput();
-        restoreShowQuickPick();
         restoreQuickPick();
         repo.cleanup();
       }

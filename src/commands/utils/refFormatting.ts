@@ -8,8 +8,7 @@ export const ICON_PLUS = '$(plus)';
 export const ICON_FOLDER = '$(folder)';
 export const ICON_ARROW_UP = '↑';
 export const ICON_ARROW_DOWN = '↓';
-export const ICON_STAR_FILLED = '★';
-export const ICON_STAR = '☆';
+export const ICON_STAR_FILLED = '$(star-full)';
 
 const getRefIcon = (ref: IGitRef) => {
   switch (true) {
@@ -28,13 +27,14 @@ export const getRefLabel = (ref: IGitRef) => {
   return result.join(' ');
 };
 
+/**
+ * Label for a ref with a leading star when it's preferred. The star stays
+ * visible at all times (unlike the inline quick-pick button, which only shows
+ * on hover), so preferred refs remain marked when the row is not active.
+ */
 export const getRefLabelWithStar = (ref: IGitRef, isPreferred: boolean) => {
-  const dataArr = [getRefIcon(ref), ref.fullName];
-  if (isPreferred) {
-    dataArr.unshift(ICON_STAR_FILLED);
-  }
-
-  return dataArr.join(' ');
+  const label = getRefLabel(ref);
+  return isPreferred ? `${ICON_STAR_FILLED} ${label}` : label;
 };
 
 export const getRefDescription = (ref: IGitRef) => {
