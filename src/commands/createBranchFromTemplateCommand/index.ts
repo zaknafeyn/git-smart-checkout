@@ -126,7 +126,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     }
 
     let branchName = resolved.branch;
-    const hadRecurringToken = resolved.recurringValueUsed !== undefined;
+    const hadRecurringToken = resolved.hadRecurringToken;
 
     if (!branchName) {
       await this.showErrorMessage(

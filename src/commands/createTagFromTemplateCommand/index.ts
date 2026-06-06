@@ -98,7 +98,7 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
       }
 
       tagName = resolved.tag;
-      hadRecurringToken = resolved.recurringValueUsed !== undefined;
+      hadRecurringToken = resolved.hadRecurringToken;
       log(`Final tag: ${tagName}`);
     }
 

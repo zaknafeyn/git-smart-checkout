@@ -117,10 +117,10 @@ describe('branchTemplateService', () => {
       const title = '[UI] Implement modal dialog with email retry';
       const slug = formatJiraTitle(title, { limit: 25, separator: '-' });
       const base = `vradchuk/KEY-123-${slug}`;
-      const existing = new Set([`${base}-1`, `${base}-2`]);
+      const existing = new Set([base, `${base}-1`, `${base}-2`]);
 
       const result = await resolveBranchTemplate(
-        'vradchuk/{jira-key}-{jira-title:25:-}-{r:1}',
+        'vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}',
         makeBranchCtx({
           jiraKey: 'key-123',
           jiraTitle: title,
@@ -130,7 +130,8 @@ describe('branchTemplateService', () => {
 
       assert.strictEqual(result.branch, `${base}-3`.toLowerCase().replace('key-123', 'KEY-123'));
       assert.strictEqual(result.recurringValueUsed, 3);
-      assert.strictEqual(result.recurringAttempts, 3);
+      // bare probe + 1 + 2 + 3
+      assert.strictEqual(result.recurringAttempts, 4);
     });
 
     it('inserts uppercase jira key and lowercases the rest', async () => {
@@ -182,25 +183,35 @@ describe('branchTemplateService', () => {
     });
 
     it('auto-increments recurring token when branch exists', async () => {
-      const existing = new Set(['branch-1', 'branch-2']);
-      const result = await resolveBranchTemplate('branch-{r:1}', makeBranchCtx({
+      const existing = new Set(['branch', 'branch-1', 'branch-2']);
+      const result = await resolveBranchTemplate('branch{r:1:-}', makeBranchCtx({
         branchExists: async (name) => existing.has(name),
       }));
       assert.strictEqual(result.branch, 'branch-3');
       assert.strictEqual(result.recurringValueUsed, 3);
     });
 
-    it('{r:5} starts at 5 when branch is available', async () => {
-      const result = await resolveBranchTemplate('release-{r:5}', makeBranchCtx());
+    it('uses the bare branch name when it is available', async () => {
+      const result = await resolveBranchTemplate('release{r:5:-}', makeBranchCtx());
+      assert.strictEqual(result.branch, 'release');
+      assert.strictEqual(result.recurringValueUsed, undefined);
+      assert.strictEqual(result.hadRecurringToken, true);
+    });
+
+    it('{r:5:-} starts at 5 when the bare branch name is taken', async () => {
+      const result = await resolveBranchTemplate('release{r:5:-}', makeBranchCtx({
+        branchExists: async (name) => name === 'release',
+      }));
       assert.strictEqual(result.branch, 'release-5');
       assert.strictEqual(result.recurringValueUsed, 5);
     });
 
-    it('returns branch unchanged when no {r:N} token is present', async () => {
+    it('returns branch unchanged when no {r} token is present', async () => {
       const result = await resolveBranchTemplate('static-branch', makeBranchCtx());
       assert.strictEqual(result.branch, 'static-branch');
       assert.strictEqual(result.recurringAttempts, 0);
       assert.strictEqual(result.recurringValueUsed, undefined);
+      assert.strictEqual(result.hadRecurringToken, false);
     });
 
     it('throws when recurring iteration cap is reached', async () => {
@@ -233,9 +244,10 @@ describe('branchTemplateService', () => {
     });
 
     it('combines Jira, file, branch regex, and recurring tokens', async () => {
-      const existing = new Set<string>();
+      // The existence check runs on the pre-casing-finalized candidate (uppercase regex match).
+      const existing = new Set<string>(['FEAT-1-1.0-FEAT-99']);
       const result = await resolveBranchTemplate(
-        '{jira-key}-{f:package.json:.version}-{b:\\b[A-Z]+-\\d+\\b}-{r:1}',
+        '{jira-key}-{f:package.json:.version}-{b:\\b[A-Z]+-\\d+\\b}{r:1:-}',
         makeBranchCtx({
           jiraKey: 'FEAT-1',
           getCurrentBranch: async () => 'feature/FEAT-99-extra',

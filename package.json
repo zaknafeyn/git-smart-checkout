@@ -68,33 +68,33 @@
     "commands": [
       {
         "command": "git-smart-checkout.checkoutTo",
-        "title": "Checkout to ... (With Stash)",
-        "category": "Git Smart Checkout"
+        "title": "Checkout to... (With Stash)",
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.checkoutPrevious",
         "title": "Checkout previous branch (With Stash)",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.pullWithStash",
         "title": "Pull (With Stash)",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.pullRebaseWithStash",
         "title": "Pull (Rebase With Stash)",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.switchMode",
         "title": "Switch Mode",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.clonePullRequest",
         "title": "Clone pull request...",
-        "category": "Git Smart Checkout",
+        "category": "gsc",
         "icon": {
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
@@ -103,7 +103,7 @@
       {
         "command": "git-smart-checkout.prCancelCloneMenu",
         "title": "Cancel PR clone",
-        "category": "Git Smart Checkout",
+        "category": "gsc",
         "icon": {
           "light": "resources/light/revert.svg",
           "dark": "resources/dark/revert.svg"
@@ -112,7 +112,7 @@
       {
         "command": "git-smart-checkout.prConflictsResolvedMenu",
         "title": "Conflicts resolved",
-        "category": "Git Smart Checkout",
+        "category": "gsc",
         "icon": {
           "light": "resources/light/forward.svg",
           "dark": "resources/dark/forward.svg"
@@ -120,68 +120,68 @@
       },
       {
         "command": "git-smart-checkout.rebaseWithStash",
-        "title": "Rebase ... (With Stash)",
-        "category": "Git Smart Checkout"
+        "title": "Rebase (With Stash)",
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.createTagFromTemplate",
-        "title": "Create Tag from Template",
-        "category": "Git Smart Checkout"
+        "title": "Create Tag from Template...",
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.createBranchFromTemplate",
         "title": "Create Branch from Template...",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.checkoutByPR",
         "title": "Checkout by PR number... (With Stash)",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.prReviewInWorktree",
         "title": "PR Review in Worktree",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.removePRReviewInWorktree",
         "title": "Remove PR review in Worktree",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.moveToNewWorktree",
         "title": "Move to new worktree",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.copyStagedChangesToWorktree",
-        "title": "Copy staged changes to worktree ...",
-        "category": "Git Smart Checkout"
+        "title": "Copy staged changes to worktree...",
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.copyWipChangesToWorktree",
-        "title": "Copy WIP changes to worktree ...",
-        "category": "Git Smart Checkout"
+        "title": "Copy WIP changes to worktree...",
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.copyWipChangesFromWorktree",
         "title": "Copy WIP from Worktree",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.moveWipChangesFromWorktree",
         "title": "Move WIP from Worktree",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.removeWorktree",
         "title": "Remove Worktree...",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       },
       {
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
-        "category": "Git Smart Checkout"
+        "category": "gsc"
       }
     ],
     "menus": {
@@ -322,12 +322,12 @@
         "git-smart-checkout.tagTemplate": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}-{r:1}`"
+          "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nThe `{r}` token is an optional uniqueness suffix: it is dropped when the tag built without it is free, otherwise it appends `<separator><start-number>` and increments until the name is free.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}{r:1:-}`"
         },
         "git-smart-checkout.branchTemplate": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Template used to generate Git branch names when running **Create Branch from Template ...**. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}-{r:1}` — fetches a Jira issue, uppercases the key (e.g. `KEY-123`), slugifies the title (max 25 chars, `-` separator), and auto-increments `{r:1}` until the branch name is available. The resolved name is lowercased except the Jira key."
+          "markdownDescription": "Template used to generate Git branch names when running **Create Branch from Template ...**. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}` — fetches a Jira issue, uppercases the key (e.g. `KEY-123`), slugifies the title (max 25 chars, `-` separator), and adds `{r:1:-}` only if the branch already exists (appending `-1`, `-2`, … until free). The resolved name is lowercased except the Jira key."
         },
         "git-smart-checkout.jira.domain": {
           "type": "string",

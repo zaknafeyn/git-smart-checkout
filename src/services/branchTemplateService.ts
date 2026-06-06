@@ -23,6 +23,8 @@ export interface ResolvedBranch {
   branch: string;
   recurringValueUsed?: number;
   recurringAttempts: number;
+  /** True when the template contained an {r} token (regardless of whether a number was appended). */
+  hadRecurringToken: boolean;
 }
 
 const JIRA_KEY_TOKEN = '{jira-key}';
@@ -174,6 +176,7 @@ export async function resolveBranchTemplate(
     branch,
     recurringValueUsed: resolved.recurringValueUsed,
     recurringAttempts: resolved.recurringAttempts,
+    hadRecurringToken: resolved.hadRecurringToken,
   };
 }
 

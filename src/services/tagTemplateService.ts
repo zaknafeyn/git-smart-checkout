@@ -36,6 +36,8 @@ export interface ResolvedTag {
   tag: string;
   recurringValueUsed?: number;
   recurringAttempts: number;
+  /** True when the template contained an {r} token (regardless of whether a number was appended). */
+  hadRecurringToken: boolean;
 }
 
 export class ScriptTokenError extends Error {
@@ -89,10 +91,30 @@ function scanTokens(template: string): TokenMatch[] {
         i = j + 1;
         continue;
       }
+    } else if (template[i] === '{' && template[i + 1] === 'r' && template[i + 2] === '}') {
+      // Bare {r} token — equivalent to {r:1} with no separator.
+      tokens.push({ full: '{r}', type: 'r', args: '', index: i });
+      i += 3;
+      continue;
     }
     i++;
   }
   return tokens;
+}
+
+// ─── Recurring token args ─────────────────────────────────────────────────────
+// Syntax: {r}, {r:N}, {r:N:sep}. Splits on the FIRST colon so separators may
+// contain further colons. The number defaults to 1; the separator defaults to ''.
+
+export function parseRecurringTokenArgs(args: string): { start: number; separator: string } {
+  const colonIdx = args.indexOf(':');
+  const numPart = colonIdx === -1 ? args : args.substring(0, colonIdx);
+  const separator = colonIdx === -1 ? '' : args.substring(colonIdx + 1);
+
+  const parsed = parseInt(numPart.trim(), 10);
+  const start = isNaN(parsed) ? 1 : parsed;
+
+  return { start, separator };
 }
 
 // ─── Exported helpers (also used in unit tests) ───────────────────────────────
@@ -356,21 +378,41 @@ export async function resolveTagTemplate(
     }
   }
 
-  // Step 4: resolve {r:N} token last (recurring/auto-increment)
+  // Step 4: resolve {r} token last (recurring/auto-increment).
+  // The token only adds uniqueness: try the bare name first; only when it is
+  // taken do we append `<separator><N>` and increment until a free name is found.
   const recurringTokens = tokens.filter((t) => t.type === 'r');
   if (recurringTokens.length === 0) {
-    return { tag: result, recurringAttempts: 0 };
+    return { tag: result, recurringAttempts: 0, hadRecurringToken: false };
   }
 
-  const startN = parseInt(recurringTokens[0].args, 10);
-  let currentN = isNaN(startN) ? 1 : startN;
-  let attempts = 0;
+  const { start, separator } = parseRecurringTokenArgs(recurringTokens[0].args);
 
-  while (attempts < MAX_RECURRING_ITERATIONS) {
+  const buildCandidate = (suffix: string): string => {
     let candidate = result;
     for (const token of recurringTokens) {
-      candidate = candidate.replace(token.full, String(currentN));
+      candidate = candidate.replace(token.full, suffix);
     }
+    return candidate;
+  };
+
+  let attempts = 0;
+
+  // First attempt: the bare name with the token removed entirely.
+  const bareCandidate = buildCandidate('');
+  attempts++;
+  const bareExists = await ctx.tagExists(bareCandidate);
+  ctx.logger.info(
+    `[Create Tag] Trying tag: ${bareCandidate} — ${bareExists ? 'exists' : 'available'}`
+  );
+  if (!bareExists) {
+    return { tag: bareCandidate, recurringAttempts: attempts, hadRecurringToken: true };
+  }
+
+  // Bare name taken — append `<separator><N>`, incrementing N until free.
+  let currentN = start;
+  while (attempts < MAX_RECURRING_ITERATIONS) {
+    const candidate = buildCandidate(`${separator}${currentN}`);
     attempts++;
 
     const exists = await ctx.tagExists(candidate);
@@ -379,7 +421,12 @@ export async function resolveTagTemplate(
     );
 
     if (!exists) {
-      return { tag: candidate, recurringValueUsed: currentN, recurringAttempts: attempts };
+      return {
+        tag: candidate,
+        recurringValueUsed: currentN,
+        recurringAttempts: attempts,
+        hadRecurringToken: true,
+      };
     }
     currentN++;
   }

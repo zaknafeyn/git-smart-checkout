@@ -48,7 +48,7 @@ You can type a Jira key manually (e.g. `PROJ-123`) and choose **Use "PROJ-123"**
 | `{jira-title[:limit[:separator]]}` | `{jira-title:25:-}` | Slug from the issue summary. Optional `limit` truncates length. Optional `separator` uses its first character (default `-`). |
 | `{f:<file>:<json-path>}` | `{f:package.json:.version}` | Reads a JSON value from a workspace-local file. |
 | `{b:<regex>}` | `{b:\b[A-Z]+-\d+\b}` | First regex match from the current branch name. |
-| `{r:<N>}` | `{r:1}` | Auto-increments from `N` until the branch name does not exist locally or on a remote. |
+| `{r:<N>:<sep>}` | `{r:1:-}` | Optional uniqueness suffix. If the branch built **without** this token is free, the token is dropped. Otherwise it appends `<sep><N>`, incrementing `N` until the name is free. `N` defaults to `1`; `<sep>` defaults to empty. Bare `{r}` and `{r:<N>}` are also valid. |
 | `{s:<script>}` | `{s:./script.sh}` | Runs a workspace-local script (stdout). Stops on script failure. |
 
 The resolved branch name is **lowercased** except the Jira key, which stays **uppercase**.
@@ -58,10 +58,10 @@ The resolved branch name is **lowercased** except the Jira key, which stays **up
 Template:
 
 ```text
-vradchuk/{jira-key}-{jira-title:25:-}-{r:1}
+feature/{jira-key}-{jira-title:25:-}{r:1:-}
 ```
 
-For Jira issue `KEY-123` with summary `[UI] Implement modal dialog with email retry`, if `vradchuk/KEY-123-ui-implement-modal-dia-1` already exists, the command tries `...-2`, `...-3`, and so on.
+For Jira issue `KEY-123` with summary `[UI] Implement modal dialog with email retry`, the command first tries `feature/KEY-123-ui-implement-modal-dia`. If that branch already exists, it tries `feature/KEY-123-ui-implement-modal-dia-1`, then `...-2`, and so on until the name is free.
 
 ## Confirmation
 
