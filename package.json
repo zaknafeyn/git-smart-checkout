@@ -69,32 +69,32 @@
       {
         "command": "git-smart-checkout.checkoutTo",
         "title": "Checkout to... (With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.checkoutPrevious",
         "title": "Checkout previous branch (With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.pullWithStash",
         "title": "Pull (With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.pullRebaseWithStash",
         "title": "Pull (Rebase With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.switchMode",
         "title": "Switch Mode",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.clonePullRequest",
         "title": "Clone pull request...",
-        "category": "gsc",
+        "category": "GSC",
         "icon": {
           "light": "resources/light/clone.svg",
           "dark": "resources/dark/clone.svg"
@@ -103,7 +103,7 @@
       {
         "command": "git-smart-checkout.prCancelCloneMenu",
         "title": "Cancel PR clone",
-        "category": "gsc",
+        "category": "GSC",
         "icon": {
           "light": "resources/light/revert.svg",
           "dark": "resources/dark/revert.svg"
@@ -112,7 +112,7 @@
       {
         "command": "git-smart-checkout.prConflictsResolvedMenu",
         "title": "Conflicts resolved",
-        "category": "gsc",
+        "category": "GSC",
         "icon": {
           "light": "resources/light/forward.svg",
           "dark": "resources/dark/forward.svg"
@@ -121,67 +121,67 @@
       {
         "command": "git-smart-checkout.rebaseWithStash",
         "title": "Rebase (With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.createTagFromTemplate",
         "title": "Create Tag from Template...",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.createBranchFromTemplate",
         "title": "Create Branch from Template...",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.checkoutByPR",
         "title": "Checkout by PR number... (With Stash)",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.prReviewInWorktree",
         "title": "PR Review in Worktree",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.removePRReviewInWorktree",
         "title": "Remove PR review in Worktree",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.moveToNewWorktree",
         "title": "Move to new worktree",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyStagedChangesToWorktree",
         "title": "Copy staged changes to worktree...",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyWipChangesToWorktree",
         "title": "Copy WIP changes to worktree...",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyWipChangesFromWorktree",
         "title": "Copy WIP from Worktree",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.moveWipChangesFromWorktree",
         "title": "Move WIP from Worktree",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.removeWorktree",
         "title": "Remove Worktree...",
-        "category": "gsc"
+        "category": "GSC"
       },
       {
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
-        "category": "gsc"
+        "category": "GSC"
       }
     ],
     "menus": {
