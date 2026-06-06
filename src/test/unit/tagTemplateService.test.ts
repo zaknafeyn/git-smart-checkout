@@ -5,6 +5,7 @@ import {
   isSafeWorkspacePath,
   readJsonDotPath,
   extractFirstRegexMatch,
+  parseRecurringTokenArgs,
   ScriptTokenError,
   TagTemplateContext,
   TagTemplateLogger,
@@ -97,9 +98,43 @@ describe('tagTemplateService', () => {
     });
   });
 
+  describe('parseRecurringTokenArgs', () => {
+    it('defaults to start 1 and empty separator for empty args ({r})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs(''), { start: 1, separator: '' });
+    });
+
+    it('parses start only ({r:5})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs('5'), { start: 5, separator: '' });
+    });
+
+    it('parses start and separator ({r:1:-})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs('1:-'), { start: 1, separator: '-' });
+    });
+
+    it('parses custom start and separator ({r:5:-})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs('5:-'), { start: 5, separator: '-' });
+    });
+
+    it('treats a trailing colon as an empty separator ({r:1:})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs('1:'), { start: 1, separator: '' });
+    });
+
+    it('defaults the start when omitted but separator given ({r::-})', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs(':-'), { start: 1, separator: '-' });
+    });
+
+    it('falls back to start 1 for a non-numeric start', () => {
+      assert.deepStrictEqual(parseRecurringTokenArgs('abc'), { start: 1, separator: '' });
+    });
+  });
+
   describe('resolveTagTemplate', () => {
     it('resolves full template to correct tag (task spec scenario)', async () => {
-      const existingTags = new Set(['mobile-v12.3.4-FEAT-123-1', 'mobile-v12.3.4-FEAT-123-2']);
+      const existingTags = new Set([
+        'mobile-v12.3.4-FEAT-123',
+        'mobile-v12.3.4-FEAT-123-1',
+        'mobile-v12.3.4-FEAT-123-2',
+      ]);
       const ctx = makeCtx({
         getCurrentBranch: async () => 'feature/FEAT-123-login',
         tagExists: async (name) => existingTags.has(name),
@@ -107,26 +142,30 @@ describe('tagTemplateService', () => {
         realpath: async (p) => p,
       });
       const result = await resolveTagTemplate(
-        'mobile-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{r:1}',
+        'mobile-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}{r:1:-}',
         ctx
       );
       assert.strictEqual(result.tag, 'mobile-v12.3.4-FEAT-123-3');
       assert.strictEqual(result.recurringValueUsed, 3);
-      assert.strictEqual(result.recurringAttempts, 3);
+      // bare probe + 1 + 2 + 3
+      assert.strictEqual(result.recurringAttempts, 4);
     });
 
-    it('produces double-dash when regex has no match (empty branch token)', async () => {
+    it('uses the bare name (no suffix) when it is available', async () => {
       const ctx = makeCtx({
-        getCurrentBranch: async () => 'feature/login-screen',
+        getCurrentBranch: async () => 'feature/FEAT-123-login',
         tagExists: async () => false,
         readFile: async () => JSON.stringify({ version: '12.3.4' }),
         realpath: async (p) => p,
       });
       const result = await resolveTagTemplate(
-        'mobile-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{r:1}',
+        'mobile-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}{r:1:-}',
         ctx
       );
-      assert.strictEqual(result.tag, 'mobile-v12.3.4--1');
+      assert.strictEqual(result.tag, 'mobile-v12.3.4-FEAT-123');
+      assert.strictEqual(result.recurringValueUsed, undefined);
+      assert.strictEqual(result.hadRecurringToken, true);
+      assert.strictEqual(result.recurringAttempts, 1);
     });
 
     it('resolves unsafe path ../package.json to empty and warns', async () => {
@@ -214,19 +253,22 @@ describe('tagTemplateService', () => {
       assert.strictEqual(result.tag, 'v3.0.0-FEAT-99');
       assert.strictEqual(result.recurringAttempts, 0);
       assert.strictEqual(result.recurringValueUsed, undefined);
+      assert.strictEqual(result.hadRecurringToken, false);
     });
 
-    it('{r:5} starts at 5', async () => {
-      const ctx = makeCtx({ tagExists: async () => false });
-      const result = await resolveTagTemplate('release-{r:5}', ctx);
+    it('{r:5:-} starts at 5 when the bare name is taken', async () => {
+      const ctx = makeCtx({ tagExists: async (name) => name === 'release' });
+      const result = await resolveTagTemplate('release{r:5:-}', ctx);
       assert.strictEqual(result.tag, 'release-5');
       assert.strictEqual(result.recurringValueUsed, 5);
     });
 
-    it('multiple {r:N} tokens in same template are all replaced with same value', async () => {
-      const ctx = makeCtx({ tagExists: async () => false });
+    it('multiple {r} tokens in same template are all replaced with same value', async () => {
+      // Bare candidate "-suffix-" is taken, so the numbered suffix is applied to both tokens.
+      const ctx = makeCtx({ tagExists: async (name) => name === '-suffix-' });
       const result = await resolveTagTemplate('{r:1}-suffix-{r:1}', ctx);
       assert.strictEqual(result.tag, '1-suffix-1');
+      assert.strictEqual(result.recurringValueUsed, 1);
     });
 
     it('throws when iteration cap is reached', async () => {
@@ -235,6 +277,72 @@ describe('tagTemplateService', () => {
         () => resolveTagTemplate('v-{r:1}', ctx),
         /Could not find available tag/
       );
+    });
+
+    describe('{r} recurring token (optional uniqueness suffix)', () => {
+      // Helper: tags in the given set "exist".
+      const existing = (...names: string[]) => {
+        const set = new Set(names);
+        return async (name: string) => set.has(name);
+      };
+
+      it('example 1: {r:1:-} with no existing tag → bare name, no suffix', async () => {
+        const ctx = makeCtx({ tagExists: existing() });
+        const result = await resolveTagTemplate('vradchuk/test{r:1:-}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test');
+        assert.strictEqual(result.recurringValueUsed, undefined);
+        assert.strictEqual(result.hadRecurringToken, true);
+      });
+
+      it('example 2: {r:1:-} when bare name exists → test-1', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test') });
+        const result = await resolveTagTemplate('vradchuk/test{r:1:-}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test-1');
+        assert.strictEqual(result.recurringValueUsed, 1);
+      });
+
+      it('example 3: {r:1:-} when test and test-1 exist → test-2', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test', 'vradchuk/test-1') });
+        const result = await resolveTagTemplate('vradchuk/test{r:1:-}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test-2');
+        assert.strictEqual(result.recurringValueUsed, 2);
+      });
+
+      it('example 4: {r:5:-} when bare name exists → test-5', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test') });
+        const result = await resolveTagTemplate('vradchuk/test{r:5:-}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test-5');
+        assert.strictEqual(result.recurringValueUsed, 5);
+      });
+
+      it('example 5: {r:1} (no separator) when bare name exists → test1', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test') });
+        const result = await resolveTagTemplate('vradchuk/test{r:1}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test1');
+        assert.strictEqual(result.recurringValueUsed, 1);
+      });
+
+      it('example 6: bare {r} when bare name exists → test1 (default start 1, no separator)', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test') });
+        const result = await resolveTagTemplate('vradchuk/test{r}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test1');
+        assert.strictEqual(result.recurringValueUsed, 1);
+      });
+
+      it('bare {r} with no existing tag → bare name, no suffix', async () => {
+        const ctx = makeCtx({ tagExists: existing() });
+        const result = await resolveTagTemplate('vradchuk/test{r}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test');
+        assert.strictEqual(result.recurringValueUsed, undefined);
+        assert.strictEqual(result.hadRecurringToken, true);
+      });
+
+      it('{r:1:} (empty separator) when bare name exists → test1', async () => {
+        const ctx = makeCtx({ tagExists: existing('vradchuk/test') });
+        const result = await resolveTagTemplate('vradchuk/test{r:1:}', ctx);
+        assert.strictEqual(result.tag, 'vradchuk/test1');
+        assert.strictEqual(result.recurringValueUsed, 1);
+      });
     });
 
     describe('{s:stream:script} token', () => {
@@ -341,10 +449,11 @@ describe('tagTemplateService', () => {
           tagExists: async () => false,
         });
         const result = await resolveTagTemplate(
-          '{f:package.json:.version}-{s:stdout:./tag-suffix.sh}-{r:1}',
+          '{f:package.json:.version}-{s:stdout:./tag-suffix.sh}{r:1:-}',
           ctx
         );
-        assert.strictEqual(result.tag, '3.1.0-custom-1');
+        // Bare name is available, so no suffix is appended.
+        assert.strictEqual(result.tag, '3.1.0-custom');
       });
     });
   });
