@@ -1,3 +1,10 @@
+## [0.7.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.1...v0.7.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* rename command category to GSC ([#75](https://github.com/zaknafeyn/git-smart-checkout/issues/75)) ([9730184](https://github.com/zaknafeyn/git-smart-checkout/commit/973018436f3b9e16f4086873e4cd5530f0977ed1)), closes [#70](https://github.com/zaknafeyn/git-smart-checkout/issues/70)
+
 ## [0.7.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.0...v0.7.1) (2026-06-06)
 
 
