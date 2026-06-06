@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.0...v0.7.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* correct recurring token naming and remove duplicate Cancel button ([#74](https://github.com/zaknafeyn/git-smart-checkout/issues/74)) ([a691db6](https://github.com/zaknafeyn/git-smart-checkout/commit/a691db66cb4f58e8b48588870c91254540b7fdba))
+
 # [0.7.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.6.0...v0.7.0) (2026-05-31)
 
 
