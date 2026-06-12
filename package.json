@@ -344,6 +344,14 @@
           "default": "",
           "markdownDescription": "Jira API token. Create one at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).\n\n**Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select.\n\n**Scoped token (optional):** if you use a scoped token, grant at least: `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, `read:project:jira`. Scoped tokens may require the `api.atlassian.com` gateway; this extension expects an unscoped token with the domain setting above."
         },
+        "git-smart-checkout.jira.projectKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Limit the Jira issue picker to issues from these project keys. For example, `[\"KEY\", \"HOME\"]` shows only issues from those projects (e.g. `KEY-123`, `HOME-341`). Leave empty to show all issues assigned to you."
+        },
         "git-smart-checkout.pushTagWithoutConfirmation": {
           "type": "boolean",
           "default": false,
