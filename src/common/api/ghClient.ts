@@ -10,7 +10,9 @@ export class GitHubClient {
 
   constructor(
     private readonly _owner: string,
-    private readonly _repo: string
+    private readonly _repo: string,
+    private readonly warn: (message: string, error: unknown) => void = (message, error) =>
+      console.warn(message, error)
   ) {}
 
   get owner(): string {
@@ -220,15 +222,33 @@ export class GitHubClient {
       draft: isDraft,
     };
 
-    // Add labels and assignees if provided
-    if (labels && labels.length > 0) {
-      requestBody.labels = labels;
-    }
-    if (assignees && assignees.length > 0) {
-      requestBody.assignees = assignees;
+    const newPr = await this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
+
+    if (labels?.length) {
+      try {
+        await this.makeRequest(
+          `/repos/${this.owner}/${this.repo}/issues/${newPr.number}/labels`,
+          'POST',
+          { labels }
+        );
+      } catch (error) {
+        this.warn(`Failed to copy labels to PR #${newPr.number}:`, error);
+      }
     }
 
-    return this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
+    if (assignees?.length) {
+      try {
+        await this.makeRequest(
+          `/repos/${this.owner}/${this.repo}/issues/${newPr.number}/assignees`,
+          'POST',
+          { assignees }
+        );
+      } catch (error) {
+        this.warn(`Failed to copy assignees to PR #${newPr.number}:`, error);
+      }
+    }
+
+    return newPr;
   }
 
   /**
