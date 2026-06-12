@@ -212,8 +212,11 @@ export class GitExecutor {
   ): Promise<IGitRef> {
     await this.#execGitCommand(['checkout', '-b', branchName, ...(sourceBranch ? [sourceBranch] : [])]);
 
-    // Get detailed information about the newly created branch
-    const SEPARATOR = '|';
+    // Get detailed information about the newly created branch.
+    // Use the ASCII Unit Separator (\x1f) which cannot occur in ref names,
+    // hashes, dates, or (practically) commit subjects, so a `|` in a subject
+    // can no longer shift the parsed fields.
+    const SEPARATOR = '\x1f';
     const { stdout: branchInfo } = await this.#execGitCommand([
       'for-each-ref',
       `--format=%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(authorname)`,
@@ -260,7 +263,12 @@ export class GitExecutor {
   }
 
   async getAllRefListExtended(): Promise<IGitRef[]> {
-    const SEPARATOR = '|';
+    // Use the ASCII Unit Separator (\x1f) instead of `|`. A commit subject can
+    // legitimately contain `|`, which would shift every field parsed after
+    // `%(subject)` (corrupting `upstream:track`, author name, etc.). The Unit
+    // Separator cannot occur in ref names, hashes, dates, or (practically)
+    // commit subjects, and Git passes it through the format string verbatim.
+    const SEPARATOR = '\x1f';
     const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
     const { stdout: branchesOutput } = await this.#execGitCommand([
       'for-each-ref',
@@ -276,12 +284,15 @@ export class GitExecutor {
       .filter((line) => line.length > 0)
       .map((line) => {
         /**
-         * parse remote branches like:
+         * parse remote branches like (\x1f shown here as "|"):
          * refs/heads/feature/add-extension-and-refactoring|8aaf984|Minor fixes|unixTimeStamp|1 2
          * refs/remotes/origin/feature/add-extension-and-refactoring|8aaf984|Minor fixes
          * refs/tags/v1.2.3|8aaf984|Minor fixes
          * */
 
+        // Cap the split at the number of fields in the format string so that an
+        // unexpected separator in the final field cannot create extra entries.
+        const FIELD_COUNT = 10;
         const [
           ref,
           hash,
@@ -293,7 +304,7 @@ export class GitExecutor {
           upstreamTrack,
           authorName,
           dereferredAuthorName,
-        ] = line.split(SEPARATOR);
+        ] = line.split(SEPARATOR, FIELD_COUNT);
 
         const parsedUpstreamTrack = this.#parseTrackData(upstreamTrack);
 
