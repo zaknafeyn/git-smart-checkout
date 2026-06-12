@@ -121,7 +121,13 @@ export class PrCloneService {
   }
 
   async abortClonePR() {
-    this.InPlaceService.abortClonePR();
+    const config = this.configurationManager.get();
+
+    if (config.useInPlaceCherryPick) {
+      this.InPlaceService.abortClonePR();
+    } else {
+      this.TempWorktreeService.abortClonePR();
+    }
   }
 
   isDevMode() {
