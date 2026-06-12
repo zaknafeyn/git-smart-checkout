@@ -41,12 +41,13 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         return;
       }
 
-      const prNumber = parsePRInput(input);
-      if (!prNumber) {
+      const parsedInput = parsePRInput(input);
+      if (!parsedInput) {
         await this.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
         return;
       }
 
+      const { prNumber } = parsedInput;
       const git = await this.getGitExecutor(this.vscodeGitProvider);
       const repoInfo = await git.getRepoInfo();
       if (!repoInfo) {

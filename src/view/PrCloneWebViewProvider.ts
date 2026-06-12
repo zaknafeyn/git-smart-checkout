@@ -17,6 +17,11 @@ import {
   setContextShowPRClone,
   setContextShowPRCommits,
 } from '../utils/setContext';
+import {
+  getRepositoryMismatchMessage,
+  INVALID_PR_INPUT_MESSAGE,
+  parsePRInput,
+} from '../commands/utils/parsePRInput';
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -129,9 +134,23 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       throw new Error('Git client is not initialized');
     }
 
-    try {
-      const prNumber = this.extractPRNumber(prInput);
+    const parsedInput = parsePRInput(prInput);
+    if (!parsedInput) {
+      await window.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
+      return;
+    }
 
+    const repositoryMismatchMessage = getRepositoryMismatchMessage(parsedInput, {
+      owner: this.ghClient.owner,
+      repo: this.ghClient.repo,
+    });
+    if (repositoryMismatchMessage) {
+      await window.showErrorMessage(repositoryMismatchMessage, 'OK');
+      return;
+    }
+
+    const { prNumber } = parsedInput;
+    try {
       const prData = await this.ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
 
@@ -164,20 +183,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         'OK'
       );
     }
-  }
-
-  private extractPRNumber(input: string): number {
-    const prNumberMatch = input.match(/(?:pull\/|#)(\d+)/);
-    if (prNumberMatch) {
-      return parseInt(prNumberMatch[1], 10);
-    }
-
-    const numberMatch = input.match(/^\d+$/);
-    if (numberMatch) {
-      return parseInt(input, 10);
-    }
-
-    throw new Error('Invalid PR number or URL format');
   }
 
   private async getBranches(git: GitExecutor): Promise<string[]> {

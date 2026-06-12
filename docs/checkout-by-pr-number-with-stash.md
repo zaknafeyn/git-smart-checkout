@@ -10,6 +10,9 @@ Use this command to switch directly to a GitHub pull request branch by entering 
 - Hash-prefixed number: `#123`
 - Full GitHub PR URL: `https://github.com/owner/repo/pull/123`
 
+PR URLs must belong to the current repository. The command rejects URLs for another
+owner or repository instead of treating their PR number as a PR in the current repository.
+
 ## What It Does
 
 1. Prompts for a PR number or GitHub PR URL.
