@@ -7,6 +7,7 @@ Website: https://git-smart-checkout.vradchuk.info
 ## Requirements
 
 - Git **2.38** or newer (required for conflict pre-flight detection in auto stash and pop/apply modes)
+- GitHub features support HTTPS and SSH GitHub remotes, including repository names that contain dots.
 
 ## Info
 
