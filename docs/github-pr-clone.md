@@ -36,6 +36,11 @@ When conflicts occur during cherry-picking, you can:
 
 The process is tracked with progress indicators and can be safely cancelled.
 
+If an in-place clone fails during branch setup, cherry-picking, push, or pull request creation,
+the extension stops the progress notification, attempts to restore the original branch and
+stashed changes, removes the temporary feature branch when possible, and re-enables the clone
+controls.
+
 ## Related Settings
 
 - `git-smart-checkout.defaultTargetBranch`

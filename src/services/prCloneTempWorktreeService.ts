@@ -145,8 +145,12 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
   }
 
   protected async cleanUp(): Promise<void> {
-    this.cleanUpActionBegin.forEach((action) => action());
-    this.cleanUpActionEnd.forEach((action) => action());
+    for (const action of this.cleanUpActionBegin) {
+      await action();
+    }
+    for (const action of this.cleanUpActionEnd) {
+      await action();
+    }
   }
 
   private async createTempWorktree(targetBranch: string): Promise<string> {

@@ -62,8 +62,8 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     if (!this.cloneServiceCleanUpAssigned) {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
-        cleanUpActionEnd: () => {
-          webviewView.webview.postMessage({
+        cleanUpActionEnd: async () => {
+          await webviewView.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });

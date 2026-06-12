@@ -8,6 +8,7 @@ import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
+import { PrCloneReportedError } from '../services/prCloneError';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
 import { getNonce } from '../utils/getNonce';
@@ -55,15 +56,15 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     if (!this.cloneServiceCleanUpAssigned) {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
-        cleanUpActionEnd: () => {
-          webviewView.webview.postMessage({
+        cleanUpActionEnd: async () => {
+          await webviewView.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });
 
-          this.updateCloningState(false);
+          await this.updateCloningState(false);
 
-          webviewView.webview.postMessage({
+          await webviewView.webview.postMessage({
             command: WebviewCommand.CANCEL_PR_CLONE,
           });
         },
@@ -280,7 +281,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleClonePR(data: any) {
     try {
       // Set loading state
-      this.updateCloningState(true);
+      await this.updateCloningState(true);
 
       if (!this.prCloneService || !this.currentPrData) {
         throw new Error('PR Clone service or PR data not initialized');
@@ -300,9 +301,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       await this.prCloneService.clonePR(prCloneData);
     } catch (error) {
       this.loggingService.error(`Failed to clone PR: ${error}`);
-      window.showErrorMessage(
-        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
-      );
+      await this.updateCloningState(false);
+      if (!(error instanceof PrCloneReportedError)) {
+        await window.showErrorMessage(
+          `Failed to clone PR: ${error instanceof Error ? error.message : error}`
+        );
+      }
     }
   }
 
@@ -355,12 +359,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateCloningState(isCloning: boolean) {
+  private async updateCloningState(isCloning: boolean): Promise<void> {
     if (!this.webviewView) {
       return;
     }
 
-    this.webviewView.webview.postMessage({
+    await this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_CLONING_STATE,
       isCloning,
     });
@@ -371,7 +375,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     // Update context to disable/enable interactions
-    setContextIsCloning(isCloning);
+    await setContextIsCloning(isCloning);
   }
 
   private async handleShowConfirmationDialog(message: string, details: string, data: any) {
