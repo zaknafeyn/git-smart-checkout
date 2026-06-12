@@ -34,7 +34,8 @@ When conflicts occur during cherry-picking, you can:
 - Resolve conflicts manually and continue.
 - Cancel the process and restore the original state.
 
-The process is tracked with progress indicators and can be safely cancelled.
+The process is tracked with a progress notification that remains active throughout initialization
+and can be safely cancelled at any point.
 
 ## Related Settings
 
