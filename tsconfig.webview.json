@@ -31,6 +31,10 @@
     },
     "composite": true
   },
-  "include": ["src/webview/**/*", "src/webview/types/**/*"],
+  "include": [
+    "src/webview/**/*",
+    "src/webview/types/**/*",
+    "src/common/vscode/webviewState.ts"
+  ],
   "exclude": ["node_modules", "dist", "out"]
 }

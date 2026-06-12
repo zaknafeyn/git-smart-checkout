@@ -15,6 +15,23 @@ import { CommitsGenerator } from '../utils/commitsGenerator';
 
 const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
 
+export function isExistingExtensionTempWorktree(worktree: string, tempDir: string): boolean {
+  try {
+    if (!fs.existsSync(worktree) || !fs.lstatSync(worktree).isDirectory()) {
+      return false;
+    }
+    const relativePath = path.relative(tempDir, worktree);
+    return (
+      relativePath !== '' &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath) &&
+      path.basename(worktree).startsWith(`${TEMP_WORKDIR_PREFIX}-`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class PrCloneTempWorktreeService extends PrCloneServiceBase {
   private tempWorkspacePath?: string;
   private tempGit?: GitExecutor;
@@ -263,18 +280,20 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     try {
       this.loggingService.info(`Cleaning up temp worktree: ${tempPath}`);
       await this.git.worktreeRemove(tempPath);
+    } catch (error) {
+      this.loggingService.warn(`Failed to unregister temp worktree: ${error}`);
+    }
 
-      // Ensure directory is removed if it still exists
+    try {
       if (fs.existsSync(tempPath)) {
         fs.rmSync(tempPath, { recursive: true, force: true });
       }
-
-      // Clean up other temporary worktrees if enabled
-      if (cleanUpOtherTempWorktrees) {
-        await this.cleanupOtherTempWorktrees();
-      }
     } catch (error) {
-      this.loggingService.warn(`Failed to cleanup temp worktree: ${error}`);
+      this.loggingService.warn(`Failed to remove temp worktree directory: ${error}`);
+    }
+
+    if (cleanUpOtherTempWorktrees) {
+      await this.cleanupOtherTempWorktrees();
     }
   }
 
@@ -282,21 +301,22 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     try {
       const tempDir = os.tmpdir();
 
+      await this.git.worktreePrune();
+
       // Get list of all git worktrees
       const allWorktrees: string[] = await this.git.worktreeList(true);
-      const tempWorktrees = allWorktrees.filter((worktree) => {
-        return (
-          fs.lstatSync(worktree).isDirectory() &&
-          worktree.includes(tempDir) &&
-          worktree.includes(TEMP_WORKDIR_PREFIX)
-        );
-      });
-      const tempWorktreesPromises = tempWorktrees.map((worktree) =>
-        this.git.worktreeRemove(worktree)
+      const tempWorktrees = allWorktrees.filter((worktree) =>
+        isExistingExtensionTempWorktree(worktree, tempDir)
       );
-
-      // remove all worktrees created by extension
-      await Promise.all(tempWorktreesPromises);
+      await Promise.all(
+        tempWorktrees.map(async (worktree) => {
+          try {
+            await this.git.worktreeRemove(worktree);
+          } catch (error) {
+            this.loggingService.warn(`Failed to cleanup stale temp worktree ${worktree}: ${error}`);
+          }
+        })
+      );
     } catch (error) {
       this.loggingService.warn(`Failed to cleanup other temp worktrees: ${error}`);
     }

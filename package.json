@@ -339,6 +339,12 @@
           "default": "",
           "description": "Atlassian account username for Jira API authentication (usually the email address of your Atlassian account)."
         },
+        "git-smart-checkout.jira.email": {
+          "type": "string",
+          "default": "",
+          "description": "Deprecated Jira account email used for API authentication.",
+          "deprecationMessage": "Use git-smart-checkout.jira.username instead. This setting remains as a compatibility fallback."
+        },
         "git-smart-checkout.jira.token": {
           "type": "string",
           "default": "",
@@ -400,7 +406,7 @@
     "@types/node": "16.x",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/vscode": "^1.74.0",
+    "@types/vscode": "1.74.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-cli": "^0.0.9",

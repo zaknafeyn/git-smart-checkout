@@ -304,6 +304,7 @@ export function activate(context: vscode.ExtensionContext) {
     telemetryChangeListener,
     statusBarManager,
     logService,
+    { dispose: () => prCloneService.dispose() },
     clonePullRequestCommand,
     updateSelectedCommitsCommand,
     showNotificationCommand,
@@ -321,11 +322,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Show status bar
   statusBarManager.show();
 
-  // Store command manager in context for testing
-  context.globalState.update('commandManager', commandManager);
+  return { commandManager };
 }
 
 export async function deactivate() {
-  console.log('Extension "my-vscode-extension" is now deactivated!');
+  console.log(`Extension "${EXTENSION_NAME}" is now deactivated!`);
   await shutdownAnalytics();
 }

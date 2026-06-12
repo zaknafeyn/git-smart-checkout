@@ -1,26 +1,26 @@
+import React, { useEffect, useState } from 'react';
+
 import { useLogger } from '@/hooks';
 import { PrCloneForm } from '@/Apps/PR/pages/PrCloneForm';
 import { PrInputForm } from '@/Apps/PR/pages/PrInputForm';
 import { AppState } from '@/types/dataTypes';
-import React, { useEffect, useState } from 'react';
-
 import { WebviewCommand } from '@/types/commands';
-import { useSendMessage } from '@/hooks/useSendMessage';
-
-const STORAGE_KEY = 'pr-clone-app-state';
+import { getVsCodeApi, useSendMessage } from '@/hooks/useSendMessage';
+import {
+  readWebviewState,
+  writeWebviewState,
+} from '../../../../common/vscode/webviewState';
 
 export const App: React.FC = () => {
   const logger = useLogger(false);
   const sendMessage = useSendMessage();
+  const vscode = getVsCodeApi<AppState>();
   
   const [state, setState] = useState<AppState>(() => {
-    // Initialize state from localStorage on component mount
     try {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      logger.debug(`Loading saved app state: ${savedState?.substring(0, 25)}...`);
-      if (savedState) {
-        return JSON.parse(savedState);
-      }
+      const savedState = readWebviewState(vscode, { view: 'input' });
+      logger.debug(`Loading saved app state: ${savedState.view}`);
+      return savedState;
     } catch (error) {
       logger.warn(`Failed to load saved app state: ${error}`);
     }
@@ -32,14 +32,13 @@ export const App: React.FC = () => {
     owner: 'owner'
   });
 
-  // Save state to localStorage whenever it changes
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      writeWebviewState(vscode, state);
     } catch (error) {
       logger.warn(`Failed to save app state: ${error}`);
     }
-  }, [state]);
+  }, [state, vscode, logger]);
 
   const handleFetchPR = (prInput: string) => {
     sendMessage(WebviewCommand.FETCH_PR, { prInput } )
@@ -59,13 +58,6 @@ export const App: React.FC = () => {
     logger.info('Starting over ...');
     const newState: AppState = { view: 'input', isCloning: false };
     setState(newState);
-    // Clear saved state when starting over
-    try {
-      logger.info(`Clearing app state from localStorage: ${STORAGE_KEY}`);
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      logger.warn(`Failed to clear saved app state: ${error}`);
-    }
   };
 
   // Handle messages from VS Code extension
@@ -106,7 +98,6 @@ export const App: React.FC = () => {
           }));
           break;
         case message.command === WebviewCommand.CLEAR_STATE:
-          // Clear state and localStorage when commanded by extension
           handleStartOver();
           break;
         case message.command === WebviewCommand.UPDATE_CLONING_STATE:

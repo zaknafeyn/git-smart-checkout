@@ -492,8 +492,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   dispose(): void {
-    if (this.prCloneService) {
-      this.prCloneService.dispose();
-    }
+    // The shared PrCloneService is owned and disposed by extension.ts.
   }
 }

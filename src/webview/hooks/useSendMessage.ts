@@ -1,16 +1,28 @@
 import { useCallback } from 'react';
+
 import { WebviewCommand } from '@/types/commands';
+
+export interface VsCodeApi<State = unknown> {
+  postMessage(message: unknown): void;
+  getState(): State | undefined;
+  setState(state: State): State;
+}
+
+export function getVsCodeApi<State = unknown>(): VsCodeApi<State> {
+  if (typeof window === 'undefined' || !(window as any).vscode) {
+    throw new Error('VS Code webview API is not available.');
+  }
+  return (window as any).vscode as VsCodeApi<State>;
+}
 
 export const useSendMessage = () => {
   const sendMessage = useCallback((command: WebviewCommand, data?: any) => {
-    if (typeof window !== 'undefined' && (window as any).vscode) {
-      console.debug(`[Webview]: Sending command: ${command}`);
+    console.debug(`[Webview]: Sending command: ${command}`);
 
-      (window as any).vscode.postMessage({
-        command,
-        ...data,
-      });
-    }
+    getVsCodeApi().postMessage({
+      command,
+      ...data,
+    });
   }, []);
 
   return sendMessage;

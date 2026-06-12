@@ -8,6 +8,23 @@ import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
 
+export function parseGitVersion(output: string): [number, number, number] | undefined {
+  const match = output.match(/\bgit version (\d+)\.(\d+)(?:\.(\d+))?/i);
+  if (!match) {
+    return undefined;
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
+}
+
+export function supportsMergeTreeWriteTree(output: string): boolean {
+  const version = parseGitVersion(output);
+  if (!version) {
+    return false;
+  }
+  const [major, minor] = version;
+  return major > 2 || (major === 2 && minor >= 38);
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -68,6 +85,8 @@ export class GitExecutor {
   #repositoryPath;
   #logService;
   #vscodeGitProvider: VscodeGitProvider | undefined;
+  #mergeTreeSupport?: Promise<boolean>;
+  #mergeTreeFallbackLogged = false;
 
   constructor(repositoryPath: string, logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
     this.#repositoryPath = repositoryPath;
@@ -469,6 +488,16 @@ export class GitExecutor {
   // `merge-tree` exits non-zero and writes conflicting paths to stdout when conflicts
   // are found, so we capture stdout from both the success and error paths.
   async getStashConflictPreview(targetRef: string): Promise<string[]> {
+    if (!(await this.#supportsMergeTreeWriteTree())) {
+      if (!this.#mergeTreeFallbackLogged) {
+        this.#logService.warn(
+          'Skipping stash conflict preview because Git 2.38 or newer is required for merge-tree --write-tree.'
+        );
+        this.#mergeTreeFallbackLogged = true;
+      }
+      return [];
+    }
+
     const { stdout: stashSha } = await this.#execGitCommand(['stash', 'create']);
     const sha = stashSha.trim();
     if (!sha) {
@@ -484,6 +513,13 @@ export class GitExecutor {
       const lines = out.split('\n').map((l: string) => l.trim()).filter(Boolean);
       return lines.slice(1); // skip the tree OID on the first line
     }
+  }
+
+  async #supportsMergeTreeWriteTree(): Promise<boolean> {
+    this.#mergeTreeSupport ??= this.#execGitCommand(['--version'])
+      .then(({ stdout }) => supportsMergeTreeWriteTree(stdout))
+      .catch(() => false);
+    return this.#mergeTreeSupport;
   }
 
   async getConflictedFiles() {
@@ -588,6 +624,10 @@ export class GitExecutor {
   async worktreeRemove(workTreePath: string, force = true) {
     const { stdout } = await this.#execGitCommand(['worktree', 'remove', workTreePath, ...(force ? ['--force'] : [])]);
     return stdout;
+  }
+
+  async worktreePrune(): Promise<void> {
+    await this.#execGitCommand(['worktree', 'prune']);
   }
 
   async worktreeAdd(workTreePath: string, targetBranch: string) {

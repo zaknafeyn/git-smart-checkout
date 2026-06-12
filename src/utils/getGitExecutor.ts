@@ -3,6 +3,32 @@ import { GitExecutor } from '../common/git/gitExecutor';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { getWorkspaceFoldersFormatted } from '../common/vscode';
 import { LoggingService } from '../logging/loggingService';
+import { execCommand } from './execCommand';
+
+type RepositoryQuickPickItem = QuickPickItem & {
+  path: string;
+};
+
+export async function resolveGitRepositoryRoot(
+  folderPath: string,
+  logService: LoggingService
+): Promise<string> {
+  try {
+    const { stdout } = await execCommand(
+      'git',
+      ['rev-parse', '--show-toplevel'],
+      logService,
+      { cwd: folderPath }
+    );
+    const repositoryRoot = stdout.trim();
+    if (!repositoryRoot) {
+      throw new Error('Git returned an empty repository root.');
+    }
+    return repositoryRoot;
+  } catch {
+    throw new Error(`Workspace folder "${folderPath}" is not inside a Git repository.`);
+  }
+}
 
 export const getGitExecutor = async (
   logService: LoggingService,
@@ -16,11 +42,14 @@ export const getGitExecutor = async (
   }
 
   if (wsFolders.length === 1) {
-    return new GitExecutor(wsFolders[0].path, logService, vscodeGitProvider);
+    const repositoryRoot = await resolveGitRepositoryRoot(wsFolders[0].path, logService);
+    return new GitExecutor(repositoryRoot, logService, vscodeGitProvider);
   }
 
-  const repositoryOptions: QuickPickItem[] = wsFolders.map((wsf) => ({
+  const repositoryOptions: RepositoryQuickPickItem[] = wsFolders.map((wsf) => ({
     label: wsf.name,
+    description: wsf.path,
+    path: wsf.path,
   }));
 
   const selectedOption = await window.showQuickPick(repositoryOptions, {
@@ -32,7 +61,9 @@ export const getGitExecutor = async (
     throw new Error('No repository selected');
   }
 
-  const repository = wsFolders.find(({ name }) => name === selectedOption.label);
-
-  return new GitExecutor(repository!.path, logService, vscodeGitProvider);
+  const repositoryRoot = await resolveGitRepositoryRoot(
+    (selectedOption as RepositoryQuickPickItem).path,
+    logService
+  );
+  return new GitExecutor(repositoryRoot, logService, vscodeGitProvider);
 };

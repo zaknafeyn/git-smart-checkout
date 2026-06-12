@@ -332,13 +332,13 @@ export async function resolveTagTemplate(
     const colonIdx = token.args.indexOf(':');
     if (colonIdx === -1) {
       ctx.logger.warn(`[Create Tag] Malformed file token: ${token.full}`);
-      result = result.replace(token.full, '');
+      result = result.replace(token.full, () => '');
       continue;
     }
     const filePath = token.args.substring(0, colonIdx).trim();
     const jsonPath = token.args.substring(colonIdx + 1).trim();
     const value = await resolveFileToken(filePath, jsonPath, ctx);
-    result = result.replace(token.full, value);
+    result = result.replace(token.full, () => value);
   }
 
   // Step 2: resolve {s:...} tokens (throws ScriptTokenError on failure)
@@ -348,7 +348,7 @@ export async function resolveTagTemplate(
     const stream = colonIdx === -1 ? 'stdout' : token.args.substring(0, colonIdx).trim().toLowerCase();
     const scriptPath = colonIdx === -1 ? token.args.trim() : token.args.substring(colonIdx + 1).trim();
     const value = await resolveScriptToken(stream, scriptPath, ctx);
-    result = result.replace(token.full, value);
+    result = result.replace(token.full, () => value);
   }
 
   // Step 3: resolve {b:...} tokens
@@ -374,7 +374,7 @@ export async function resolveTagTemplate(
         ctx.logger.info(`[Create Tag] Branch regex token found: ${token.args}`);
         value = extractFirstRegexMatch(branch, token.args, ctx.logger);
       }
-      result = result.replace(token.full, value);
+      result = result.replace(token.full, () => value);
     }
   }
 
@@ -391,7 +391,7 @@ export async function resolveTagTemplate(
   const buildCandidate = (suffix: string): string => {
     let candidate = result;
     for (const token of recurringTokens) {
-      candidate = candidate.replace(token.full, suffix);
+      candidate = candidate.replace(token.full, () => suffix);
     }
     return candidate;
   };
