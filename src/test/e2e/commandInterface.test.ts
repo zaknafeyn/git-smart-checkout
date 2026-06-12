@@ -1746,11 +1746,11 @@ describe('VS Code command interface', () => {
 
   it('createTagFromTemplate creates and pushes a tag through command prompts', async () => {
     const repo = createTagTestRepo();
-    const restoreInput = stubInputBox('command-v1.0.0');
+    const restoreInput = stubInputBox((options) => {
+      assert.strictEqual(options.value, '', 'manual entry should open an empty input box');
+      return 'command-v1.0.0';
+    });
     const info = stubInformationMessages((message, items) => {
-      if (message.includes('Create Git tag')) {
-        return 'Create';
-      }
       if (message.includes('Push tag')) {
         return 'Push';
       }
@@ -1775,6 +1775,53 @@ describe('VS Code command interface', () => {
       errors.restore();
       info.restore();
       restoreInput();
+      repo.cleanup();
+    }
+  });
+
+  it('createTagFromTemplate prefills the resolved template and lets the user edit it', async () => {
+    const repo = createTagTestRepo();
+    const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+    const originalTemplate = config.inspect<string>('tagTemplate')?.globalValue;
+    await config.update('tagTemplate', 'release-candidate', vscode.ConfigurationTarget.Global);
+    await delay(50);
+
+    let prefilledValue: string | undefined;
+    const restoreInput = stubInputBox((options) => {
+      prefilledValue = options.value;
+      return 'release-candidate-edited';
+    });
+    const info = stubInformationMessages((message, items) => {
+      if (message.includes('Push tag')) {
+        return 'Push';
+      }
+      return items[0];
+    });
+    const errors = stubErrorMessages();
+
+    try {
+      await withRepoWorkspace(repo, async () => {
+        await vscode.commands.executeCommand(commandId('createTagFromTemplate'));
+
+        assert.deepStrictEqual(errors.messages, []);
+        assert.strictEqual(
+          prefilledValue,
+          'release-candidate',
+          'input box should prefill the resolved template, mirroring branch creation'
+        );
+        assert.strictEqual(await repo.git.tagExists('release-candidate-edited'), true);
+        assert.strictEqual(
+          await repo.git.tagExists('release-candidate'),
+          false,
+          'the edited name should be used instead of the prefilled template'
+        );
+      });
+    } finally {
+      errors.restore();
+      info.restore();
+      restoreInput();
+      await config.update('tagTemplate', originalTemplate, vscode.ConfigurationTarget.Global);
+      await delay(50);
       repo.cleanup();
     }
   });
