@@ -77,6 +77,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.copyBranchName",
+        "title": "Copy current branch name to clipboard",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.pullWithStash",
         "title": "Pull (With Stash)",
         "category": "GSC"
@@ -195,6 +200,9 @@
         },
         {
           "command": "git-smart-checkout.checkoutPrevious"
+        },
+        {
+          "command": "git-smart-checkout.copyBranchName"
         },
         {
           "command": "git-smart-checkout.pullWithStash"

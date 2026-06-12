@@ -26,6 +26,7 @@ In fast-paced development environments, switching between Git branches is freque
 | --- | --- | --- |
 | Checkout to a branch, tag, or remote ref with configurable stash behavior | `Git Smart Checkout: Checkout to ... (With Stash)` | [Checkout with stash](docs/checkout-with-stash.md) |
 | Checkout the previous branch with the same stash behavior | `Git Smart Checkout: Checkout previous branch (With Stash)` | [Checkout previous branch with stash](docs/checkout-previous-branch-with-stash.md) |
+| Copy the current branch name to the clipboard | `Git Smart Checkout: Copy current branch name to clipboard` | [Copy current branch name](docs/copy-current-branch-name.md) |
 | Checkout a GitHub pull request branch by PR number or URL | `Git Smart Checkout: Checkout by PR number... (With Stash)` | [Checkout by PR number with stash](docs/checkout-by-pr-number-with-stash.md) |
 | Review a GitHub pull request in a linked worktree and remove tracked review worktrees | `Git Smart Checkout: PR Review in Worktree`, `Git Smart Checkout: Remove PR review in Worktree` | [PR review in worktree](docs/pr-review-in-worktree.md) |
 | Pull the current branch while preserving local changes | `Git Smart Checkout: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
