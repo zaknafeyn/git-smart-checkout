@@ -10,6 +10,7 @@ import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 import {
@@ -22,6 +23,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private commitsProvider?: PrCommitsWebViewProvider;
   private currentPrData?: GitHubPR;
+  private currentCommits: GitHubCommit[] = [];
 
   private git?: GitExecutor;
   private ghClient?: GitHubClient;
@@ -204,6 +206,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private updateWebviewWithPRData(prData: GitHubPR, commits: GitHubCommit[], branches: string[]) {
+    this.currentCommits = commits;
+
     if (!this.webviewView) {
       return;
     }
@@ -246,18 +250,21 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   public updateSelectedCommits(selectedCommits: string[]) {
-    this.loggingService.debug('selectedCommits', selectedCommits);
+    const orderedSelectedCommits = orderSelectedCommits(this.currentCommits, selectedCommits);
+    this.loggingService.debug('selectedCommits', orderedSelectedCommits);
     if (!this.webviewView) {
       return;
     }
 
     this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_SELECTED_COMMITS,
-      selectedCommits,
+      selectedCommits: orderedSelectedCommits,
     });
   }
 
   public clearState() {
+    this.currentCommits = [];
+
     if (!this.webviewView) {
       return;
     }
@@ -292,7 +299,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         targetBranch: data.targetBranch,
         featureBranch: data.featureBranch,
         description: data.description,
-        selectedCommits: data.selectedCommits,
+        selectedCommits: orderSelectedCommits(this.currentCommits, data.selectedCommits),
         isDraft: data.isDraft || false,
       };
 

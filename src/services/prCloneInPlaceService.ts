@@ -262,9 +262,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       );
 
       // create commits generator
-      this.commitGenerator = new CommitsGenerator(this.git, data.selectedCommits)[
-        Symbol.asyncIterator
-      ]();
+      this.commitGenerator = new CommitsGenerator(data.selectedCommits)[Symbol.asyncIterator]();
 
       // start cherry picking
       this.cherryPickNext();

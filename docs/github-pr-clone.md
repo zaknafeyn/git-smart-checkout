@@ -25,7 +25,7 @@ The GitHub PR Clone feature creates a new pull request by cherry-picking selecte
 6. Select the commits to cherry-pick.
 7. Let the extension create the branch, cherry-pick commits, and create the new PR or draft PR.
 
-During the cherry-pick process, the extension stashes uncommitted workspace changes, switches to the target branch, pulls the latest changes, creates a feature branch, and cherry-picks the selected commits one by one.
+During the cherry-pick process, the extension stashes uncommitted workspace changes, switches to the target branch, pulls the latest changes, creates a feature branch, and cherry-picks the selected commits one by one. Selected commits retain the topological order returned by GitHub, including when multiple commits have identical timestamps.
 
 ## Conflict Handling
 

@@ -628,16 +628,6 @@ export class GitExecutor {
     await this.#execGitCommand(['push', '-u', 'origin', branchName]);
   }
 
-  async getCommitTimestamp(sha: string) {
-    try {
-      const { stdout } = await this.#execGitCommand(['show', '--format=%ct', '--no-patch', sha]);
-      const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
-      return { sha, timestamp };
-    } catch (error) {
-      return { sha, timestamp: 0 };
-    }
-  }
-
   async tagExists(tagName: string): Promise<boolean> {
     try {
       await this.#execGitCommand(['show-ref', '--verify', '--quiet', `refs/tags/${tagName}`]);
