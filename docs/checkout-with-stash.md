@@ -39,7 +39,9 @@ If a branch is already checked out in another Git worktree, the checkout picker 
 
 ## Conflict Pre-Flight
 
-For auto stash and pop/apply modes, Git 2.38 or newer allows the extension to preview stash conflicts before switching branches. If conflicts are predicted, you can cancel before the checkout changes your working tree.
+For auto stash and pop/apply modes, Git 2.38 or newer allows the extension to preview tracked-file stash conflicts before switching branches. If conflicts are predicted, you can cancel before the checkout changes your working tree.
+
+The preview does not include untracked files. An untracked file may still conflict with a file on the target branch when the stash is restored.
 
 ## Media
 

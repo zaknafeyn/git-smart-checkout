@@ -6,7 +6,7 @@ Website: https://git-smart-checkout.vradchuk.info
 
 ## Requirements
 
-- Git **2.38** or newer (required for conflict pre-flight detection in auto stash and pop/apply modes)
+- Git **2.38** or newer (required for tracked-file conflict pre-flight detection in auto stash and pop/apply modes; untracked-file conflicts are not previewed)
 
 ## Info
 

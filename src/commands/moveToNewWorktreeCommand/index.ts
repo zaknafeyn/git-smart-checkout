@@ -287,6 +287,7 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     const message =
       `Creating the worktree will ${operation} a stash that conflicts with the target branch.\n\n` +
       `Conflicting files:\n${fileList}\n\n` +
+      `This preview covers tracked files only; untracked files may still conflict.\n\n` +
       `Continue anyway? You will need to resolve conflicts manually in the new worktree.`;
     const choice = await vscode.window.showWarningMessage(
       message,
