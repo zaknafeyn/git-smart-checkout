@@ -35,6 +35,7 @@ When conflicts occur during cherry-picking, you can:
 - Cancel the process and restore the original state.
 
 The process is tracked with progress indicators and can be safely cancelled.
+In temporary-worktree mode, cancellation is reported as a normal outcome, and the temporary branch and worktree are cleaned up.
 
 ## Related Settings
 
