@@ -37,6 +37,8 @@ If a branch is already checked out in another Git worktree, the checkout picker 
 > [!TIP]
 > Stashes created by "Auto stash and apply in new branch" are not used by the automatic branch-restore flow. They remain available for manual stash access.
 
+Stashes are matched by their complete message after Git's `On <branch>: ` subject prefix. Message text containing `: ` is preserved when the extension locates a stash to pop or apply.
+
 ## Conflict Pre-Flight
 
 For auto stash and pop/apply modes, Git 2.38 or newer allows the extension to preview stash conflicts before switching branches. If conflicts are predicted, you can cancel before the checkout changes your working tree.

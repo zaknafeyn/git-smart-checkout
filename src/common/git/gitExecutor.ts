@@ -8,6 +8,11 @@ import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
 
+function stripStashSubjectPrefix(subject: string): string {
+  const prefixEnd = subject.indexOf(': ');
+  return prefixEnd === -1 ? subject : subject.slice(prefixEnd + 2);
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -353,10 +358,9 @@ export class GitExecutor {
     // Create a mapping of index to stash message
     const stashes = stashesStrings.map((message, index) => {
       // Remove the "On <branch>: " prefix
-      const formattedMessage = message.split(': ')[1];
       return {
         index,
-        message: formattedMessage,
+        message: stripStashSubjectPrefix(message),
       };
     });
 
@@ -446,10 +450,7 @@ export class GitExecutor {
         .trim()
         .split('\n')
         .filter((line) => line.trim() !== '');
-      const stashMessages = stashesStrings.map((msgWithPrefix) => {
-        const parts = msgWithPrefix.split(': ');
-        return parts.length > 1 ? parts.slice(1).join(': ') : msgWithPrefix;
-      });
+      const stashMessages = stashesStrings.map(stripStashSubjectPrefix);
 
       return stashMessages.some((msg) => msg === message);
     } catch {
