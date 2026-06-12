@@ -135,10 +135,12 @@ export class GitExecutor {
 
   async #checkRemoteBranchExists(
     branchName: string,
-    includeRemoteName = false,
+    includeRemoteName = true,
     remoteName = 'origin'
   ): Promise<boolean> {
-    const ref = `refs/remotes${includeRemoteName ? `/${remoteName}` : ''}/${branchName}`;
+    const ref = includeRemoteName
+      ? `refs/remotes/${remoteName}/${branchName}`
+      : `refs/remotes/${branchName}`;
     try {
       await this.#execGitCommand(['show-ref', '--verify', '--quiet', ref]);
       return true;
@@ -184,7 +186,7 @@ export class GitExecutor {
   async checkout(branchName: string, remoteName = 'origin') {
     // Check if it's a remote branch that doesn't have a local counterpart
     const localBranchExists = await this.#checkLocalBranchExists(branchName);
-    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
+    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName, true, remoteName);
 
     if (!localBranchExists && remoteBranchExists) {
       // Create a local tracked branch for the remote branch
@@ -623,7 +625,7 @@ export class GitExecutor {
       return true;
     }
 
-    return await this.#checkRemoteBranchExists(branchName);
+    return await this.#checkRemoteBranchExists(branchName, true);
   }
 
   async hasUpstreamBranch(branchName: string): Promise<boolean> {
