@@ -547,8 +547,8 @@ export class GitExecutor {
 
   async isCherryPickInProgress(): Promise<boolean> {
     try {
-      const { stdout } = await this.#execGitCommand(['status', '--porcelain=v1']);
-      return stdout.includes('You are currently cherry-picking');
+      await this.#execGitCommand(['rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD']);
+      return true;
     } catch {
       return false;
     }
