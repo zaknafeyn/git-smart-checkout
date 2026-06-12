@@ -149,6 +149,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         // Continue with PR fetching even if fetch fails
       }
 
+      // GitHub's list-commits endpoint caps at 250 commits. If the PR reports
+      // more than that, the commit list (and therefore the clone) is incomplete.
+      if (prData.commits !== undefined && prData.commits > GitHubClient.MAX_PR_COMMITS) {
+        const warning = `PR #${prNumber} has ${prData.commits} commits, but GitHub only exposes the first ${GitHubClient.MAX_PR_COMMITS}. This PR is too large to clone fully.`;
+        this.loggingService.warn(warning);
+        await window.showWarningMessage(warning, 'OK');
+      }
+
       const commits = await this.ghClient.fetchPullRequestCommits(prNumber);
 
       // Fetch detailed information for each commit including files
