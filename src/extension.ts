@@ -217,6 +217,8 @@ export function activate(context: vscode.ExtensionContext) {
   const clonePullRequestCommand = commands.registerCommand(
     `${EXTENSION_NAME}.clonePullRequest`,
     async () => {
+      capture(AnalyticsEvent.PrCloneOpened);
+
       // get exact repository
       const git = await getGitExecutor(logService);
 
@@ -283,6 +285,7 @@ export function activate(context: vscode.ExtensionContext) {
   const prConflictsResolvedMenuCommand = commands.registerCommand(
     `${EXTENSION_NAME}.prConflictsResolvedMenu`,
     async () => {
+      capture(AnalyticsEvent.PrCloneConflictsResolved);
       await prCloneService.cherryPickNext(true);
     }
   );

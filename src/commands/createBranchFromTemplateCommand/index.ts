@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { captureException } from '../../analytics/analytics';
+import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import {
@@ -162,6 +162,10 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     try {
       await git.createBranch(branchName);
       log(`Branch created and checked out: ${branchName}`);
+      capture(AnalyticsEvent.BranchFromTemplateCreated, {
+        used_jira: Boolean(jiraKey),
+        had_recurring_token: hadRecurringToken,
+      });
     } catch (e) {
       captureException(e);
       this.logService.error('[Create Branch] Branch creation failed', e);
