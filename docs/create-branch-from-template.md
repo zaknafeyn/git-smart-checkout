@@ -9,12 +9,25 @@ Create and check out a new Git branch from a configurable template. Supports Jir
 
 ## Jira Configuration
 
-| Setting | Description |
+The quickest way to get set up is the `Git Smart Checkout: Init Jira` command, which walks through three prompts:
+
+1. **Domain** — prefilled with the current value if already set.
+2. **Username** — prefilled with the current value if already set.
+3. **API token** — prefilled and masked (shown as dots) if a token is already stored; leave it unchanged to keep it, clear it to remove it, or type a new one.
+
+Domain and username are written to settings (and stay editable there); the API token is stored in [VS Code Secret Storage](https://code.visualstudio.com/api/references/vscode-api#SecretStorage). You can also manage these individually:
+
+| Setting / Command | Description |
 | --- | --- |
 | `git-smart-checkout.jira.domain` | Jira Cloud host, e.g. `your-company.atlassian.net` |
 | `git-smart-checkout.jira.username` | Atlassian account username (usually your Atlassian account email) |
-| `git-smart-checkout.jira.token` | API token from [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 | `git-smart-checkout.jira.projectKeys` | Optional list of project keys to limit the issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
+| `Git Smart Checkout: Set Jira token` | Set or replace just the API token. It is stored in Secret Storage rather than plaintext settings (which can be synced via Settings Sync). Run it with an empty value to remove the stored token. |
+
+> [!NOTE]
+> If you previously set the deprecated `git-smart-checkout.jira.token` setting, it is migrated into Secret Storage and cleared from settings automatically the next time the extension activates.
+
+Create the token at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
 **Unscoped token (recommended):** use **Create API token** (classic). It works with `https://<domain>.atlassian.net` and needs no scope selection.
 
