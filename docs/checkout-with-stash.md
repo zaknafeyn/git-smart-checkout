@@ -31,11 +31,15 @@ If a branch is already checked out in another Git worktree, the checkout picker 
 | Auto stash and apply in new branch | Stashes current changes, checks out the target branch, then applies the stash onto the target branch while keeping the stash entry available. |
 | No auto stash | Runs checkout without automatic stash handling. Git may block the checkout if local changes would be overwritten. |
 
+Temporary stashes used by the pop/apply flows are named `auto-stash-<branch>-<yyyy-MM-ddTHH:mm:ss>`, with `HH` recorded in 24-hour time.
+
 > [!TIP]
 > Set the default behavior with `Git Smart Checkout: Switch Mode` or the status bar item. When the mode is `manual`, this command asks you to select a stash mode each time.
 
 > [!TIP]
 > Stashes created by "Auto stash and apply in new branch" are not used by the automatic branch-restore flow. They remain available for manual stash access.
+
+Stashes are matched by their complete message after Git's `On <branch>: ` subject prefix. Message text containing `: ` is preserved when the extension locates a stash to pop or apply.
 
 ## Conflict Pre-Flight
 

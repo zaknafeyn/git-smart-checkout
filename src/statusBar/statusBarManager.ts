@@ -18,6 +18,14 @@ import {
 } from '../configuration/extensionConfig';
 import { AnalyticsEvent, capture } from '../analytics/analytics';
 
+export function getStatusBarBackgroundColor(
+  mode: TAutoStashModeConfig
+): ThemeColor | undefined {
+  return mode === AUTO_STASH_MODE_MANUAL
+    ? undefined
+    : new ThemeColor('statusBarItem.warningBackground');
+}
+
 export class StatusBarManager implements Disposable {
   private statusBarItem: StatusBarItem;
   private configManager: ConfigurationManager;
@@ -41,12 +49,7 @@ export class StatusBarManager implements Disposable {
     this.statusBarItem.text = `${modeDetails.icon} ${modeDetails.briefLabel}`;
     this.statusBarItem.tooltip = `${EXTENSION_NAME}\nCurrent mode: ${modeDetails.label}\nClick to switch modes`;
 
-    const statusBarColor =
-      config.mode === AUTO_STASH_MODE_MANUAL
-        ? 'statusBarItem.descriptionForeground'
-        : 'statusBarItem.warningBackground';
-
-    this.statusBarItem.backgroundColor = new ThemeColor(statusBarColor);
+    this.statusBarItem.backgroundColor = getStatusBarBackgroundColor(config.mode);
 
     if (config.showStatusBar) {
       this.statusBarItem.show();
@@ -69,7 +72,7 @@ export class StatusBarManager implements Disposable {
     });
 
     const selection = await window.showQuickPick(items, {
-      title: 'Select Auto Stash Checkout  Mode',
+      title: 'Select Auto Stash Checkout Mode',
       placeHolder: 'Choose the operating mode for your extension',
     });
 
@@ -77,7 +80,7 @@ export class StatusBarManager implements Disposable {
       return;
     }
 
-    this.loggingService.info(`Auto Stash Checkout  Mode: ${selection?.label}`);
+    this.loggingService.info(`Auto Stash Checkout Mode: ${selection?.label}`);
 
     const [_, ...rest] = selection.label.split(' ');
     const newModeLabel = rest.join(' ');

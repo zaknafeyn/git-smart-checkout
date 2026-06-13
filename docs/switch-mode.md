@@ -26,7 +26,9 @@ For rebase, `autoStashAndPop` and `autoStashAndApply` are treated as "Auto stash
 
 ## Status Bar
 
-The status bar item shows the current mode and opens the same mode picker. Hide it with:
+The status bar item shows the current mode and opens the same mode picker. Manual mode uses
+the normal status bar background, while automatic modes use the warning background to remain
+visually distinct. Hide the item with:
 
 ```json
 "git-smart-checkout.showStatusBar": false
