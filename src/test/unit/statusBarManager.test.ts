@@ -23,7 +23,7 @@ describe('getStatusBarBackgroundColor', () => {
       const color = getStatusBarBackgroundColor(mode);
 
       assert.ok(color instanceof ThemeColor);
-      assert.strictEqual(color.id, 'statusBarItem.warningBackground');
+      assert.deepStrictEqual(color, new ThemeColor('statusBarItem.warningBackground'));
     });
   }
 });

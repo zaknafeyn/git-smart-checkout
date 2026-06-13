@@ -8,6 +8,23 @@ import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
 
+export function parseGitVersion(output: string): [number, number, number] | undefined {
+  const match = output.match(/\bgit version (\d+)\.(\d+)(?:\.(\d+))?/i);
+  if (!match) {
+    return undefined;
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
+}
+
+export function supportsMergeTreeWriteTree(output: string): boolean {
+  const version = parseGitVersion(output);
+  if (!version) {
+    return false;
+  }
+  const [major, minor] = version;
+  return major > 2 || (major === 2 && minor >= 38);
+}
+
 type StashConflictPreviewError = ExecException & {
   stdout?: string;
   stderr?: string;
@@ -152,6 +169,8 @@ export class GitExecutor {
   #repositoryPath;
   #logService;
   #vscodeGitProvider: VscodeGitProvider | undefined;
+  #mergeTreeSupport?: Promise<boolean>;
+  #mergeTreeFallbackLogged = false;
 
   constructor(repositoryPath: string, logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
     this.#repositoryPath = repositoryPath;
@@ -535,6 +554,16 @@ export class GitExecutor {
   // Untracked files are not included in this preview and may still conflict when
   // the real stash, which includes untracked files, is restored. Requires Git >= 2.38.
   async getStashConflictPreview(targetRef: string): Promise<string[]> {
+    if (!(await this.#supportsMergeTreeWriteTree())) {
+      if (!this.#mergeTreeFallbackLogged) {
+        this.#logService.warn(
+          'Skipping stash conflict preview because Git 2.38 or newer is required for merge-tree --write-tree.'
+        );
+        this.#mergeTreeFallbackLogged = true;
+      }
+      return [];
+    }
+
     const { stdout: stashSha } = await this.#execGitCommand(['stash', 'create']);
     const sha = stashSha.trim();
     if (!sha) {
@@ -550,6 +579,13 @@ export class GitExecutor {
         this.#logService
       );
     }
+  }
+
+  async #supportsMergeTreeWriteTree(): Promise<boolean> {
+    this.#mergeTreeSupport ??= this.#execGitCommand(['--version'])
+      .then(({ stdout }) => supportsMergeTreeWriteTree(stdout))
+      .catch(() => false);
+    return this.#mergeTreeSupport;
   }
 
   async getConflictedFiles() {
@@ -654,6 +690,10 @@ export class GitExecutor {
   async worktreeRemove(workTreePath: string, force = true) {
     const { stdout } = await this.#execGitCommand(['worktree', 'remove', workTreePath, ...(force ? ['--force'] : [])]);
     return stdout;
+  }
+
+  async worktreePrune(): Promise<void> {
+    await this.#execGitCommand(['worktree', 'prune']);
   }
 
   async worktreeAdd(workTreePath: string, targetBranch: string) {

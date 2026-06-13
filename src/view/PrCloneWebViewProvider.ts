@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   commands,
+  Disposable,
   ExtensionContext,
   Uri,
   type Webview,
@@ -50,6 +51,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private currentCommits: GitHubCommit[] = [];
 
   private cloneServiceCleanUpAssigned = false;
+  private readonly repositoryChangeSubscription: Disposable;
 
   constructor(
     private context: ExtensionContext,
@@ -57,7 +59,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     private configurationManager: ConfigurationManager,
     private prCloneService: PrCloneService
   ) {
-    this.prCloneService.onDidChangeRepository(() => {
+    this.repositoryChangeSubscription = this.prCloneService.onDidChangeRepository(() => {
       this.clearState();
       this.updateRepoInfo();
     });
@@ -539,8 +541,6 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   dispose(): void {
-    if (this.prCloneService) {
-      this.prCloneService.dispose();
-    }
+    this.repositoryChangeSubscription.dispose();
   }
 }

@@ -6,7 +6,7 @@ Website: https://git-smart-checkout.vradchuk.info
 
 ## Requirements
 
-- Git **2.38** or newer (required for tracked-file conflict pre-flight detection in auto stash and pop/apply modes; untracked-file conflicts are not previewed)
+- Git **2.38** or newer is recommended for tracked-file conflict pre-flight detection in auto stash and pop/apply modes. On older Git versions, the extension logs that the preview is unavailable and continues without it; untracked-file conflicts are not previewed.
 - GitHub features support HTTPS and SSH GitHub remotes, including repository names that contain dots.
 
 ## Info
@@ -59,6 +59,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.branchTemplate`](vscode://settings/git-smart-checkout.branchTemplate) (Branch template) | `string` | Template for **Create Branch from Template ...**. Supports `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:...}`, `{b:...}`, `{r:...}`, `{s:...}`. Example: `vradchuk/{jira-key}-{jira-title:25:-}-{r:1}`. |
 | ⚙️ [`git-smart-checkout.jira.domain`](vscode://settings/git-smart-checkout.jira.domain) (Jira domain) | `string` | Jira Cloud host (e.g. `your-company.atlassian.net`). Required when the branch template uses Jira tokens. |
 | ⚙️ [`git-smart-checkout.jira.username`](vscode://settings/git-smart-checkout.jira.username) (Jira username) | `string` | Atlassian account username for Jira API authentication (usually your Atlassian account email). |
+| ⚙️ [`git-smart-checkout.jira.email`](vscode://settings/git-smart-checkout.jira.email) (Deprecated Jira email) | `string` | Deprecated compatibility fallback used only when `jira.username` is empty. Migrate to `git-smart-checkout.jira.username`. |
 | ⚙️ [`git-smart-checkout.jira.token`](vscode://settings/git-smart-checkout.jira.token) (Jira API token) | `string` | Jira API token. See setting description for unscoped vs scoped token guidance. |
 | ⚙️ [`git-smart-checkout.jira.projectKeys`](vscode://settings/git-smart-checkout.jira.projectKeys) (Jira project keys) | `array` | Optional list of project keys that limit the Jira issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |

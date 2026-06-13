@@ -143,7 +143,7 @@ export async function resolveBranchTemplate(
     if (!title) {
       ctx.logger.warn('[Create Branch] Jira title token present but no Jira issue title available.');
     }
-    result = result.replace(token.full, value);
+    result = result.replace(token.full, () => value);
   }
 
   const tagCtx: TagTemplateContext = {

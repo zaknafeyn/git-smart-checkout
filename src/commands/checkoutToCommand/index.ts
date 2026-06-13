@@ -44,8 +44,11 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const git = await this.getGitExecutor(this.vscodeGitProvider);
 
-      const { currentBranch, selection, selectedRef, branchList } =
-        await this.getSelectedOption(git);
+      const selectedOption = await this.getSelectedOption(git);
+      if (!selectedOption) {
+        return;
+      }
+      const { currentBranch, selection, selectedRef, branchList } = selectedOption;
 
       const isNewBranch =
         selection === LABEL_CREATE_NEW_BRANCH ||
@@ -103,7 +106,7 @@ export class CheckoutToCommand extends BaseCommand {
     selection: string;
     selectedRef?: IGitRef;
     branchList: IGitRef[];
-  }> {
+  } | undefined> {
     let currentBranch = '';
     try {
       currentBranch = await git.getCurrentBranch();
@@ -279,7 +282,7 @@ export class CheckoutToCommand extends BaseCommand {
     enrichSub?.dispose();
 
     if (!picked) {
-      throw new Error();
+      return undefined;
     }
 
     if (picked.kind === 'action') {

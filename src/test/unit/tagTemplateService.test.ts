@@ -219,6 +219,15 @@ describe('tagTemplateService', () => {
       assert.ok(logger.warnings.some((w) => w.includes('not found')));
     });
 
+    it('inserts replacement metacharacters from file values literally', async () => {
+      const ctx = makeCtx({
+        readFile: async () => JSON.stringify({ version: "$'" }),
+        realpath: async (p) => p,
+      });
+      const result = await resolveTagTemplate('v{f:package.json:.version}', ctx);
+      assert.strictEqual(result.tag, "v$'");
+    });
+
     it('resolves branch token to empty string on invalid regex', async () => {
       const logger = makeLogger();
       const ctx = makeCtx({
@@ -353,6 +362,15 @@ describe('tagTemplateService', () => {
         });
         const result = await resolveTagTemplate('v{s:stdout:./get-version.sh}', ctx);
         assert.strictEqual(result.tag, 'v2.0.0');
+      });
+
+      it('inserts replacement metacharacters from script output literally', async () => {
+        const ctx = makeCtx({
+          realpath: async (p) => p,
+          runScript: async () => ({ stdout: '$&', stderr: '', exitCode: 0 }),
+        });
+        const result = await resolveTagTemplate('v{s:stdout:./get-version.sh}', ctx);
+        assert.strictEqual(result.tag, 'v$&');
       });
 
       it('{s:./script.sh} without stream defaults to stdout', async () => {

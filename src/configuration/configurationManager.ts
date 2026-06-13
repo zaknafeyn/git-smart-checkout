@@ -14,35 +14,17 @@ export class ConfigurationManager {
   private config: ExtensionConfig;
 
   constructor() {
-    const vscodeConfig = workspace.getConfiguration(EXTENSION_NAME);
-
-    this.config = {
-      mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
-      useFastBranchList: vscodeConfig.get('useFastBranchList', true),
-      showStatusBar: vscodeConfig.get('showStatusBar', true),
-      defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
-      defaultWorktreeDirectory: vscodeConfig.get('defaultWorktreeDirectory', ''),
-      prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
-      useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
-      preferredRefs: vscodeConfig.get('preferredRefs', {} as PreferredRefsMap),
-      logging: {
-        enabled: vscodeConfig.get('logging.enabled', true),
-      },
-      telemetry: {
-        enabled: vscodeConfig.get('telemetry.enabled', true),
-      },
-      tagTemplate: vscodeConfig.get('tagTemplate', ''),
-      pushTagWithoutConfirmation: vscodeConfig.get('pushTagWithoutConfirmation', false),
-      tagRemote: vscodeConfig.get('tagRemote', 'origin'),
-      branchTemplate: vscodeConfig.get('branchTemplate', ''),
-      jira: this.readJiraConfig(vscodeConfig),
-    };
+    this.config = this.readConfig();
   }
 
   public reload() {
+    this.config = this.readConfig();
+  }
+
+  private readConfig(): ExtensionConfig {
     const vscodeConfig = workspace.getConfiguration(EXTENSION_NAME);
 
-    this.config = {
+    return {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
