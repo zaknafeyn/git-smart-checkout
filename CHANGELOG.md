@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.8.1...v0.9.0) (2026-06-13)
+
+
+### Features
+
+* **analytics:** emit events for all remaining commands ([#104](https://github.com/zaknafeyn/git-smart-checkout/issues/104)) ([41247fc](https://github.com/zaknafeyn/git-smart-checkout/commit/41247fc8362760a57ab6b478a02551562ed02620))
+
 ## [0.8.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.8.0...v0.8.1) (2026-06-13)
 
 

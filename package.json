@@ -20,7 +20,7 @@
     "clone pull request"
   ],
   "license": "MIT",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
