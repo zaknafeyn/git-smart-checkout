@@ -1,4 +1,4 @@
-import { ExtensionContext, ExtensionMode } from 'vscode';
+import { Event, EventEmitter, ExtensionContext, ExtensionMode } from 'vscode';
 
 import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
@@ -29,6 +29,8 @@ export class PrCloneService {
   private _inPlaceService?: PrCloneInPlaceService;
   private _git?: GitExecutor;
   private _ghClient?: GitHubClient;
+  private readonly cleanUpActions: ICleanUpActions[] = [];
+  private readonly repositoryChangedEmitter = new EventEmitter<void>();
 
   private _isInited = false;
 
@@ -42,6 +44,10 @@ export class PrCloneService {
 
   get isInited(): boolean {
     return this._isInited;
+  }
+
+  get onDidChangeRepository(): Event<void> {
+    return this.repositoryChangedEmitter.event;
   }
 
   get TempWorktreeService(): PrCloneTempWorktreeService {
@@ -79,23 +85,34 @@ export class PrCloneService {
   //#endregion properties
 
   init(git: GitExecutor, ghClient: GitHubClient) {
-    if (!this.isInited) {
-      this._isInited = true;
-      this._git = git;
-      this._ghClient = ghClient;
-
-      this._tempWorktreeService = new PrCloneTempWorktreeService(
-        this.git,
-        this.ghClient,
-        this.loggingService
-      );
-
-      this._inPlaceService = new PrCloneInPlaceService(
-        this.git,
-        this.ghClient,
-        this.loggingService
-      );
+    if (
+      this.isInited &&
+      this.git.repositoryPath === git.repositoryPath &&
+      this.ghClient.owner === ghClient.owner &&
+      this.ghClient.repo === ghClient.repo
+    ) {
+      return;
     }
+
+    this._tempWorktreeService?.dispose();
+    this._inPlaceService?.dispose();
+
+    this._git = git;
+    this._ghClient = ghClient;
+    this._tempWorktreeService = new PrCloneTempWorktreeService(
+      git,
+      ghClient,
+      this.loggingService
+    );
+    this._inPlaceService = new PrCloneInPlaceService(git, ghClient, this.loggingService);
+
+    for (const cleanUpActions of this.cleanUpActions) {
+      this._tempWorktreeService.addCleanUpActions(cleanUpActions);
+      this._inPlaceService.addCleanUpActions(cleanUpActions);
+    }
+
+    this._isInited = true;
+    this.repositoryChangedEmitter.fire();
   }
 
   async clonePR(data: PrCloneData): Promise<void> {
@@ -135,16 +152,17 @@ export class PrCloneService {
   }
 
   addCleanUpActions(cleanUpActions: ICleanUpActions) {
+    this.cleanUpActions.push(cleanUpActions);
     this.InPlaceService.addCleanUpActions(cleanUpActions);
     this.TempWorktreeService.addCleanUpActions(cleanUpActions);
   }
 
   dispose(): void {
-    if (!this.isInited) {
-      return;
+    if (this.isInited) {
+      this.TempWorktreeService.dispose();
+      this.InPlaceService.dispose();
     }
 
-    this.TempWorktreeService.dispose();
-    this.InPlaceService.dispose();
+    this.repositoryChangedEmitter.dispose();
   }
 }
