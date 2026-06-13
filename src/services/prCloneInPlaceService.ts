@@ -215,7 +215,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();
-      updateProgress?.report({ message: 'Checking for uncommitted changes...' });
+      updateProgress.report({ message: 'Checking for uncommitted changes...' });
 
       const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
       if (hasUncommittedChanges) {
@@ -232,7 +232,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 2: Fetch the PR's origin branch
-      updateProgress?.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
+      updateProgress.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
       try {
         await this.git.fetchSpecificBranch(data.prData.head.ref);
         this.loggingService.info(`Fetched PR branch: ${data.prData.head.ref}`);
@@ -241,10 +241,10 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 3: Switch to base branch and pull latest changes
-      updateProgress?.report({ message: `Switching to base branch: ${data.targetBranch}...` });
+      updateProgress.report({ message: `Switching to base branch: ${data.targetBranch}...` });
       await this.git.checkout(data.targetBranch);
 
-      updateProgress?.report({ message: 'Pulling latest changes...' });
+      updateProgress.report({ message: 'Pulling latest changes...' });
       try {
         await this.git.pullCurrentBranch();
         this.loggingService.info(`Pulled latest changes for ${data.targetBranch}`);
@@ -253,7 +253,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 4: Create unique feature branch
-      updateProgress?.report({ message: 'Creating feature branch...' });
+      updateProgress.report({ message: 'Creating feature branch...' });
       this.serviceStore.createdBranchName = await this.git.createUniqueFeatureBranch(
         data.featureBranch,
         data.targetBranch
