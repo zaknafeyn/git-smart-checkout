@@ -1,3 +1,14 @@
+## [0.8.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.8.0...v0.8.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* address assorted review defects ([#99](https://github.com/zaknafeyn/git-smart-checkout/issues/99)) ([9ee5391](https://github.com/zaknafeyn/git-smart-checkout/commit/9ee53919c51e67f7e3608c3a5ae6efe89c674ccd))
+* **deps:** resolve esbuild and qs Dependabot alerts ([#103](https://github.com/zaknafeyn/git-smart-checkout/issues/103)) ([11c791c](https://github.com/zaknafeyn/git-smart-checkout/commit/11c791c1aa838c0fc03bb1639d72c8510127fa3d))
+* handle temp worktree clone cancellation ([#96](https://github.com/zaknafeyn/git-smart-checkout/issues/96)) ([7272906](https://github.com/zaknafeyn/git-smart-checkout/commit/727290670f12caf605689098d5a586b6cf1823b3))
+* recover from in-place PR clone failures ([#89](https://github.com/zaknafeyn/git-smart-checkout/issues/89)) ([35143be](https://github.com/zaknafeyn/git-smart-checkout/commit/35143bea8f20aa1879dad8d3eed9f498f66c0522))
+* reject cross-repository PR URLs ([#98](https://github.com/zaknafeyn/git-smart-checkout/issues/98)) ([3f76d43](https://github.com/zaknafeyn/git-smart-checkout/commit/3f76d4317a01417e365325efbed781471d4bf5e6))
+
 # [0.8.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.2...v0.8.0) (2026-06-13)
 
 
