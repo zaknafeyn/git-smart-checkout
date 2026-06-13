@@ -6,6 +6,7 @@ import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubCommit } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
 import { PrCloneService } from '../services/prCloneService';
 
@@ -35,7 +36,10 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
       if (savedState) {
         this.commits = savedState.commits || [];
-        this.selectedCommits = savedState.selectedCommits || [];
+        this.selectedCommits = orderSelectedCommits(
+          this.commits,
+          savedState.selectedCommits || []
+        );
       }
     } catch (error) {
       this.loggingService.warn(`Failed to load persisted commits state: ${error}`);
@@ -62,8 +66,8 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     if (!this.cloneServiceCleanUpAssigned) {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
-        cleanUpActionEnd: () => {
-          webviewView.webview.postMessage({
+        cleanUpActionEnd: async () => {
+          await webviewView.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });
@@ -156,6 +160,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     } else {
       this.selectedCommits = [...this.selectedCommits, sha];
     }
+    this.selectedCommits = orderSelectedCommits(this.commits, this.selectedCommits);
 
     this.savePersistedState();
     // Send updated commits due to user checkbox toggle

@@ -28,7 +28,9 @@ The GitHub PR Clone feature creates a new pull request by cherry-picking selecte
 When entering a GitHub PR URL, use one for the current repository. URLs for another
 owner or repository are rejected before any PR data is fetched.
 
-During the cherry-pick process, the extension stashes uncommitted workspace changes, switches to the target branch, pulls the latest changes, creates a feature branch, and cherry-picks the selected commits one by one.
+If the source PR cannot be loaded, the extension shows the error and resets **Fetch PR Data** so you can correct the PR number or retry.
+
+During the cherry-pick process, the extension stashes uncommitted workspace changes, switches to the target branch, pulls the latest changes, creates a feature branch, and cherry-picks the selected commits one by one. Selected commits retain the topological order returned by GitHub, including when multiple commits have identical timestamps.
 
 In a multi-root workspace, the command asks which repository to use each time it runs. Switching repositories refreshes the repository shown in the PR Clone view and all subsequent PR data and Git operations use the newly selected repository.
 
@@ -43,6 +45,13 @@ When conflicts occur during cherry-picking, you can:
 
 The process is tracked with a progress notification that remains active throughout initialization
 and can be safely cancelled at any point.
+In temporary-worktree mode, cancellation is reported as a normal outcome, and the temporary branch
+and worktree are cleaned up.
+
+If an in-place clone fails during branch setup, cherry-picking, push, or pull request creation,
+the extension stops the progress notification, attempts to restore the original branch and
+stashed changes, removes the temporary feature branch when possible, and re-enables the clone
+controls.
 
 ## Related Settings
 

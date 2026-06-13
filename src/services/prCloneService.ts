@@ -20,8 +20,8 @@ export interface PrCloneData {
 }
 
 export interface ICleanUpActions {
-  cleanUpActionBegin?: () => void;
-  cleanUpActionEnd?: () => void;
+  cleanUpActionBegin?: () => void | Promise<void>;
+  cleanUpActionEnd?: () => void | Promise<void>;
 }
 
 export class PrCloneService {
@@ -118,12 +118,17 @@ export class PrCloneService {
   async clonePR(data: PrCloneData): Promise<void> {
     const config = this.configurationManager.get();
 
-    setContextIsCloning(true);
+    await setContextIsCloning(true);
 
-    if (config.useInPlaceCherryPick) {
-      await this.InPlaceService.clonePR(data);
-    } else {
-      await this.TempWorktreeService.clonePR(data);
+    try {
+      if (config.useInPlaceCherryPick) {
+        await this.InPlaceService.clonePR(data);
+      } else {
+        await this.TempWorktreeService.clonePR(data);
+      }
+    } catch (error) {
+      await setContextIsCloning(false);
+      throw error;
     }
   }
 
@@ -141,9 +146,9 @@ export class PrCloneService {
     const config = this.configurationManager.get();
 
     if (config.useInPlaceCherryPick) {
-      this.InPlaceService.abortClonePR();
+      await this.InPlaceService.abortClonePR();
     } else {
-      this.TempWorktreeService.abortClonePR();
+      await this.TempWorktreeService.abortClonePR();
     }
   }
 

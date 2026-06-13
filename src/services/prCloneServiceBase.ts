@@ -7,8 +7,8 @@ import { ICleanUpActions } from './prCloneService';
 export abstract class PrCloneServiceBase extends Disposable {
   protected finishProgress: (() => void) | undefined;
   protected cancelProgress: (() => void) | undefined;
-  protected cleanUpActionBegin: (() => void)[] = [];
-  protected cleanUpActionEnd: (() => void)[] = [];
+  protected cleanUpActionBegin: (() => void | Promise<void>)[] = [];
+  protected cleanUpActionEnd: (() => void | Promise<void>)[] = [];
 
   constructor(
     protected git: GitExecutor,
@@ -34,8 +34,8 @@ export abstract class PrCloneServiceBase extends Disposable {
     }
   }
 
-  abortClonePR() {
-    this.cancelProgress?.();
-    this.cleanUp(true);
+  async abortClonePR(): Promise<void> {
+    this.finishProgress?.();
+    await this.cleanUp(true);
   }
 }

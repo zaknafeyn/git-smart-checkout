@@ -10,6 +10,7 @@ import { GitHubClient } from '../../common/api/ghClient';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { PrCloneService } from '../../services/prCloneService';
+import { WebviewCommand } from '../../types/webviewCommands';
 import { PrCloneWebViewProvider } from '../../view/PrCloneWebViewProvider';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
@@ -76,6 +77,7 @@ describe('getRepositoryMismatchMessage', () => {
 describe('PrCloneWebViewProvider PR input validation', () => {
   it('rejects a PR URL from a different repository before fetching it', async () => {
     const errors: string[] = [];
+    const messages: unknown[] = [];
     let fetchedNumber: number | undefined;
     const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
     (vscode.window as any).showErrorMessage = async (message: string) => {
@@ -95,6 +97,14 @@ describe('PrCloneWebViewProvider PR input validation', () => {
       {} as ConfigurationManager,
       createPrCloneService(ghClient)
     );
+    (provider as any).webviewView = {
+      webview: {
+        postMessage: async (message: unknown) => {
+          messages.push(message);
+          return true;
+        },
+      },
+    };
 
     try {
       await (provider as any).handleFetchPR(
@@ -105,6 +115,13 @@ describe('PrCloneWebViewProvider PR input validation', () => {
       assert.deepStrictEqual(errors, [
         'This PR URL belongs to other-org/other-repo, but the current repository is current-org/current-repo.',
       ]);
+      assert.deepStrictEqual(messages, [
+        {
+          command: WebviewCommand.FETCH_PR_ERROR,
+          message:
+            'This PR URL belongs to other-org/other-repo, but the current repository is current-org/current-repo.',
+        },
+      ]);
     } finally {
       (vscode.window as any).showErrorMessage = originalShowErrorMessage;
     }
@@ -112,6 +129,7 @@ describe('PrCloneWebViewProvider PR input validation', () => {
 
   it('uses the shared invalid-input message', async () => {
     const errors: string[] = [];
+    const messages: unknown[] = [];
     const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
     (vscode.window as any).showErrorMessage = async (message: string) => {
       errors.push(message);
@@ -125,10 +143,24 @@ describe('PrCloneWebViewProvider PR input validation', () => {
       {} as ConfigurationManager,
       createPrCloneService(ghClient)
     );
+    (provider as any).webviewView = {
+      webview: {
+        postMessage: async (message: unknown) => {
+          messages.push(message);
+          return true;
+        },
+      },
+    };
 
     try {
       await (provider as any).handleFetchPR('not-a-pr');
       assert.deepStrictEqual(errors, [INVALID_PR_INPUT_MESSAGE]);
+      assert.deepStrictEqual(messages, [
+        {
+          command: WebviewCommand.FETCH_PR_ERROR,
+          message: INVALID_PR_INPUT_MESSAGE,
+        },
+      ]);
     } finally {
       (vscode.window as any).showErrorMessage = originalShowErrorMessage;
     }
