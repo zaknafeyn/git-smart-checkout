@@ -84,13 +84,16 @@ function createBareRepo(prefix: string): string {
 
 /**
  * Standard two-branch repo. main has file1.txt; feature adds feature.txt.
- * The branches do NOT conflict on shared files.
+ * The branches do NOT conflict on shared files. A `v1.0.0` tag points at the
+ * initial commit on main, used to exercise tag checkout.
  */
 export function createTestRepo(): TestRepo {
   return buildRepo('gsc-test-', (repoPath, exec) => {
     fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
     exec('git add file1.txt');
     exec('git commit -m "init: initial commit"');
+
+    exec('git tag v1.0.0');
 
     exec('git checkout -b feature');
     fs.writeFileSync(path.join(repoPath, 'feature.txt'), 'feature content\n');

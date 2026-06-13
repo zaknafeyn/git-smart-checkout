@@ -144,6 +144,27 @@ describe('AutoStashService — checkoutAndStashChanges', () => {
     });
   });
 
+  describe('tag checkout', () => {
+    let repo: TestRepo;
+    before(() => { repo = createTestRepo(); });
+    after(() => { repo.cleanup(); });
+
+    it('checks out a tag ref (detached HEAD at the tagged commit) without error', async () => {
+      // Reproduces the "Checkout to..." flow for a tag: the picked item carries
+      // the tag's IGitRef, which is passed straight to checkoutAndStashChanges.
+      const refs = await repo.git.getAllRefListExtended();
+      const tagRef = refs.find((ref) => ref.isTag && ref.name === 'v1.0.0');
+      assert.ok(tagRef, 'precondition: v1.0.0 tag ref should be listed');
+
+      const tagSha = repo.exec('git rev-parse v1.0.0').trim();
+
+      await sut.checkoutAndStashChanges(repo.git, repo.mainBranch, tagRef!, AUTO_STASH_IGNORE);
+
+      assert.strictEqual(repo.exec('git rev-parse HEAD').trim(), tagSha, 'HEAD should be at the tagged commit');
+      assert.strictEqual(repo.exec('git symbolic-ref -q HEAD || echo detached').trim(), 'detached', 'checking out a tag detaches HEAD');
+    });
+  });
+
   describe('AUTO_STASH_IGNORE: non-conflicting untracked changes', () => {
     let repo: TestRepo;
     before(() => { repo = createTestRepo(); });
