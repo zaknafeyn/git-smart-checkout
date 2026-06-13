@@ -1,3 +1,33 @@
+# [0.8.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.2...v0.8.0) (2026-06-13)
+
+
+### Bug Fixes
+
+* allow checking out tags from "Checkout to..." ([#83](https://github.com/zaknafeyn/git-smart-checkout/issues/83)) ([704edc5](https://github.com/zaknafeyn/git-smart-checkout/commit/704edc532eb1fad4a88834d05e8676f13c6d5690))
+* check remote-branch existence against the correct ref ([#81](https://github.com/zaknafeyn/git-smart-checkout/issues/81)) ([753f288](https://github.com/zaknafeyn/git-smart-checkout/commit/753f28893a16246a7c32f5f40e0ae1d50d4f3b79)), closes [#checkRemoteBranchExists](https://github.com/zaknafeyn/git-smart-checkout/issues/checkRemoteBranchExists)
+* correct status bar theme background ([#95](https://github.com/zaknafeyn/git-smart-checkout/issues/95)) ([9be7c3b](https://github.com/zaknafeyn/git-smart-checkout/commit/9be7c3b28a8ebfa538d5f853c30c9f81acb91b96))
+* correctly detect in-progress cherry-pick via CHERRY_PICK_HEAD ([#92](https://github.com/zaknafeyn/git-smart-checkout/issues/92)) ([2c325c7](https://github.com/zaknafeyn/git-smart-checkout/commit/2c325c70a5b15968f5161737dae35b84921a5065))
+* handle stash preview fatal errors ([#90](https://github.com/zaknafeyn/git-smart-checkout/issues/90)) ([5856478](https://github.com/zaknafeyn/git-smart-checkout/commit/58564780666867cb295999b88b7d544fe1e07014))
+* paginate GitHub PR commits and labels to avoid dropping data ([#80](https://github.com/zaknafeyn/git-smart-checkout/issues/80)) ([5906fb8](https://github.com/zaknafeyn/git-smart-checkout/commit/5906fb8a62572a4dddc475b7dfd30afceda0bdb0))
+* parse diverged branch tracking counts ([#84](https://github.com/zaknafeyn/git-smart-checkout/issues/84)) ([08d38bc](https://github.com/zaknafeyn/git-smart-checkout/commit/08d38bc2fbb5e6da458211986c973d4b4388faee))
+* parse dotted GitHub repository names ([#88](https://github.com/zaknafeyn/git-smart-checkout/issues/88)) ([4cc273a](https://github.com/zaknafeyn/git-smart-checkout/commit/4cc273ad1c1a95f7b4865a34d3ed8e9010591b5c))
+* preserve cloned PR metadata ([#87](https://github.com/zaknafeyn/git-smart-checkout/issues/87)) ([6953350](https://github.com/zaknafeyn/git-smart-checkout/commit/6953350ae42a09dd34fbfcba445dd9c8029a508b))
+* preserve colons in stash messages ([#85](https://github.com/zaknafeyn/git-smart-checkout/issues/85)) ([a81242e](https://github.com/zaknafeyn/git-smart-checkout/commit/a81242e2f94d782cd2c385f89fdc629ca6ee04a8))
+* preserve PR commit order ([#97](https://github.com/zaknafeyn/git-smart-checkout/issues/97)) ([c0330ca](https://github.com/zaknafeyn/git-smart-checkout/commit/c0330ca56503a4f413fe036f2cfbb75e0c4c8ff1))
+* prevent data loss when cancelling PR clone in temp-worktree mode ([#79](https://github.com/zaknafeyn/git-smart-checkout/issues/79)) ([6b9e261](https://github.com/zaknafeyn/git-smart-checkout/commit/6b9e261387b8e1f0f2d27f5475eee3e5b6d59f39))
+* reinitialize PR clone services per repository ([#94](https://github.com/zaknafeyn/git-smart-checkout/issues/94)) ([b09bd5c](https://github.com/zaknafeyn/git-smart-checkout/commit/b09bd5cd94838dde65b2c06a44c9e277175f5181))
+* stabilize PR clone progress handles ([#86](https://github.com/zaknafeyn/git-smart-checkout/issues/86)) ([79330ff](https://github.com/zaknafeyn/git-smart-checkout/commit/79330ff4b348858938a6b751fefc11b52d2df3ef))
+* stop PR fetch spinner on errors ([#93](https://github.com/zaknafeyn/git-smart-checkout/issues/93)) ([2cc901c](https://github.com/zaknafeyn/git-smart-checkout/commit/2cc901c34cfa88050f8aa62badda8a47e7bd3e3f))
+* use 24-hour stash timestamps ([#91](https://github.com/zaknafeyn/git-smart-checkout/issues/91)) ([f0ce549](https://github.com/zaknafeyn/git-smart-checkout/commit/f0ce5493dcb85a32c8c0665b4ded84e7d711ad08))
+* use a non-printable separator for ref list parsing ([#82](https://github.com/zaknafeyn/git-smart-checkout/issues/82)) ([245700d](https://github.com/zaknafeyn/git-smart-checkout/commit/245700d7deedd376b52ba48eccc7dc426142211d))
+
+
+### Features
+
+* add command to copy current branch name to clipboard ([#77](https://github.com/zaknafeyn/git-smart-checkout/issues/77)) ([918a173](https://github.com/zaknafeyn/git-smart-checkout/commit/918a173309aa62581d48c4b694d5e5f5ca270c3a)), closes [#76](https://github.com/zaknafeyn/git-smart-checkout/issues/76)
+* allow editing prefilled tag name on tag creation ([#100](https://github.com/zaknafeyn/git-smart-checkout/issues/100)) ([3f6a13c](https://github.com/zaknafeyn/git-smart-checkout/commit/3f6a13cd44cbc614543dec119cd7541a1c6e3565))
+* sort Jira picker newest-first and add project key filter ([#78](https://github.com/zaknafeyn/git-smart-checkout/issues/78)) ([aee7b04](https://github.com/zaknafeyn/git-smart-checkout/commit/aee7b04b4b2a2d519b4da561cbd1a96a18124c89))
+
 ## [0.7.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.7.1...v0.7.2) (2026-06-06)
 
 
