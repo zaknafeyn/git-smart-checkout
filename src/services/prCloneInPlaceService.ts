@@ -138,6 +138,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     try {
       this.cleanUpActionBegin.forEach((action) => action());
 
+      await setContextIsCloning(false);
+      await setContextIsCherryPickConflict(false);
+
+      // If the in-place service was never started (e.g. temp-worktree mode was
+      // active and this service holds an empty store), there is nothing to clean
+      // up. Bail out BEFORE touching the user's working directory so we never
+      // hard-reset a repository this service did not modify.
+      if (!this.serviceStore.originalBranch) {
+        return;
+      }
+
       // Check if there's an active cherry-pick operation and abort it
       if (await this.git.isCherryPickInProgress()) {
         try {
@@ -148,19 +159,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         }
       }
 
-      // Hard reset to reset all changes in workdir
-      try {
-        await this.git.reset(true);
-      } catch (error) {
-        this.loggingService.warn(`Failed to reset working directory: ${error}`);
+      // Hard reset to discard all changes in workdir, but only when this service
+      // actually created a feature branch. Without a created branch there are no
+      // in-place changes that belong to us to reset.
+      if (this.serviceStore.createdBranchName) {
+        try {
+          await this.git.reset(true);
+        } catch (error) {
+          this.loggingService.warn(`Failed to reset working directory: ${error}`);
+        }
       }
 
-      await setContextIsCloning(false);
-      await setContextIsCherryPickConflict(false);
-
-      if (!this.serviceStore.originalBranch) {
-        return;
-      }
       await this.git.checkout(this.serviceStore.originalBranch);
 
       if (this.serviceStore.stashMessage) {
@@ -206,7 +215,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();
-      updateProgress?.report({ message: 'Checking for uncommitted changes...' });
+      updateProgress.report({ message: 'Checking for uncommitted changes...' });
 
       const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
       if (hasUncommittedChanges) {
@@ -223,7 +232,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 2: Fetch the PR's origin branch
-      updateProgress?.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
+      updateProgress.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
       try {
         await this.git.fetchSpecificBranch(data.prData.head.ref);
         this.loggingService.info(`Fetched PR branch: ${data.prData.head.ref}`);
@@ -232,10 +241,10 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 3: Switch to base branch and pull latest changes
-      updateProgress?.report({ message: `Switching to base branch: ${data.targetBranch}...` });
+      updateProgress.report({ message: `Switching to base branch: ${data.targetBranch}...` });
       await this.git.checkout(data.targetBranch);
 
-      updateProgress?.report({ message: 'Pulling latest changes...' });
+      updateProgress.report({ message: 'Pulling latest changes...' });
       try {
         await this.git.pullCurrentBranch();
         this.loggingService.info(`Pulled latest changes for ${data.targetBranch}`);
@@ -244,7 +253,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       // Step 4: Create unique feature branch
-      updateProgress?.report({ message: 'Creating feature branch...' });
+      updateProgress.report({ message: 'Creating feature branch...' });
       this.serviceStore.createdBranchName = await this.git.createUniqueFeatureBranch(
         data.featureBranch,
         data.targetBranch

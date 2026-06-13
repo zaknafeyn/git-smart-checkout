@@ -26,6 +26,7 @@ export interface JiraConfig {
   domain: string;
   username: string;
   token: string;
+  projectKeys: string[];
 }
 
 export interface ExtensionConfig {
