@@ -288,6 +288,66 @@ export function createPRTestRepo(): PRTestRepo {
   };
 }
 
+export interface TwoRemoteTestRepo extends TestRepo {
+  originRepoPath: string;
+  upstreamRepoPath: string;
+  remoteOnlyBranch: string;
+}
+
+/**
+ * Repo with two bare remotes (`origin` and `upstream`). A `feat` branch exists on
+ * BOTH remotes (so `git checkout feat` without an explicit remote is ambiguous)
+ * but does NOT exist locally. Used to verify that remote-branch existence checks
+ * resolve against `refs/remotes/<remote>/<branch>` and that checkout creates a
+ * local tracking branch from the named remote.
+ */
+export function createTwoRemoteTestRepo(): TwoRemoteTestRepo {
+  const originRepoPath = createBareRepo('gsc-2remote-origin-');
+  const upstreamRepoPath = createBareRepo('gsc-2remote-upstream-');
+
+  const remoteOnlyBranch = 'feat';
+
+  const base = buildRepo('gsc-2remote-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+  });
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  execInRepo(`git remote add origin "${originRepoPath}"`);
+  execInRepo(`git remote add upstream "${upstreamRepoPath}"`);
+  execInRepo('git push -u origin main');
+  execInRepo('git push upstream main');
+
+  // Create the feat branch, push it to both remotes, then drop it locally so it
+  // only exists as a remote-tracking ref on origin AND upstream.
+  execInRepo(`git checkout -b ${remoteOnlyBranch}`);
+  fs.writeFileSync(path.join(base.repoPath, 'feat.txt'), 'feat content\n');
+  execInRepo('git add feat.txt');
+  execInRepo('git commit -m "feat: add feat file"');
+  execInRepo(`git push origin ${remoteOnlyBranch}`);
+  execInRepo(`git push upstream ${remoteOnlyBranch}`);
+  execInRepo('git checkout main');
+  execInRepo(`git branch -D ${remoteOnlyBranch}`);
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    originRepoPath,
+    upstreamRepoPath,
+    remoteOnlyBranch,
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(originRepoPath, { recursive: true, force: true });
+      fs.rmSync(upstreamRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
 export interface ForkPRTestRepo extends PRTestRepo {
   forkRepoPath: string;
   forkBranch: string;

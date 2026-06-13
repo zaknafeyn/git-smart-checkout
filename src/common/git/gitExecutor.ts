@@ -8,6 +8,11 @@ import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
 
+function stripStashSubjectPrefix(subject: string): string {
+  const prefixEnd = subject.indexOf(': ');
+  return prefixEnd === -1 ? subject : subject.slice(prefixEnd + 2);
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -135,10 +140,12 @@ export class GitExecutor {
 
   async #checkRemoteBranchExists(
     branchName: string,
-    includeRemoteName = false,
+    includeRemoteName = true,
     remoteName = 'origin'
   ): Promise<boolean> {
-    const ref = `refs/remotes${includeRemoteName ? `/${remoteName}` : ''}/${branchName}`;
+    const ref = includeRemoteName
+      ? `refs/remotes/${remoteName}/${branchName}`
+      : `refs/remotes/${branchName}`;
     try {
       await this.#execGitCommand(['show-ref', '--verify', '--quiet', ref]);
       return true;
@@ -184,7 +191,7 @@ export class GitExecutor {
   async checkout(branchName: string, remoteName = 'origin') {
     // Check if it's a remote branch that doesn't have a local counterpart
     const localBranchExists = await this.#checkLocalBranchExists(branchName);
-    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName);
+    const remoteBranchExists = await this.#checkRemoteBranchExists(branchName, true, remoteName);
 
     if (!localBranchExists && remoteBranchExists) {
       // Create a local tracked branch for the remote branch
@@ -212,8 +219,11 @@ export class GitExecutor {
   ): Promise<IGitRef> {
     await this.#execGitCommand(['checkout', '-b', branchName, ...(sourceBranch ? [sourceBranch] : [])]);
 
-    // Get detailed information about the newly created branch
-    const SEPARATOR = '|';
+    // Get detailed information about the newly created branch.
+    // Use the ASCII Unit Separator (\x1f) which cannot occur in ref names,
+    // hashes, dates, or (practically) commit subjects, so a `|` in a subject
+    // can no longer shift the parsed fields.
+    const SEPARATOR = '\x1f';
     const { stdout: branchInfo } = await this.#execGitCommand([
       'for-each-ref',
       `--format=%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(authorname)`,
@@ -260,7 +270,12 @@ export class GitExecutor {
   }
 
   async getAllRefListExtended(): Promise<IGitRef[]> {
-    const SEPARATOR = '|';
+    // Use the ASCII Unit Separator (\x1f) instead of `|`. A commit subject can
+    // legitimately contain `|`, which would shift every field parsed after
+    // `%(subject)` (corrupting `upstream:track`, author name, etc.). The Unit
+    // Separator cannot occur in ref names, hashes, dates, or (practically)
+    // commit subjects, and Git passes it through the format string verbatim.
+    const SEPARATOR = '\x1f';
     const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
     const { stdout: branchesOutput } = await this.#execGitCommand([
       'for-each-ref',
@@ -276,12 +291,15 @@ export class GitExecutor {
       .filter((line) => line.length > 0)
       .map((line) => {
         /**
-         * parse remote branches like:
+         * parse remote branches like (\x1f shown here as "|"):
          * refs/heads/feature/add-extension-and-refactoring|8aaf984|Minor fixes|unixTimeStamp|1 2
          * refs/remotes/origin/feature/add-extension-and-refactoring|8aaf984|Minor fixes
          * refs/tags/v1.2.3|8aaf984|Minor fixes
          * */
 
+        // Cap the split at the number of fields in the format string so that an
+        // unexpected separator in the final field cannot create extra entries.
+        const FIELD_COUNT = 10;
         const [
           ref,
           hash,
@@ -293,7 +311,7 @@ export class GitExecutor {
           upstreamTrack,
           authorName,
           dereferredAuthorName,
-        ] = line.split(SEPARATOR);
+        ] = line.split(SEPARATOR, FIELD_COUNT);
 
         const parsedUpstreamTrack = this.#parseTrackData(upstreamTrack);
 
@@ -353,10 +371,9 @@ export class GitExecutor {
     // Create a mapping of index to stash message
     const stashes = stashesStrings.map((message, index) => {
       // Remove the "On <branch>: " prefix
-      const formattedMessage = message.split(': ')[1];
       return {
         index,
-        message: formattedMessage,
+        message: stripStashSubjectPrefix(message),
       };
     });
 
@@ -446,10 +463,7 @@ export class GitExecutor {
         .trim()
         .split('\n')
         .filter((line) => line.trim() !== '');
-      const stashMessages = stashesStrings.map((msgWithPrefix) => {
-        const parts = msgWithPrefix.split(': ');
-        return parts.length > 1 ? parts.slice(1).join(': ') : msgWithPrefix;
-      });
+      const stashMessages = stashesStrings.map(stripStashSubjectPrefix);
 
       return stashMessages.some((msg) => msg === message);
     } catch {
@@ -612,7 +626,7 @@ export class GitExecutor {
       return true;
     }
 
-    return await this.#checkRemoteBranchExists(branchName);
+    return await this.#checkRemoteBranchExists(branchName, true);
   }
 
   async hasUpstreamBranch(branchName: string): Promise<boolean> {
