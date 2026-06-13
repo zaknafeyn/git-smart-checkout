@@ -38,6 +38,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
+| Store the Jira API token securely in VS Code Secret Storage | `Git Smart Checkout: Set Jira token` | [Create branch from template](docs/create-branch-from-template.md#jira-configuration) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
 
 ## Extension Settings
@@ -60,7 +61,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.jira.domain`](vscode://settings/git-smart-checkout.jira.domain) (Jira domain) | `string` | Jira Cloud host (e.g. `your-company.atlassian.net`). Required when the branch template uses Jira tokens. |
 | ⚙️ [`git-smart-checkout.jira.username`](vscode://settings/git-smart-checkout.jira.username) (Jira username) | `string` | Atlassian account username for Jira API authentication (usually your Atlassian account email). |
 | ⚙️ [`git-smart-checkout.jira.email`](vscode://settings/git-smart-checkout.jira.email) (Deprecated Jira email) | `string` | Deprecated compatibility fallback used only when `jira.username` is empty. Migrate to `git-smart-checkout.jira.username`. |
-| ⚙️ [`git-smart-checkout.jira.token`](vscode://settings/git-smart-checkout.jira.token) (Jira API token) | `string` | Jira API token. See setting description for unscoped vs scoped token guidance. |
+| ⚙️ [`git-smart-checkout.jira.token`](vscode://settings/git-smart-checkout.jira.token) (Jira API token) | `string` | **Deprecated — stored in plaintext.** Use the `Git Smart Checkout: Set Jira token` command, which keeps the token in VS Code Secret Storage. Any value set here is migrated into Secret Storage and cleared on the next activation. |
 | ⚙️ [`git-smart-checkout.jira.projectKeys`](vscode://settings/git-smart-checkout.jira.projectKeys) (Jira project keys) | `array` | Optional list of project keys that limit the Jira issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |

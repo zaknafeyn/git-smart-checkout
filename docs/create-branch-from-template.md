@@ -13,8 +13,14 @@ Create and check out a new Git branch from a configurable template. Supports Jir
 | --- | --- |
 | `git-smart-checkout.jira.domain` | Jira Cloud host, e.g. `your-company.atlassian.net` |
 | `git-smart-checkout.jira.username` | Atlassian account username (usually your Atlassian account email) |
-| `git-smart-checkout.jira.token` | API token from [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 | `git-smart-checkout.jira.projectKeys` | Optional list of project keys to limit the issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
+
+The Jira **API token** is not a setting. Run the `Git Smart Checkout: Set Jira token` command and paste the token; it is stored in [VS Code Secret Storage](https://code.visualstudio.com/api/references/vscode-api#SecretStorage) rather than in plaintext settings (which can be synced via Settings Sync). Run the command again with an empty value to remove the stored token.
+
+> [!NOTE]
+> If you previously set the deprecated `git-smart-checkout.jira.token` setting, it is migrated into Secret Storage and cleared from settings automatically the next time the extension activates.
+
+Create the token at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
 **Unscoped token (recommended):** use **Create API token** (classic). It works with `https://<domain>.atlassian.net` and needs no scope selection.
 

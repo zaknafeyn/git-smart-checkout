@@ -28,6 +28,7 @@ export enum AnalyticsEvent {
   MoveWipChangesFromWorktree = 'move_wip_changes_from_worktree',
   WorktreeDevTerminalOpened = 'worktree_dev_terminal_opened',
   CopyBranchName = 'copy_branch_name',
+  JiraTokenSet = 'jira_token_set',
 }
 
 let client: PostHog | null = null;

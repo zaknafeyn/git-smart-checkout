@@ -30,6 +30,7 @@ import {
   MoveWipChangesFromWorktreeCommand,
 } from './commands/copyChangesFromWorktreeCommand';
 import { CreateBranchFromTemplateCommand } from './commands/createBranchFromTemplateCommand';
+import { SetJiraTokenCommand } from './commands/setJiraTokenCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplateAvailability';
 import { setContextCanCreateBranchFromTemplate } from './utils/setContext';
@@ -64,7 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const commandManager = new CommandManager();
 
-  const configManager = new ConfigurationManager();
+  const configManager = new ConfigurationManager(context.secrets);
 
   const updateTelemetryState = () =>
     setAnalyticsEnabled(vscode.env.isTelemetryEnabled && configManager.get().telemetry.enabled);
@@ -151,6 +152,9 @@ export function activate(context: vscode.ExtensionContext) {
     createBranchFromTemplateCommand
   );
 
+  const setJiraTokenCommand = new SetJiraTokenCommand(configManager, logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.setJiraToken`, setJiraTokenCommand);
+
   const refreshBranchTemplateCommandVisibility = () => {
     logService.info('[Create Branch] Re-evaluating command visibility after configuration change');
     void canShowCreateBranchFromTemplateCommand(configManager.get(), logService).then(
@@ -163,6 +167,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   void setContextCanCreateBranchFromTemplate(false);
   refreshBranchTemplateCommandVisibility();
+
+  // Migrate any legacy plaintext Jira token into Secret Storage, then load it
+  // and keep command visibility in sync with external token changes.
+  void configManager.initJiraToken(refreshBranchTemplateCommandVisibility).then(
+    (subscription) => {
+      context.subscriptions.push(subscription);
+      refreshBranchTemplateCommandVisibility();
+    },
+    (error) => logService.error('[Jira] Failed to initialize Jira token storage', error)
+  );
 
   const moveToNewWorktreeCommand = new MoveToNewWorktreeCommand(
     configManager,

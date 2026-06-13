@@ -139,6 +139,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.setJiraToken",
+        "title": "Set Jira token",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.checkoutByPR",
         "title": "Checkout by PR number... (With Stash)",
         "category": "GSC"
@@ -222,6 +227,9 @@
         {
           "command": "git-smart-checkout.createBranchFromTemplate",
           "when": "git-smart-checkout.canCreateBranchFromTemplate"
+        },
+        {
+          "command": "git-smart-checkout.setJiraToken"
         },
         {
           "command": "git-smart-checkout.checkoutByPR"
@@ -356,7 +364,8 @@
         "git-smart-checkout.jira.token": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Jira API token. Create one at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).\n\n**Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select.\n\n**Scoped token (optional):** if you use a scoped token, grant at least: `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, `read:project:jira`. Scoped tokens may require the `api.atlassian.com` gateway; this extension expects an unscoped token with the domain setting above."
+          "markdownDescription": "Jira API token. **Stored in plaintext — use the `GSC: Set Jira token` command instead**, which keeps the token in VS Code Secret Storage.\n\nAny value set here is automatically migrated into Secret Storage and cleared on the next activation.\n\nCreate a token at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens). **Unscoped token (recommended):** choose **Create API token** (classic/unscoped). It uses your Jira permissions and works with `https://<domain>.atlassian.net` — no scopes to select. **Scoped token (optional):** grant at least `read:jira-work`, `read:jira-user`, `read:issue-details:jira`, `read:project:jira`.",
+          "deprecationMessage": "Use the \"GSC: Set Jira token\" command instead. This setting stores the token in plaintext (and may be synced via Settings Sync); any value is migrated to Secret Storage and cleared automatically."
         },
         "git-smart-checkout.jira.projectKeys": {
           "type": "array",
