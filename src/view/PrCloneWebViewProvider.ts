@@ -1,6 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { commands, ExtensionContext, Uri, WebviewView, WebviewViewProvider, window } from 'vscode';
+import {
+  commands,
+  ExtensionContext,
+  Uri,
+  type Webview,
+  WebviewView,
+  WebviewViewProvider,
+  window,
+} from 'vscode';
 
 import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
@@ -18,6 +26,16 @@ import {
   setContextShowPRClone,
   setContextShowPRCommits,
 } from '../utils/setContext';
+
+export function postFetchPRError(
+  webview: Pick<Webview, 'postMessage'> | undefined,
+  error: unknown
+): Thenable<boolean> | undefined {
+  return webview?.postMessage({
+    command: WebviewCommand.FETCH_PR_ERROR,
+    message: String(error),
+  });
+}
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -170,6 +188,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       this.updateWebviewWithPRData(prData, detailedCommits, branches);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
+      await postFetchPRError(this.webviewView?.webview, error);
       await window.showErrorMessage(
         `Failed to fetch PR: ${error instanceof Error ? error.message : error}`,
         'OK'
