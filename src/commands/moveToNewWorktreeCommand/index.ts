@@ -9,6 +9,7 @@ import {
   AUTO_STASH_IGNORE,
 } from '../checkoutToCommand/constants';
 import { TAutoStashMode } from '../checkoutToCommand/types';
+import { AnalyticsEvent, capture } from '../../analytics/analytics';
 import { getStashMessage } from '../utils/getStashMessage';
 import { getRefDescription, getRefLabel } from '../utils/refFormatting';
 import { GitExecutor } from '../../common/git/gitExecutor';
@@ -92,6 +93,12 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
       if (!created) {
         return;
       }
+
+      capture(AnalyticsEvent.MoveToNewWorktree, {
+        stash_mode: autoStashMode,
+        had_changes: isWorkdirHasChanges,
+        target_is_remote: Boolean(targetBranch.remote),
+      });
 
       await showWorktreeCompletionActions(worktreePath, `Worktree created at ${worktreePath}`);
     } catch (error) {
