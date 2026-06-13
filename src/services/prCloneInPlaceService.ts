@@ -138,6 +138,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     try {
       this.cleanUpActionBegin.forEach((action) => action());
 
+      await setContextIsCloning(false);
+      await setContextIsCherryPickConflict(false);
+
+      // If the in-place service was never started (e.g. temp-worktree mode was
+      // active and this service holds an empty store), there is nothing to clean
+      // up. Bail out BEFORE touching the user's working directory so we never
+      // hard-reset a repository this service did not modify.
+      if (!this.serviceStore.originalBranch) {
+        return;
+      }
+
       // Check if there's an active cherry-pick operation and abort it
       if (await this.git.isCherryPickInProgress()) {
         try {
@@ -148,19 +159,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         }
       }
 
-      // Hard reset to reset all changes in workdir
-      try {
-        await this.git.reset(true);
-      } catch (error) {
-        this.loggingService.warn(`Failed to reset working directory: ${error}`);
+      // Hard reset to discard all changes in workdir, but only when this service
+      // actually created a feature branch. Without a created branch there are no
+      // in-place changes that belong to us to reset.
+      if (this.serviceStore.createdBranchName) {
+        try {
+          await this.git.reset(true);
+        } catch (error) {
+          this.loggingService.warn(`Failed to reset working directory: ${error}`);
+        }
       }
 
-      await setContextIsCloning(false);
-      await setContextIsCherryPickConflict(false);
-
-      if (!this.serviceStore.originalBranch) {
-        return;
-      }
       await this.git.checkout(this.serviceStore.originalBranch);
 
       if (this.serviceStore.stashMessage) {

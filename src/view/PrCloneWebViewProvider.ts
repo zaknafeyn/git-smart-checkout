@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { commands, ExtensionContext, Uri, WebviewView, WebviewViewProvider, window } from 'vscode';
 
+import { GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
@@ -147,6 +148,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
           `Failed to fetch latest changes for branch ${prData.head.ref}: ${fetchError}`
         );
         // Continue with PR fetching even if fetch fails
+      }
+
+      // GitHub's list-commits endpoint caps at 250 commits. If the PR reports
+      // more than that, the commit list (and therefore the clone) is incomplete.
+      if (prData.commits !== undefined && prData.commits > GitHubClient.MAX_PR_COMMITS) {
+        const warning = `PR #${prNumber} has ${prData.commits} commits, but GitHub only exposes the first ${GitHubClient.MAX_PR_COMMITS}. This PR is too large to clone fully.`;
+        this.loggingService.warn(warning);
+        await window.showWarningMessage(warning, 'OK');
       }
 
       const commits = await ghClient.fetchPullRequestCommits(prNumber);

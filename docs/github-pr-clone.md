@@ -29,6 +29,8 @@ During the cherry-pick process, the extension stashes uncommitted workspace chan
 
 In a multi-root workspace, the command asks which repository to use each time it runs. Switching repositories refreshes the repository shown in the PR Clone view and all subsequent PR data and Git operations use the newly selected repository.
 
+The new PR also copies labels and assignees from the original PR. These metadata updates are best effort: if GitHub rejects one of them, the new PR is still created and the failure is logged.
+
 ## Conflict Handling
 
 When conflicts occur during cherry-picking, you can:
