@@ -87,8 +87,12 @@ describe('PrCloneTempWorktreeService cancellation', () => {
       return 'feature';
     };
     service.addCleanUpActions({
-      cleanUpActionBegin: () => cleanupActions.push('begin'),
-      cleanUpActionEnd: () => cleanupActions.push('end'),
+      cleanUpActionBegin: () => {
+        cleanupActions.push('begin');
+      },
+      cleanUpActionEnd: () => {
+        cleanupActions.push('end');
+      },
     });
 
     const originalWithProgress = vscode.window.withProgress.bind(vscode.window);

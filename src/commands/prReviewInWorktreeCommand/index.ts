@@ -12,7 +12,11 @@ import { LoggingService } from '../../logging/loggingService';
 import { PRReviewWorktreeStore } from '../../services/prReviewWorktreeStore';
 import { GitHubPR } from '../../types/dataTypes';
 import { BaseCommand } from '../command';
-import { INVALID_PR_INPUT_MESSAGE, parsePRInput } from '../utils/parsePRInput';
+import {
+  getRepositoryMismatchMessage,
+  INVALID_PR_INPUT_MESSAGE,
+  parsePRInput,
+} from '../utils/parsePRInput';
 import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
 
@@ -41,8 +45,8 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         return;
       }
 
-      const prNumber = parsePRInput(input);
-      if (!prNumber) {
+      const parsedInput = parsePRInput(input);
+      if (!parsedInput) {
         await this.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
         return;
       }
@@ -53,6 +57,13 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         throw new Error('Could not determine GitHub repository information. Make sure the remote is a GitHub repository.');
       }
 
+      const repositoryMismatchMessage = getRepositoryMismatchMessage(parsedInput, repoInfo);
+      if (repositoryMismatchMessage) {
+        await this.showErrorMessage(repositoryMismatchMessage, 'OK');
+        return;
+      }
+
+      const { prNumber } = parsedInput;
       let pr: Awaited<ReturnType<GitHubClient['fetchPullRequest']>>;
       try {
         pr = await this.createGitHubClient(repoInfo.owner, repoInfo.repo).fetchPullRequest(prNumber);
