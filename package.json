@@ -395,6 +395,8 @@
     "test:e2e": "vscode-test --label e2e-manual",
     "test:e2e:manual": "vscode-test --label e2e-manual",
     "test:e2e:ci": "mkdir -p test-results && xvfb-run -a vscode-test --label e2e-ci",
+    "test:e2e:heavy": "vscode-test --label e2e-heavy",
+    "test:e2e:heavy:ci": "mkdir -p test-results && xvfb-run -a vscode-test --label e2e-heavy",
     "test:unit": "vscode-test --label unit",
     "build-vsix": "yarn package && vsce package --yarn",
     "build-vsix-dev": "yarn compile && vsce package --yarn --no-dependencies",
