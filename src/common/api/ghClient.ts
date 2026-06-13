@@ -8,9 +8,17 @@ export class GitHubClient {
   private static readonly BASE_URL = 'https://api.github.com';
   private static readonly USER_AGENT = `${EXTENSION_NAME}-vscode-extension`;
 
+  /**
+   * GitHub's pull request "list commits" endpoint returns at most 250 commits,
+   * regardless of pagination. PRs with more commits cannot be fully cloned.
+   */
+  public static readonly MAX_PR_COMMITS = 250;
+
   constructor(
     private readonly _owner: string,
-    private readonly _repo: string
+    private readonly _repo: string,
+    private readonly warn: (message: string, error: unknown) => void = (message, error) =>
+      console.warn(message, error)
   ) {}
 
   get owner(): string {
@@ -118,6 +126,30 @@ export class GitHubClient {
   }
 
   /**
+   * Perform a paginated GET request, following pages until a partial page is
+   * returned. Defaults to the maximum page size GitHub allows (100).
+   */
+  private async makePaginatedRequest<T>(endpoint: string): Promise<T[]> {
+    const results: T[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const batch = await this.makeRequest<T[]>(
+        `${endpoint}${sep}per_page=${perPage}&page=${page}`
+      );
+      results.push(...batch);
+      if (batch.length < perPage) {
+        break;
+      }
+      page++;
+    }
+
+    return results;
+  }
+
+  /**
    * Fetch pull request data by PR number
    */
   public async fetchPullRequest(prNumber: number): Promise<GitHubPR> {
@@ -130,7 +162,7 @@ export class GitHubClient {
    */
   public async fetchPullRequestCommits(prNumber: number): Promise<GitHubCommit[]> {
     const endpoint = `/repos/${this.owner}/${this.repo}/pulls/${prNumber}/commits`;
-    return this.makeRequest<GitHubCommit[]>(endpoint);
+    return this.makePaginatedRequest<GitHubCommit>(endpoint);
   }
 
   /**
@@ -220,15 +252,33 @@ export class GitHubClient {
       draft: isDraft,
     };
 
-    // Add labels and assignees if provided
-    if (labels && labels.length > 0) {
-      requestBody.labels = labels;
-    }
-    if (assignees && assignees.length > 0) {
-      requestBody.assignees = assignees;
+    const newPr = await this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
+
+    if (labels?.length) {
+      try {
+        await this.makeRequest(
+          `/repos/${this.owner}/${this.repo}/issues/${newPr.number}/labels`,
+          'POST',
+          { labels }
+        );
+      } catch (error) {
+        this.warn(`Failed to copy labels to PR #${newPr.number}:`, error);
+      }
     }
 
-    return this.makeRequest<GitHubPR>(endpoint, 'POST', requestBody);
+    if (assignees?.length) {
+      try {
+        await this.makeRequest(
+          `/repos/${this.owner}/${this.repo}/issues/${newPr.number}/assignees`,
+          'POST',
+          { assignees }
+        );
+      } catch (error) {
+        this.warn(`Failed to copy assignees to PR #${newPr.number}:`, error);
+      }
+    }
+
+    return newPr;
   }
 
   /**
@@ -236,6 +286,6 @@ export class GitHubClient {
    */
   public async fetchLabels(): Promise<GitHubLabel[]> {
     const endpoint = `/repos/${this.owner}/${this.repo}/labels`;
-    return this.makeRequest<GitHubLabel[]>(endpoint);
+    return this.makePaginatedRequest<GitHubLabel>(endpoint);
   }
 }

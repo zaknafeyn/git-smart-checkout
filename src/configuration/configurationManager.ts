@@ -73,6 +73,7 @@ export class ConfigurationManager {
       domain: vscodeConfig.get('jira.domain', ''),
       username,
       token: vscodeConfig.get('jira.token', ''),
+      projectKeys: vscodeConfig.get<string[]>('jira.projectKeys', []),
     };
   }
 
