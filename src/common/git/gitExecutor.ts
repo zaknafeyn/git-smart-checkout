@@ -69,6 +69,37 @@ export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   return worktrees;
 }
 
+export function parseGitHubRemoteUrl(remoteUrl: string): { owner: string; repo: string } | null {
+  const value = remoteUrl.trim();
+  const scpMatch = value.match(/^[^@\s]+@github\.com:([^/\s]+)\/([^/\s]+)\/?$/i);
+
+  let owner: string;
+  let repoWithSuffix: string;
+
+  if (scpMatch) {
+    [, owner, repoWithSuffix] = scpMatch;
+  } else {
+    try {
+      const url = new URL(value);
+      if (url.hostname.toLowerCase() !== 'github.com') {
+        return null;
+      }
+
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (pathParts.length !== 2) {
+        return null;
+      }
+
+      [owner, repoWithSuffix] = pathParts;
+    } catch {
+      return null;
+    }
+  }
+
+  const repo = repoWithSuffix.replace(/\.git$/i, '');
+  return owner && repo ? { owner, repo } : null;
+}
+
 export class GitExecutor {
   #repositoryPath;
   #logService;
@@ -677,10 +708,7 @@ export class GitExecutor {
   async getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
     try {
       const remoteUrl = await this.getRemoteUrl();
-      const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
-      if (match) {
-        return { owner: match[1], repo: match[2] };
-      }
+      return parseGitHubRemoteUrl(remoteUrl);
     } catch (error) {
       this.#logService.error(`Failed to get repo info: ${error}`);
     }
