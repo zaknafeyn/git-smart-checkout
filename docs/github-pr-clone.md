@@ -42,6 +42,8 @@ When conflicts occur during cherry-picking, you can:
 
 The process is tracked with a progress notification that remains active throughout initialization
 and can be safely cancelled at any point.
+In temporary-worktree mode, cancellation is reported as a normal outcome, and the temporary branch
+and worktree are cleaned up.
 
 If an in-place clone fails during branch setup, cherry-picking, push, or pull request creation,
 the extension stops the progress notification, attempts to restore the original branch and

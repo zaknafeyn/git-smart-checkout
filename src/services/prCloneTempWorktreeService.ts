@@ -14,6 +14,19 @@ import { PrCloneServiceBase } from './prCloneServiceBase';
 
 const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
 
+export class OperationCancelledError extends Error {
+  constructor() {
+    super('PR clone cancelled');
+    this.name = 'OperationCancelledError';
+  }
+}
+
+function throwIfCancellationRequested(token: CancellationToken): void {
+  if (token.isCancellationRequested) {
+    throw new OperationCancelledError();
+  }
+}
+
 export class PrCloneTempWorktreeService extends PrCloneServiceBase {
   private tempWorkspacePath?: string;
   private tempGit?: GitExecutor;
@@ -40,17 +53,13 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
             progress.report({ message: 'Creating temporary worktree...' });
             tempPath = await this.createTempWorktree(data.targetBranch);
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 2: Pull all branches
             progress.report({ message: 'Fetching latest branches...' });
             await this.fetchAllBranches();
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 3: Create and validate branch name
             progress.report({ message: 'Creating feature branch...' });
@@ -60,25 +69,19 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
             );
             createdBranchName = finalBranchName;
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 4: Cherry-pick commits
             progress.report({ message: 'Cherry-picking selected commits...' });
             await this.cherryPickCommits(data.selectedCommits, token);
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 5: Push branch to GitHub
             progress.report({ message: 'Pushing branch to GitHub...' });
             await this.tempGit?.pushBranchToGitHub(finalBranchName);
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 6: Create PR
             progress.report({ message: 'Creating pull request...' });
@@ -90,9 +93,7 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
               data.isDraft
             );
 
-            if (token.isCancellationRequested) {
-              throw new Error('Cancel operation');
-            }
+            throwIfCancellationRequested(token);
 
             // Step 7: Show success notification
             const openAction = await window.showInformationMessage(
@@ -113,7 +114,11 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
         }
       );
     } catch (error) {
-      this.loggingService.error(`PR cloning failed: ${error}`);
+      if (error instanceof OperationCancelledError) {
+        this.loggingService.info('PR clone cancelled by user');
+      } else {
+        this.loggingService.error(`PR cloning failed: ${error}`);
+      }
 
       // Clean up created branch if it exists and operation failed
       if (createdBranchName && this.tempWorkspacePath) {
@@ -127,9 +132,13 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
         }
       }
 
-      window.showErrorMessage(
-        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
-      );
+      if (error instanceof OperationCancelledError) {
+        window.showInformationMessage('PR clone cancelled');
+      } else {
+        window.showErrorMessage(
+          `Failed to clone PR: ${error instanceof Error ? error.message : error}`
+        );
+      }
     } finally {
       // Step 9: Cleanup temp worktree
       if (tempPath) {
@@ -215,9 +224,7 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     const orderedCommits = [...commitShas];
     this.loggingService.info('Cherry-picking commits in GitHub API order:', orderedCommits);
 
-    if (token.isCancellationRequested) {
-      throw new Error('Cancel operation');
-    }
+    throwIfCancellationRequested(token);
 
     try {
       await this.tempGit.cherryPick(orderedCommits, false, 'skip');
