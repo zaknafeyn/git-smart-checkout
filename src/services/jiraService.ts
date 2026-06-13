@@ -9,6 +9,7 @@ export interface JiraIssueSummary {
   summary: string;
   statusName: string;
   statusCategoryKey: string;
+  created: string;
 }
 
 const JIRA_KEY_PATTERN = /^[A-Z][A-Z0-9]+-\d+$/i;
@@ -106,6 +107,14 @@ export async function testJiraConnection(
 }
 
 export function compareJiraIssuesForPicker(a: JiraIssueSummary, b: JiraIssueSummary): number {
+  // Newest created issues first. `created` is an ISO timestamp, which sorts
+  // lexicographically, so a descending string compare yields newest-first.
+  // Fall back to key order when timestamps are missing or equal so the order
+  // stays stable.
+  const byCreated = b.created.localeCompare(a.created);
+  if (byCreated !== 0) {
+    return byCreated;
+  }
   return a.key.localeCompare(b.key, undefined, { sensitivity: 'base' });
 }
 
@@ -118,6 +127,7 @@ function mapSearchIssue(issue: {
   fields?: {
     summary?: string;
     status?: { name?: string; statusCategory?: { key?: string } };
+    created?: string;
   };
 }): JiraIssueSummary {
   return {
@@ -125,6 +135,7 @@ function mapSearchIssue(issue: {
     summary: issue.fields?.summary ?? '',
     statusName: issue.fields?.status?.name ?? 'Unknown',
     statusCategoryKey: issue.fields?.status?.statusCategory?.key ?? 'unknown',
+    created: issue.fields?.created ?? '',
   };
 }
 
@@ -185,12 +196,32 @@ async function searchIssuesWithJql(
   return issues;
 }
 
+/**
+ * Builds the JQL query for the assigned-issues picker. Issues are ordered
+ * newest-created first. When `projectKeys` are provided, the result is limited
+ * to those Jira projects (e.g. `["KEY", "HOME"]` -> issues like `KEY-123`,
+ * `HOME-341`); an empty list returns all issues assigned to the current user.
+ */
+export function buildAssignedIssuesJql(projectKeys: string[] = []): string {
+  const keys = projectKeys
+    .map((key) => key.trim().toUpperCase())
+    .filter((key) => key !== '');
+
+  let jql = 'assignee = currentUser()';
+  if (keys.length > 0) {
+    const inList = keys.map((key) => `"${key}"`).join(', ');
+    jql += ` AND project IN (${inList})`;
+  }
+  return `${jql} ORDER BY created DESC`;
+}
+
 export async function fetchAssignedIssuesForCurrentUser(
   client: JiraApi,
+  config: JiraConfig,
   logService?: LoggingService
 ): Promise<JiraIssueSummary[]> {
-  const jql = 'assignee = currentUser() ORDER BY key ASC';
-  const rawIssues = await searchIssuesWithJql(client, jql, ['summary', 'status']);
+  const jql = buildAssignedIssuesJql(config.projectKeys);
+  const rawIssues = await searchIssuesWithJql(client, jql, ['summary', 'status', 'created']);
   const sorted = sortJiraIssuesForPicker(rawIssues.map(mapSearchIssue));
   logService?.info(`[Jira] Loaded ${sorted.length} issue(s) assigned to current user`);
   return sorted;
@@ -239,12 +270,12 @@ export async function pickJiraIssue(
     if (!key) {
       return undefined;
     }
-    return { key, summary: '', statusName: '', statusCategoryKey: 'unknown' };
+    return { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
   }
 
   let issues: JiraIssueSummary[] = [];
   try {
-    issues = await fetchAssignedIssuesForCurrentUser(client, logService);
+    issues = await fetchAssignedIssuesForCurrentUser(client, config, logService);
   } catch (e) {
     logService.warn('[Jira] Failed to fetch assigned issues; falling back to manual key entry', e);
     const key = await promptForJiraIssueKey();
@@ -252,7 +283,7 @@ export async function pickJiraIssue(
       return undefined;
     }
     const fetched = await fetchJiraIssueByKey(client, key);
-    return fetched ?? { key, summary: '', statusName: '', statusCategoryKey: 'unknown' };
+    return fetched ?? { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
   }
 
   return new Promise((resolve) => {
@@ -298,7 +329,7 @@ export async function pickJiraIssue(
             label: `Use "${upper}"`,
             description: 'Manual entry',
             detail: 'Fetch issue details when creating the branch',
-            issue: { key: upper, summary: '', statusName: '', statusCategoryKey: 'unknown' },
+            issue: { key: upper, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' },
           });
         }
       }

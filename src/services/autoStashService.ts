@@ -281,6 +281,7 @@ export class AutoStashService {
     const message =
       `Switching branches will ${operation} a stash that conflicts with the target branch.\n\n` +
       `Conflicting files:\n${fileList}\n\n` +
+      `This preview covers tracked files only; untracked files may still conflict.\n\n` +
       `Continue anyway? You will need to resolve conflicts manually after checkout.`;
     const choice = await window.showWarningMessage(message, { modal: true }, 'Continue');
     return choice === 'Continue';

@@ -18,6 +18,7 @@ import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 import {
@@ -40,9 +41,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private commitsProvider?: PrCommitsWebViewProvider;
   private currentPrData?: GitHubPR;
-
-  private git?: GitExecutor;
-  private ghClient?: GitHubClient;
+  private currentCommits: GitHubCommit[] = [];
 
   private cloneServiceCleanUpAssigned = false;
 
@@ -51,14 +50,16 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     private loggingService: LoggingService,
     private configurationManager: ConfigurationManager,
     private prCloneService: PrCloneService
-  ) {}
+  ) {
+    this.prCloneService.onDidChangeRepository(() => {
+      this.clearState();
+      this.updateRepoInfo();
+    });
+  }
 
   resolveWebviewView(webviewView: WebviewView) {
     this.loggingService.info('...Resolve webview');
     this.webviewView = webviewView;
-
-    this.git = this.prCloneService.git;
-    this.ghClient = this.prCloneService.ghClient;
 
     const extensionUri = this.context.extensionUri;
 
@@ -127,13 +128,17 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async handleWebViewReady() {
+    this.updateRepoInfo();
+  }
+
+  private updateRepoInfo() {
     if (!this.webviewView) {
       return;
     }
 
     const repoInfo = {
-      repo: this.ghClient?.repo,
-      owner: this.ghClient?.owner,
+      repo: this.prCloneService.ghClient.repo,
+      owner: this.prCloneService.ghClient.owner,
     };
 
     this.webviewView.webview.postMessage({
@@ -144,19 +149,17 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
   private async handleFetchPR(prInput: string) {
     try {
-      if (!this.git || !this.ghClient) {
-        throw new Error('Git client is not initialized');
-      }
-
+      const git = this.prCloneService.git;
+      const ghClient = this.prCloneService.ghClient;
       const prNumber = this.extractPRNumber(prInput);
 
-      const prData = await this.ghClient.fetchPullRequest(prNumber);
+      const prData = await ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
 
       // Fetch the latest changes for the PR's specific branch
       this.loggingService.info(`Fetching latest changes for PR branch: ${prData.head.ref}`);
       try {
-        await this.git.fetchSpecificBranch(prData.head.ref);
+        await git.fetchSpecificBranch(prData.head.ref);
         this.loggingService.info(
           `Successfully fetched latest changes for branch: ${prData.head.ref}`
         );
@@ -167,12 +170,20 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         // Continue with PR fetching even if fetch fails
       }
 
-      const commits = await this.ghClient.fetchPullRequestCommits(prNumber);
+      // GitHub's list-commits endpoint caps at 250 commits. If the PR reports
+      // more than that, the commit list (and therefore the clone) is incomplete.
+      if (prData.commits !== undefined && prData.commits > GitHubClient.MAX_PR_COMMITS) {
+        const warning = `PR #${prNumber} has ${prData.commits} commits, but GitHub only exposes the first ${GitHubClient.MAX_PR_COMMITS}. This PR is too large to clone fully.`;
+        this.loggingService.warn(warning);
+        await window.showWarningMessage(warning, 'OK');
+      }
+
+      const commits = await ghClient.fetchPullRequestCommits(prNumber);
 
       // Fetch detailed information for each commit including files
-      const detailedCommits = await this.ghClient.fetchCommitsDetails(commits);
+      const detailedCommits = await ghClient.fetchCommitsDetails(commits);
 
-      const branches = await this.getBranches(this.git);
+      const branches = await this.getBranches(git);
 
       this.updateWebviewWithPRData(prData, detailedCommits, branches);
     } catch (error) {
@@ -223,6 +234,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private updateWebviewWithPRData(prData: GitHubPR, commits: GitHubCommit[], branches: string[]) {
+    this.currentCommits = commits;
+
     if (!this.webviewView) {
       return;
     }
@@ -265,21 +278,21 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   public updateSelectedCommits(selectedCommits: string[]) {
-    this.loggingService.debug('selectedCommits', selectedCommits);
+    const orderedSelectedCommits = orderSelectedCommits(this.currentCommits, selectedCommits);
+    this.loggingService.debug('selectedCommits', orderedSelectedCommits);
     if (!this.webviewView) {
       return;
     }
 
     this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_SELECTED_COMMITS,
-      selectedCommits,
+      selectedCommits: orderedSelectedCommits,
     });
   }
 
   public clearState() {
-    if (!this.webviewView) {
-      return;
-    }
+    this.currentCommits = [];
+    this.currentPrData = undefined;
 
     this.loggingService.info('...clear state command invoked...');
 
@@ -289,6 +302,10 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     // Clear commits data from the webview provider
     if (this.commitsProvider) {
       this.commitsProvider.clearState();
+    }
+
+    if (!this.webviewView) {
+      return;
     }
 
     this.webviewView.webview.postMessage({
@@ -311,7 +328,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         targetBranch: data.targetBranch,
         featureBranch: data.featureBranch,
         description: data.description,
-        selectedCommits: data.selectedCommits,
+        selectedCommits: orderSelectedCommits(this.currentCommits, data.selectedCommits),
         isDraft: data.isDraft || false,
       };
 
@@ -430,13 +447,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async createPR(targetBranch: string, featureBranch: string, description: string) {
-    if (!this.ghClient) {
-      throw new Error('GitHub client not initialized');
-    }
-
     await commands.executeCommand('git.push');
 
-    const prUrl = this.ghClient.createPullRequestUrl(targetBranch, featureBranch, description);
+    const prUrl = this.prCloneService.ghClient.createPullRequestUrl(
+      targetBranch,
+      featureBranch,
+      description
+    );
     await commands.executeCommand('vscode.open', prUrl);
   }
 

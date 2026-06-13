@@ -11,7 +11,6 @@ import { GitHubPR } from '../types/dataTypes';
 import { PrCloneData } from './prCloneService';
 import { setContextShowPRClone, setContextShowPRCommits } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
-import { CommitsGenerator } from '../utils/commitsGenerator';
 
 const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
 
@@ -209,22 +208,18 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
     this.loggingService.info('cherryPickCommits:', commitShas);
 
-    const sortedCommits: string[] = [];
-    for await (const item of new CommitsGenerator(this.git, commitShas)[Symbol.asyncIterator]()) {
-      sortedCommits.push(item.sha);
-    }
-
-    this.loggingService.info('Cherry-picking commits in chronological order:', sortedCommits);
+    const orderedCommits = [...commitShas];
+    this.loggingService.info('Cherry-picking commits in GitHub API order:', orderedCommits);
 
     if (token.isCancellationRequested) {
       throw new Error('Cancel operation');
     }
 
     try {
-      await this.tempGit.cherryPick(sortedCommits, false, 'skip');
+      await this.tempGit.cherryPick(orderedCommits, false, 'skip');
     } catch (error) {
       throw new Error(
-        `Failed to cherry-pick commit${sortedCommits.length > 1 ? 's' : ''}: ${error}`
+        `Failed to cherry-pick commit${orderedCommits.length > 1 ? 's' : ''}: ${error}`
       );
     }
   }
@@ -237,6 +232,8 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     isDraft: boolean
   ): Promise<GitHubPR> {
     const prBody = description;
+    const labels = originalPr.labels?.map((label) => label.name) || [];
+    const assignees = originalPr.assignees?.map((assignee) => assignee.login) || [];
 
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(
@@ -244,7 +241,9 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
       prBody,
       featureBranch,
       targetBranch,
-      isDraft
+      isDraft,
+      labels,
+      assignees
     );
 
     this.loggingService.info(`Created PR #${newPr.number}: ${newPr.title}`);
