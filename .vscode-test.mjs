@@ -2,6 +2,7 @@ import { defineConfig } from '@vscode/test-cli';
 
 const root = process.cwd();
 const e2eFiles = 'out/test/e2e/**/*.test.js';
+const heavyFiles = 'out/test/heavy/**/*.test.js';
 const unitFiles = 'out/test/unit/**/*.test.js';
 const baseLaunchArgs = [
   '--disable-workspace-trust',
@@ -57,6 +58,32 @@ export default defineConfig([
       ui: 'bdd',
       timeout: 120000,
       reporter: 'spec',
+    },
+  },
+  {
+    label: 'e2e-heavy',
+    files: heavyFiles,
+    launchArgs: [
+      ...quietLaunchArgs,
+      '--user-data-dir',
+      `${root}/.vscode-test/user-data-e2e-heavy`,
+    ],
+    env: {
+      GSC_E2E_MODE: 'ci',
+      GSC_DISABLE_TELEMETRY: '1',
+    },
+    mocha: {
+      ui: 'bdd',
+      // Heavy fixtures build a ~28-file repo with several branches and a bare
+      // remote per test, so allow a larger budget than the standard e2e suite.
+      timeout: 60000,
+      ...(process.env.CI && {
+        reporter: 'mocha-junit-reporter',
+        reporterOptions: {
+          mochaFile: 'test-results/heavy-results.xml',
+          suiteTitleSeparatedBy: ' > ',
+        },
+      }),
     },
   },
   {

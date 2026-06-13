@@ -25,6 +25,8 @@ export interface GitHubPR {
   html_url: string;
   labels: GitHubLabel[];
   assignees: GitHubUser[];
+  /** Total number of commits on the PR (as reported by GitHub). */
+  commits?: number;
 }
 
 export interface GitHubCommitFile {

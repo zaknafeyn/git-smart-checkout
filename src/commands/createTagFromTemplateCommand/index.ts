@@ -11,7 +11,6 @@ import {
 import { validateTagName } from './validateTagName';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 
-const CREATE_TAG_ACTION = 'Create';
 const COPY_TAG_ACTION = 'Copy Tag';
 
 export class CreateTagFromTemplateCommand extends BaseCommand {
@@ -49,16 +48,10 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     const template = (cfg.tagTemplate ?? '').trim();
     const remote = cfg.tagRemote || 'origin';
 
-    let tagName: string;
+    let initialTagName = '';
     let hadRecurringToken = false;
 
-    if (template === '') {
-      const input = await this.promptManualTagName(git);
-      if (!input) {
-        return;
-      }
-      tagName = input;
-    } else {
+    if (template !== '') {
       log(`Template: ${template}`);
       const ctx: TagTemplateContext = {
         workspaceRoot,
@@ -97,35 +90,41 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
         return;
       }
 
-      tagName = resolved.tag;
+      initialTagName = resolved.tag;
       hadRecurringToken = resolved.hadRecurringToken;
-      log(`Final tag: ${tagName}`);
-    }
+      log(`Final tag: ${initialTagName}`);
 
-    if (!tagName) {
-      await this.showErrorMessage(
-        'Generated tag is empty. Please check the tag template.'
-      );
-      return;
-    }
-
-    const validationError = validateTagName(tagName);
-    if (validationError) {
-      await this.showErrorMessage(`Invalid tag name "${tagName}": ${validationError}`);
-      return;
-    }
-
-    // If no {r:...} token, verify the tag doesn't already exist
-    if (!hadRecurringToken) {
-      const exists = await git.tagExists(tagName);
-      if (exists) {
-        await this.showErrorMessage(`Tag "${tagName}" already exists.`);
+      if (!initialTagName) {
+        await this.showErrorMessage(
+          'Generated tag is empty. Please check the tag template.'
+        );
         return;
+      }
+
+      const validationError = validateTagName(initialTagName);
+      if (validationError) {
+        await this.showErrorMessage(
+          `Invalid tag name "${initialTagName}": ${validationError}`
+        );
+        return;
+      }
+
+      // If no {r:...} token, verify the tag doesn't already exist
+      if (!hadRecurringToken) {
+        const exists = await git.tagExists(initialTagName);
+        if (exists) {
+          await this.showErrorMessage(`Tag "${initialTagName}" already exists.`);
+          return;
+        }
       }
     }
 
-    const confirm = await this.confirmCreateTag(tagName);
-    if (!confirm) {
+    const tagName = await this.promptEditableTagName(
+      initialTagName,
+      git,
+      hadRecurringToken
+    );
+    if (!tagName) {
       return;
     }
 
@@ -143,16 +142,24 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     await this.handlePush(tagName, remote, cfg.pushTagWithoutConfirmation);
   }
 
-  private async promptManualTagName(
-    git: Awaited<ReturnType<typeof this.getGitExecutor>>
+  private async promptEditableTagName(
+    initialName: string,
+    git: Awaited<ReturnType<typeof this.getGitExecutor>>,
+    skipExistenceOnInitial: boolean
   ): Promise<string | undefined> {
-    const input = await this.showInputBox({
-      prompt: 'Enter Git tag name',
+    return this.showInputBox({
+      title: 'Create tag',
+      prompt: 'Edit the tag name if needed, then press Enter to create',
+      value: initialName,
       placeHolder: 'e.g. v1.2.3',
+      ignoreFocusOut: true,
       validateInput: async (value) => {
         const err = validateTagName(value);
         if (err) {
           return err;
+        }
+        if (value === initialName && skipExistenceOnInitial) {
+          return undefined;
         }
         if (await git.tagExists(value)) {
           return `Tag "${value}" already exists`;
@@ -160,8 +167,6 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
         return undefined;
       },
     });
-
-    return input;
   }
 
   private async handlePush(
@@ -201,18 +206,6 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
         `Tag "${tagName}" was created locally, but push failed.`,
         tagName
       );
-    }
-  }
-
-  private async confirmCreateTag(tagName: string): Promise<boolean> {
-    while (true) {
-      const action = await vscode.window.showInformationMessage(
-        `Create Git tag "${tagName}"?`,
-        { modal: true },
-        CREATE_TAG_ACTION,
-      );
-
-      return action === CREATE_TAG_ACTION;
     }
   }
 

@@ -7,6 +7,7 @@ Website: https://git-smart-checkout.vradchuk.info
 ## Requirements
 
 - Git **2.38** or newer (required for tracked-file conflict pre-flight detection in auto stash and pop/apply modes; untracked-file conflicts are not previewed)
+- GitHub features support HTTPS and SSH GitHub remotes, including repository names that contain dots.
 
 ## Info
 
@@ -26,6 +27,7 @@ In fast-paced development environments, switching between Git branches is freque
 | --- | --- | --- |
 | Checkout to a branch, tag, or remote ref with configurable stash behavior | `Git Smart Checkout: Checkout to ... (With Stash)` | [Checkout with stash](docs/checkout-with-stash.md) |
 | Checkout the previous branch with the same stash behavior | `Git Smart Checkout: Checkout previous branch (With Stash)` | [Checkout previous branch with stash](docs/checkout-previous-branch-with-stash.md) |
+| Copy the current branch name to the clipboard | `Git Smart Checkout: Copy current branch name to clipboard` | [Copy current branch name](docs/copy-current-branch-name.md) |
 | Checkout a GitHub pull request branch by PR number or URL | `Git Smart Checkout: Checkout by PR number... (With Stash)` | [Checkout by PR number with stash](docs/checkout-by-pr-number-with-stash.md) |
 | Review a GitHub pull request in a linked worktree and remove tracked review worktrees | `Git Smart Checkout: PR Review in Worktree`, `Git Smart Checkout: Remove PR review in Worktree` | [PR review in worktree](docs/pr-review-in-worktree.md) |
 | Pull the current branch while preserving local changes | `Git Smart Checkout: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
@@ -58,6 +60,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.jira.domain`](vscode://settings/git-smart-checkout.jira.domain) (Jira domain) | `string` | Jira Cloud host (e.g. `your-company.atlassian.net`). Required when the branch template uses Jira tokens. |
 | ⚙️ [`git-smart-checkout.jira.username`](vscode://settings/git-smart-checkout.jira.username) (Jira username) | `string` | Atlassian account username for Jira API authentication (usually your Atlassian account email). |
 | ⚙️ [`git-smart-checkout.jira.token`](vscode://settings/git-smart-checkout.jira.token) (Jira API token) | `string` | Jira API token. See setting description for unscoped vs scoped token guidance. |
+| ⚙️ [`git-smart-checkout.jira.projectKeys`](vscode://settings/git-smart-checkout.jira.projectKeys) (Jira project keys) | `array` | Optional list of project keys that limit the Jira issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
