@@ -14,6 +14,7 @@ Create and check out a new Git branch from a configurable template. Supports Jir
 | `git-smart-checkout.jira.domain` | Jira Cloud host, e.g. `your-company.atlassian.net` |
 | `git-smart-checkout.jira.username` | Atlassian account username (usually your Atlassian account email) |
 | `git-smart-checkout.jira.token` | API token from [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| `git-smart-checkout.jira.projectKeys` | Optional list of project keys to limit the issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
 
 **Unscoped token (recommended):** use **Create API token** (classic). It works with `https://<domain>.atlassian.net` and needs no scope selection.
 
@@ -30,7 +31,9 @@ The connection is re-checked on extension activation and when settings change. O
 
 ## Jira Issue Picker
 
-When the template uses Jira tokens, the command loads all issues assigned to you (`assignee = currentUser()`), sorted by issue key in ascending order.
+When the template uses Jira tokens, the command loads the issues assigned to you (`assignee = currentUser()`), sorted by creation date with the most recently created issues at the top.
+
+When `git-smart-checkout.jira.projectKeys` is set, the picker is limited to issues from those projects. For example, `["KEY", "HOME"]` shows only issues such as `KEY-123` and `HOME-341`. Leave it empty to include all your assigned issues.
 
 Each list item shows:
 

@@ -1,12 +1,12 @@
 import * as assert from 'assert';
 
-import { AUTO_STASH_MODE_MANUAL, ExtensionConfig } from '../../configuration/extensionConfig';
+import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig } from '../../configuration/extensionConfig';
 import { canShowCreateBranchFromTemplateCommand } from '../../services/branchTemplateAvailability';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
 function baseConfig(overrides: {
   branchTemplate?: string;
-  jira?: { domain: string; username: string; token: string };
+  jira?: JiraConfig;
 } = {}): ExtensionConfig {
   return {
     mode: AUTO_STASH_MODE_MANUAL,
@@ -22,7 +22,7 @@ function baseConfig(overrides: {
     pushTagWithoutConfirmation: false,
     tagRemote: 'origin',
     branchTemplate: overrides.branchTemplate ?? '',
-    jira: overrides.jira ?? { domain: '', username: '', token: '' },
+    jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [] },
   };
 }
 
@@ -60,7 +60,7 @@ describe('branchTemplateAvailability', () => {
     const visible = await canShowCreateBranchFromTemplateCommand(
       baseConfig({
         branchTemplate: '{jira-title:25:-}',
-        jira: { domain: 'company.atlassian.net', username: 'user@example.com', token: '' },
+        jira: { domain: 'company.atlassian.net', username: 'user@example.com', token: '', projectKeys: [] },
       }),
       mockLogService
     );

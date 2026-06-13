@@ -23,6 +23,7 @@ export enum AnalyticsEvent {
   CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',
   MoveWipChangesFromWorktree = 'move_wip_changes_from_worktree',
   WorktreeDevTerminalOpened = 'worktree_dev_terminal_opened',
+  CopyBranchName = 'copy_branch_name',
 }
 
 let client: PostHog | null = null;

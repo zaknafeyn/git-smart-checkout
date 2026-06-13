@@ -9,7 +9,13 @@ import { PrCloneWebViewProvider } from '../../view/PrCloneWebViewProvider';
 describe('PrCloneWebViewProvider disposal', () => {
   it('does not dispose the shared PR clone service it does not own', () => {
     let disposeCalls = 0;
+    let subscriptionDisposeCalls = 0;
     const service = {
+      onDidChangeRepository: () => ({
+        dispose: () => {
+          subscriptionDisposeCalls++;
+        },
+      }),
       dispose: () => {
         disposeCalls++;
       },
@@ -23,6 +29,7 @@ describe('PrCloneWebViewProvider disposal', () => {
 
     provider.dispose();
 
+    assert.strictEqual(subscriptionDisposeCalls, 1);
     assert.strictEqual(disposeCalls, 0);
   });
 });
