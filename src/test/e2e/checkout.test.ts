@@ -10,7 +10,12 @@ import { IGitRef } from '../../common/git/types';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { AutoStashService } from '../../services/autoStashService';
 
-import { createTestRepo, TestRepo } from './helpers/gitTestRepo';
+import {
+  createTestRepo,
+  createTwoRemoteTestRepo,
+  TestRepo,
+  TwoRemoteTestRepo,
+} from './helpers/gitTestRepo';
 import { mockLogService } from './helpers/mockLogService';
 
 const mockConfigManager = {} as unknown as ConfigurationManager;
@@ -139,6 +144,27 @@ describe('AutoStashService — checkoutAndStashChanges', () => {
     });
   });
 
+  describe('tag checkout', () => {
+    let repo: TestRepo;
+    before(() => { repo = createTestRepo(); });
+    after(() => { repo.cleanup(); });
+
+    it('checks out a tag ref (detached HEAD at the tagged commit) without error', async () => {
+      // Reproduces the "Checkout to..." flow for a tag: the picked item carries
+      // the tag's IGitRef, which is passed straight to checkoutAndStashChanges.
+      const refs = await repo.git.getAllRefListExtended();
+      const tagRef = refs.find((ref) => ref.isTag && ref.name === 'v1.0.0');
+      assert.ok(tagRef, 'precondition: v1.0.0 tag ref should be listed');
+
+      const tagSha = repo.exec('git rev-parse v1.0.0').trim();
+
+      await sut.checkoutAndStashChanges(repo.git, repo.mainBranch, tagRef!, AUTO_STASH_IGNORE);
+
+      assert.strictEqual(repo.exec('git rev-parse HEAD').trim(), tagSha, 'HEAD should be at the tagged commit');
+      assert.strictEqual(repo.exec('git symbolic-ref -q HEAD || echo detached').trim(), 'detached', 'checking out a tag detaches HEAD');
+    });
+  });
+
   describe('AUTO_STASH_IGNORE: non-conflicting untracked changes', () => {
     let repo: TestRepo;
     before(() => { repo = createTestRepo(); });
@@ -153,5 +179,53 @@ describe('AutoStashService — checkoutAndStashChanges', () => {
       assert.strictEqual(await repo.git.getCurrentBranch(), repo.featureBranch);
       assert.strictEqual(await repo.git.isWorkdirHasChanges(), true, 'untracked file should persist after checkout');
     });
+  });
+});
+
+describe('GitExecutor — remote-branch existence checks (two remotes)', () => {
+  let repo: TwoRemoteTestRepo;
+  beforeEach(() => { repo = createTwoRemoteTestRepo(); });
+  afterEach(() => { repo.cleanup(); });
+
+  it('branchExist detects a remote-only branch present on origin', async () => {
+    // Precondition: the branch must not exist locally.
+    assert.strictEqual(
+      repo.fileExists('feat.txt'),
+      false,
+      'precondition: feat branch is not checked out locally'
+    );
+
+    assert.strictEqual(
+      await repo.git.branchExist(repo.remoteOnlyBranch),
+      true,
+      'a branch that only exists on origin should be detected by branchExist'
+    );
+  });
+
+  it('branchExist returns false for a name that exists on no remote and no local ref', async () => {
+    assert.strictEqual(await repo.git.branchExist('does-not-exist-anywhere'), false);
+  });
+
+  it('checkout creates a local tracking branch from the named remote when the branch is remote-only', async () => {
+    // `feat` exists on both origin and upstream, so a bare `git checkout feat`
+    // would be ambiguous. checkout() must take the "create -b from <remote>/<branch>"
+    // path, which depends on the remote-existence check resolving correctly.
+    await repo.git.checkout(repo.remoteOnlyBranch, 'origin');
+
+    assert.strictEqual(await repo.git.getCurrentBranch(), repo.remoteOnlyBranch);
+    assert.strictEqual(
+      repo.fileExists('feat.txt'),
+      true,
+      'the remote feat branch content should now be present locally'
+    );
+
+    const upstream = repo.exec(
+      `git rev-parse --abbrev-ref ${repo.remoteOnlyBranch}@{upstream}`
+    ).trim();
+    assert.strictEqual(
+      upstream,
+      `origin/${repo.remoteOnlyBranch}`,
+      'the local branch should track origin, not upstream'
+    );
   });
 });

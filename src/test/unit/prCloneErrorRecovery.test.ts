@@ -172,6 +172,7 @@ describe('PrCloneWebViewProvider clone state recovery', () => {
     const messages: Array<{ command: WebviewCommand; isCloning?: boolean }> = [];
     const cloneError = new PrCloneReportedError(new Error('push failed'));
     const fakeCloneService = {
+      onDidChangeRepository: () => ({ dispose: () => {} }),
       clonePR: async () => {
         throw cloneError;
       },

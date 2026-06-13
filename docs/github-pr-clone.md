@@ -27,6 +27,10 @@ The GitHub PR Clone feature creates a new pull request by cherry-picking selecte
 
 During the cherry-pick process, the extension stashes uncommitted workspace changes, switches to the target branch, pulls the latest changes, creates a feature branch, and cherry-picks the selected commits one by one.
 
+In a multi-root workspace, the command asks which repository to use each time it runs. Switching repositories refreshes the repository shown in the PR Clone view and all subsequent PR data and Git operations use the newly selected repository.
+
+The new PR also copies labels and assignees from the original PR. These metadata updates are best effort: if GitHub rejects one of them, the new PR is still created and the failure is logged.
+
 ## Conflict Handling
 
 When conflicts occur during cherry-picking, you can:
@@ -34,7 +38,8 @@ When conflicts occur during cherry-picking, you can:
 - Resolve conflicts manually and continue.
 - Cancel the process and restore the original state.
 
-The process is tracked with progress indicators and can be safely cancelled.
+The process is tracked with a progress notification that remains active throughout initialization
+and can be safely cancelled at any point.
 
 If an in-place clone fails during branch setup, cherry-picking, push, or pull request creation,
 the extension stops the progress notification, attempts to restore the original branch and

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { CheckoutToCommand } from './commands/checkoutToCommand';
 import { CheckoutPreviousCommand } from './commands/checkoutPreviousCommand';
+import { CopyBranchNameCommand } from './commands/copyBranchNameCommand';
 import { CommandManager } from './commands/commandManager';
 import { PullRebaseWithStashCommand, PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
@@ -114,6 +115,9 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
+
+  const copyBranchNameCommand = new CopyBranchNameCommand(logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.copyBranchName`, copyBranchNameCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.pullWithStash`, pullWithStashCommand);
   commandManager.registerCommand(`${EXTENSION_NAME}.pullRebaseWithStash`, pullRebaseWithStashCommand);
