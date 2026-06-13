@@ -1,8 +1,7 @@
-import { CancellationToken, commands, env, Progress, ProgressLocation, Uri, window } from 'vscode';
+import { commands, env, Progress, Uri, window } from 'vscode';
 
 import { GitExecutor } from '../common/git/gitExecutor';
 import { GitHubClient } from '../common/api/ghClient';
-import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
 import { getStashMessage } from '../commands/utils/getStashMessage';
@@ -17,12 +16,12 @@ import {
 } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
 import { AnalyticsEvent, capture, captureException } from '../analytics/analytics';
+import { PrCloneReportedError } from './prCloneError';
 
 interface IServiceStore {
   originalBranch?: string;
   createdBranchName?: string;
   stashMessage?: string;
-  isAborting?: boolean;
   originalPrData?: PrCloneData;
 }
 
@@ -55,42 +54,47 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
     const nextCommit = await this.commitGenerator!.next();
     if (nextCommit?.done) {
-      this.updateProgress?.report({ message: 'All commits were applied' });
+      try {
+        this.updateProgress?.report({ message: 'All commits were applied' });
 
-      // push branch and proceed to PR creation
-      await this.git.pushBranchToGitHub(this.serviceStore.createdBranchName!);
+        // push branch and proceed to PR creation
+        await this.git.pushBranchToGitHub(this.serviceStore.createdBranchName!);
 
-      const { targetBranch, prData, description, isDraft } = this.serviceStore.originalPrData || {
-        targetBranch: '',
-        prData: undefined,
-        description: '',
-        isDraft: true,
-      };
+        const { targetBranch, prData, description, isDraft } = this.serviceStore.originalPrData || {
+          targetBranch: '',
+          prData: undefined,
+          description: '',
+          isDraft: true,
+        };
 
-      const newPr = await this.createGitHubPR(
-        prData!,
-        this.serviceStore.createdBranchName!,
-        targetBranch!,
-        description!,
-        isDraft!
-      );
+        const newPr = await this.createGitHubPR(
+          prData!,
+          this.serviceStore.createdBranchName!,
+          targetBranch!,
+          description!,
+          isDraft!
+        );
 
-      capture(AnalyticsEvent.PrCloneCompleted, {
-        is_draft: isDraft,
-        commit_count: this.serviceStore.originalPrData?.selectedCommits.length,
-      });
+        capture(AnalyticsEvent.PrCloneCompleted, {
+          is_draft: isDraft,
+          commit_count: this.serviceStore.originalPrData?.selectedCommits.length,
+        });
 
-      const openAction = await window.showInformationMessage(
-        `PR #${newPr.number} created successfully!`,
-        'Open'
-      );
+        const openAction = await window.showInformationMessage(
+          `PR #${newPr.number} created successfully!`,
+          'Open'
+        );
 
-      if (openAction === 'Open') {
-        await env.openExternal(Uri.parse(newPr.html_url));
+        if (openAction === 'Open') {
+          await env.openExternal(Uri.parse(newPr.html_url));
+        }
+
+        this.finishProgress?.();
+        await this.cleanUp();
+      } catch (error) {
+        await this.recoverFromFailure(error);
+        throw new PrCloneReportedError(error);
       }
-
-      this.finishProgress?.();
-      this.cleanUp();
     } else {
       // apply commit and proceed to the next commit
       this.updateProgress?.report({
@@ -104,7 +108,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         };
 
         if (conflicts) {
-          setContextIsCherryPickConflict(true);
+          await setContextIsCherryPickConflict(true);
           this.updateProgress?.report({
             message: `There are conflicts on commit ${nextCommit.value.sha}, (${nextCommit.value.current} of ${nextCommit.value.total})`,
           });
@@ -115,53 +119,44 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
           await this.cherryPickNext();
         }
       } catch (error) {
-        // Handle conflicts - show a message and let the user resolve manually
-        const errorMessage = `Cannot apply cherry pick, reverting changes`;
+        if (error instanceof PrCloneReportedError) {
+          throw error;
+        }
 
         this.loggingService.error(`Cannot cherry-pick a commit '${nextCommit.value}': ${error}`);
 
-        await window.showWarningMessage(errorMessage, { modal: true });
-
-        this.cancelProgress?.();
-        this.cleanUp();
-
-        // The cherry-pick process is now in the user's hands
-        // They need to resolve conflicts manually and continue
-        // throw new Error('Cherry-pick conflicts require manual resolution');
+        await this.recoverFromFailure(error);
+        throw new PrCloneReportedError(error);
       }
     }
   }
 
-  async cleanUp(isAborting = false) {
+  async cleanUp(isAborting = false): Promise<void> {
     this.updateProgress?.report({ message: 'Clean up' });
 
     try {
-      this.cleanUpActionBegin.forEach((action) => action());
+      for (const action of this.cleanUpActionBegin) {
+        await action();
+      }
 
       await setContextIsCloning(false);
       await setContextIsCherryPickConflict(false);
 
-      // If the in-place service was never started (e.g. temp-worktree mode was
-      // active and this service holds an empty store), there is nothing to clean
-      // up. Bail out BEFORE touching the user's working directory so we never
-      // hard-reset a repository this service did not modify.
+      // A service for an inactive clone mode can be disposed without ever
+      // touching the repository. Do not reset that repository during cleanup.
       if (!this.serviceStore.originalBranch) {
         return;
       }
 
       // Check if there's an active cherry-pick operation and abort it
-      if (await this.git.isCherryPickInProgress()) {
-        try {
+      try {
+        if (await this.git.isCherryPickInProgress()) {
           await this.git.cherryPickAbort();
-          setContextIsCherryPickConflict(false);
-        } catch (error) {
-          this.loggingService.warn(`Failed to abort cherry-pick: ${error}`);
         }
+      } catch (error) {
+        this.loggingService.warn(`Failed to abort cherry-pick: ${error}`);
       }
 
-      // Hard reset to discard all changes in workdir, but only when this service
-      // actually created a feature branch. Without a created branch there are no
-      // in-place changes that belong to us to reset.
       if (this.serviceStore.createdBranchName) {
         try {
           await this.git.reset(true);
@@ -170,34 +165,59 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         }
       }
 
-      await this.git.checkout(this.serviceStore.originalBranch);
-
-      if (this.serviceStore.stashMessage) {
-        await this.git.popStash(this.serviceStore.stashMessage);
+      let restoredOriginalBranch = false;
+      try {
+        await this.git.checkout(this.serviceStore.originalBranch);
+        restoredOriginalBranch = true;
+      } catch (error) {
+        this.loggingService.warn(
+          `Failed to restore original branch '${this.serviceStore.originalBranch}': ${error}`
+        );
       }
 
-      if (!this.serviceStore.isAborting && !isAborting) {
+      if (restoredOriginalBranch && this.serviceStore.stashMessage) {
+        try {
+          await this.git.popStash(this.serviceStore.stashMessage);
+        } catch (error) {
+          this.loggingService.warn(
+            `Failed to restore stashed changes '${this.serviceStore.stashMessage}': ${error}`
+          );
+        }
+      }
+
+      if (!isAborting) {
         await this.hideActivityBar();
         return;
       }
-      // below only aborting clean up
 
-      if (!this.serviceStore.createdBranchName) {
+      if (!this.serviceStore.createdBranchName || !restoredOriginalBranch) {
         return;
       }
 
-      // if operation abort requested, clean up leftovers (new branch)
       capture(AnalyticsEvent.PrCloneAborted);
-      await this.git.deleteLocalBranch(this.serviceStore.createdBranchName);
+      try {
+        await this.git.deleteLocalBranch(this.serviceStore.createdBranchName);
+      } catch (error) {
+        this.loggingService.warn(
+          `Failed to delete clone branch '${this.serviceStore.createdBranchName}': ${error}`
+        );
+      }
     } finally {
-      this.cleanUpActionEnd.forEach((action) => action());
+      try {
+        for (const action of this.cleanUpActionEnd) {
+          await action();
+        }
+      } finally {
+        this.resetOperationState();
+      }
     }
   }
 
   async clonePR(data: PrCloneData): Promise<void> {
     this.loggingService.debug('Start cloning PR using in-place cherry-pick...');
 
-    // branch to roll back after PR creation or cancels
+    this.resetOperationState();
+    this.serviceStore.originalPrData = data;
 
     const { finishProgress, cancelProgress, updateProgress } = createWithProcess(
       `Cloning PR #${data.prData.number} (In-Place)`,
@@ -209,8 +229,6 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     this.updateProgress = updateProgress;
 
     try {
-      this.serviceStore.originalPrData = data;
-
       capture(AnalyticsEvent.PrCloneStarted, { commit_count: data.selectedCommits.length, is_draft: data.isDraft });
 
       // Step 1: Store original branch and stash changes if needed
@@ -260,7 +278,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       );
 
       if (this.serviceStore.createdBranchName !== data.featureBranch) {
-        window.showInformationMessage(
+        await window.showInformationMessage(
           `Branch name '${data.featureBranch}' already exists. Using '${this.serviceStore.createdBranchName}' instead.`
         );
       }
@@ -274,15 +292,47 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       this.commitGenerator = new CommitsGenerator(data.selectedCommits)[Symbol.asyncIterator]();
 
       // start cherry picking
-      this.cherryPickNext();
+      await this.cherryPickNext();
     } catch (error) {
-      captureException(error);
+      if (error instanceof PrCloneReportedError) {
+        throw error;
+      }
+
+      await this.recoverFromFailure(error);
+      throw new PrCloneReportedError(error);
     }
   }
 
   dispose() {
     this.cleanUpActionEnd = [];
     this.cleanUpActionBegin = [];
+    this.resetOperationState();
+  }
+
+  protected async showCloneError(error: unknown): Promise<void> {
+    await window.showErrorMessage(
+      `Failed to clone PR: ${error instanceof Error ? error.message : error}`
+    );
+  }
+
+  private async recoverFromFailure(error: unknown): Promise<void> {
+    this.loggingService.error(`Failed to clone PR: ${error}`);
+    captureException(error);
+
+    // Error recovery completes the notification. The current createWithProcess
+    // cancel handle rejects its internal promise, so invoking it here would
+    // create an unhandled rejection until item 8 changes that API.
+    this.finishProgress?.();
+    await this.cleanUp(true);
+    await this.showCloneError(error);
+  }
+
+  private resetOperationState(): void {
+    this.serviceStore = {};
+    this.commitGenerator = undefined;
+    this.updateProgress = undefined;
+    this.finishProgress = undefined;
+    this.cancelProgress = undefined;
   }
 
   private async createGitHubPR(
