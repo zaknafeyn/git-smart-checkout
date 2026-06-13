@@ -139,7 +139,7 @@ function assertSamePath(actual: string, expected: string): void {
 
 describe('PRReviewInWorktreeCommand', () => {
   describe('input parsing', () => {
-    for (const input of ['42', '#42', 'https://github.com/owner/repo/pull/42']) {
+    for (const input of ['42', '#42', 'https://github.com/owner/test-repo/pull/42']) {
       it(`accepts input "${input}" and fetches PR #42`, async () => {
         const repo = createPRTestRepo();
         const worktreePath = getDefaultWorktreePath(repo, repo.prBranch);
@@ -171,6 +171,34 @@ describe('PRReviewInWorktreeCommand', () => {
         }
       });
     }
+
+    it('rejects a PR URL from a different repository before fetching it', async () => {
+      const repo = createPRTestRepo();
+      let fetchedNumber: number | undefined;
+      const errors: string[] = [];
+      const restoreInput = stubInputBox('https://github.com/other-org/other-repo/pull/57');
+      const restoreErrors = stubErrorMessages(errors);
+
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+
+      try {
+        const sut = new TestablePRReviewInWorktreeCommand(repo.git, (prNumber) => {
+          fetchedNumber = prNumber;
+          return makePR(repo.prBranch, { number: prNumber });
+        });
+
+        await sut.execute();
+
+        assert.strictEqual(fetchedNumber, undefined);
+        assert.deepStrictEqual(errors, [
+          'This PR URL belongs to other-org/other-repo, but the current repository is owner/test-repo.',
+        ]);
+      } finally {
+        restoreErrors();
+        restoreInput();
+        repo.cleanup();
+      }
+    });
   });
 
   it('creates a local tracking worktree for a same-repo PR', async () => {

@@ -18,6 +18,7 @@ export enum WebviewCommand {
 
   // Commands sent from extension to webview
   SHOW_PR_DATA = 'showPRData',
+  FETCH_PR_ERROR = 'fetchPRError',
   TARGET_BRANCH_SELECTED = 'targetBranchSelected',
   CLEAR_STATE = 'clearState',
   UPDATE_CLONING_STATE = 'updateCloningState',

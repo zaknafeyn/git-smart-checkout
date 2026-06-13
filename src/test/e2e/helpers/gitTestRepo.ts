@@ -76,8 +76,10 @@ function buildRepo(
 function createBareRepo(prefix: string): string {
   const repoPath = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
-  execSync('git init --bare', { cwd: repoPath, stdio: 'pipe' });
-  execSync('git symbolic-ref HEAD refs/heads/main', { cwd: repoPath, stdio: 'pipe' });
+  // Set the initial branch at init time rather than via a follow-up
+  // `git symbolic-ref`, which auto-discovers the bare repo from the cwd and is
+  // rejected when the user has `safe.bareRepository=explicit` configured.
+  execSync('git init --bare -b main', { cwd: repoPath, stdio: 'pipe' });
 
   return repoPath;
 }
@@ -488,4 +490,260 @@ export function createRebaseConflictTestRepo(): TestRepo {
 
   repo.exec('git checkout feature');
   return repo;
+}
+
+// ---------------------------------------------------------------------------
+// Heavy repository: ~28 mock files across nested directories, several diverging
+// branches, a local bare origin (+ producer clone), a remote-only PR branch and
+// a fork remote. Used by the opt-in heavy test suite to exercise the main
+// features over a large, complex repository instead of a 1–2 file fixture.
+// ---------------------------------------------------------------------------
+
+/** Description of the mixed working-tree state produced by seedComplexWorkingState. */
+export interface ComplexWorkingState {
+  /** Files staged with `git add` (modified or, for the rename target, added). */
+  staged: string[];
+  /** Tracked files modified but left unstaged. */
+  modifiedUnstaged: string[];
+  /** Files staged and then modified again (status `MM`). */
+  mixed: string[];
+  /** Brand-new untracked files (some in new directories). */
+  untracked: string[];
+  /** Tracked files deleted from the working tree (unstaged deletion). */
+  deleted: string[];
+  /** Staged rename. */
+  renamed: { from: string; to: string };
+}
+
+export interface HeavyTestRepo extends TestRepo {
+  remoteRepoPath: string;
+  producerRepoPath: string;
+  forkRepoPath: string;
+  /** Remote-only PR branch on origin (not present locally). */
+  prBranch: string;
+  /** Branch that only exists on the fork remote. */
+  forkBranch: string;
+  uiBranch: string;
+  apiBranch: string;
+  releaseBranch: string;
+  /** Branch that commits a divergent version of conflictFile. */
+  conflictBranch: string;
+  /** Tracked file that conflictBranch and a dirty working tree both modify. */
+  conflictFile: string;
+  /** All files committed on the main baseline. */
+  trackedFiles: string[];
+  /** Dirty the working tree into staged/unstaged/untracked/deleted/renamed all at once. */
+  seedComplexWorkingState(): ComplexWorkingState;
+}
+
+/**
+ * ~28 files of plausible mock data spread across nested directories and file
+ * types (TS source, JSON/YAML config, Markdown docs, JSON fixtures).
+ */
+function heavyBaselineFiles(): Record<string, string> {
+  const tsModule = (name: string, body: string) =>
+    `// ${name}\nexport function ${name}() {\n${body}\n}\n`;
+
+  return {
+    'README.md': '# Heavy Sample Project\n\nA fixture project used for heavy e2e tests.\n',
+    '.gitignore': 'node_modules/\ndist/\n*.log\n',
+    'package.json': JSON.stringify(
+      { name: 'heavy-sample', version: '1.0.0', private: true, scripts: { build: 'tsc' } },
+      null,
+      2
+    ) + '\n',
+    'src/index.ts': "import { startApp } from './app';\n\nstartApp();\n",
+    'src/app.ts': "import { ApiService } from './services/apiService';\n\nexport function startApp() {\n  return new ApiService().init();\n}\n",
+    'src/components/Button.ts': tsModule('Button', '  return { kind: "button", label: "Click" };'),
+    'src/components/Modal.ts': tsModule('Modal', '  return { kind: "modal", open: false };'),
+    'src/components/Header.ts': tsModule('Header', '  return { kind: "header", title: "Home" };'),
+    'src/components/Footer.ts': tsModule('Footer', '  return { kind: "footer", year: 2024 };'),
+    'src/services/apiService.ts': "export class ApiService {\n  init() {\n    return 'api:v1';\n  }\n}\n",
+    'src/services/authService.ts': "export class AuthService {\n  login(user: string) {\n    return `auth:${user}`;\n  }\n}\n",
+    'src/services/cacheService.ts': "export class CacheService {\n  private store = new Map<string, unknown>();\n  get(key: string) {\n    return this.store.get(key);\n  }\n}\n",
+    'src/utils/format.ts': tsModule('format', '  return (value: string) => value.trim();'),
+    'src/utils/validate.ts': tsModule('validate', '  return (value: string) => value.length > 0;'),
+    'src/utils/logger.ts': tsModule('logger', '  return (message: string) => console.log(message);'),
+    'src/hooks/useFetch.ts': tsModule('useFetch', '  return { loading: false, data: null };'),
+    'src/hooks/useToggle.ts': tsModule('useToggle', '  return { on: false, toggle: () => undefined };'),
+    'config/app.json': JSON.stringify({ name: 'heavy-sample', env: 'test', port: 3000 }, null, 2) + '\n',
+    'config/database.json': JSON.stringify({ host: 'localhost', port: 5432, name: 'heavy' }, null, 2) + '\n',
+    'config/feature-flags.yml': 'flags:\n  newUi: false\n  beta: true\n',
+    'docs/getting-started.md': '# Getting Started\n\nClone, install, and run the build.\n',
+    'docs/architecture.md': '# Architecture\n\nLayered: components -> services -> utils.\n',
+    'docs/CONTRIBUTING.md': '# Contributing\n\nOpen a PR against main.\n',
+    'data/users.json': JSON.stringify([{ id: 1, name: 'Ada' }, { id: 2, name: 'Linus' }], null, 2) + '\n',
+    'data/products.json': JSON.stringify([{ sku: 'A1', price: 10 }, { sku: 'B2', price: 20 }], null, 2) + '\n',
+    'data/orders.json': JSON.stringify([{ id: 100, sku: 'A1', qty: 2 }], null, 2) + '\n',
+    'tests/smoke.test.ts': "import { startApp } from '../src/app';\n\nstartApp();\n",
+    'tests/fixtures.ts': "export const fixtures = { user: 'Ada' };\n",
+  };
+}
+
+function writeDeep(repoPath: string, relativePath: string, content: string): void {
+  const target = path.join(repoPath, relativePath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content);
+}
+
+export function createHeavyTestRepo(): HeavyTestRepo {
+  const remoteRepoPath = createBareRepo('gsc-heavy-remote-');
+  const forkRepoPath = createBareRepo('gsc-heavy-fork-');
+
+  const uiBranch = 'feature/ui';
+  const apiBranch = 'feature/api';
+  const releaseBranch = 'release/1.x';
+  const conflictBranch = 'feature/conflict';
+  const conflictFile = 'src/utils/format.ts';
+  const prBranch = 'pr-feature';
+  const forkBranch = 'fork-feature';
+
+  const baseline = heavyBaselineFiles();
+  const trackedFiles = Object.keys(baseline);
+
+  const base = buildRepo('gsc-heavy-test-', (repoPath, exec) => {
+    for (const [relativePath, content] of Object.entries(baseline)) {
+      writeDeep(repoPath, relativePath, content);
+    }
+    exec('git add -A');
+    exec('git commit -m "init: heavy baseline"');
+
+    // feature/ui — touches only components.
+    exec(`git checkout -b ${uiBranch}`);
+    writeDeep(repoPath, 'src/components/Button.ts', '// Button (ui)\nexport function Button() {\n  return { kind: "button", label: "Submit" };\n}\n');
+    writeDeep(repoPath, 'src/components/Sidebar.ts', '// Sidebar (ui)\nexport function Sidebar() {\n  return { kind: "sidebar" };\n}\n');
+    exec('git add -A');
+    exec('git commit -m "feat(ui): restyle button and add sidebar"');
+    exec('git checkout main');
+
+    // feature/api — touches only services.
+    exec(`git checkout -b ${apiBranch}`);
+    writeDeep(repoPath, 'src/services/apiService.ts', "export class ApiService {\n  init() {\n    return 'api:v2';\n  }\n}\n");
+    writeDeep(repoPath, 'src/services/webhookService.ts', "export class WebhookService {\n  emit(event: string) {\n    return `webhook:${event}`;\n  }\n}\n");
+    exec('git add -A');
+    exec('git commit -m "feat(api): bump api version and add webhook service"');
+    exec('git checkout main');
+
+    // release/1.x — touches package.json and docs.
+    exec(`git checkout -b ${releaseBranch}`);
+    writeDeep(repoPath, 'package.json', JSON.stringify(
+      { name: 'heavy-sample', version: '1.1.0', private: true, scripts: { build: 'tsc' } },
+      null,
+      2
+    ) + '\n');
+    writeDeep(repoPath, 'docs/architecture.md', '# Architecture\n\nLayered: components -> services -> utils.\n\n## 1.1\nAdded webhook layer.\n');
+    exec('git add -A');
+    exec('git commit -m "chore(release): prepare 1.1.0"');
+    exec('git checkout main');
+
+    // feature/conflict — commits a divergent version of conflictFile.
+    exec(`git checkout -b ${conflictBranch}`);
+    writeDeep(repoPath, conflictFile, '// format (conflict branch)\nexport function format() {\n  return (value: string) => value.toUpperCase();\n}\n');
+    exec('git add -A');
+    exec('git commit -m "feat: change format on conflict branch"');
+    exec('git checkout main');
+  });
+
+  function execInRepo(cmd: string) {
+    execSync(cmd, { cwd: base.repoPath, stdio: 'pipe' });
+  }
+
+  // origin: push main (with upstream tracking) so pull/rebase have a remote.
+  execInRepo(`git remote add origin "${remoteRepoPath}"`);
+  execInRepo('git push -u origin main');
+
+  // Remote-only PR branch on origin.
+  execInRepo(`git checkout -b ${prBranch}`);
+  writeDeep(base.repoPath, 'src/features/prFeature.ts', "export const prFeature = () => 'pr-feature';\n");
+  execInRepo('git add -A');
+  execInRepo('git commit -m "feat: pr feature"');
+  execInRepo(`git push -u origin ${prBranch}`);
+  execInRepo('git checkout main');
+  execInRepo(`git branch -D ${prBranch}`);
+
+  // Fork-only branch on the fork remote.
+  execInRepo(`git checkout -b ${forkBranch}`);
+  writeDeep(base.repoPath, 'src/features/forkFeature.ts', "export const forkFeature = () => 'fork-feature';\n");
+  execInRepo('git add -A');
+  execInRepo('git commit -m "feat: fork feature"');
+  execInRepo(`git push "${forkRepoPath}" ${forkBranch}`);
+  execInRepo('git checkout main');
+  execInRepo(`git branch -D ${forkBranch}`);
+
+  // Producer clone that pushes a divergent commit touching several files, so the
+  // local main is behind origin/main and a pull has something to integrate.
+  const producerRepoPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gsc-heavy-producer-'));
+  fs.rmSync(producerRepoPath, { recursive: true, force: true });
+  execSync(`git clone "${remoteRepoPath}" "${producerRepoPath}"`, { stdio: 'pipe' });
+  execSync('git config user.email "test@test.local"', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git config user.name "Test"', { cwd: producerRepoPath, stdio: 'pipe' });
+  writeDeep(producerRepoPath, 'data/orders.json', JSON.stringify([{ id: 100, sku: 'A1', qty: 2 }, { id: 101, sku: 'B2', qty: 5 }], null, 2) + '\n');
+  writeDeep(producerRepoPath, 'docs/CHANGELOG.md', '# Changelog\n\n- remote: add order 101\n');
+  execSync('git add -A', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git commit -m "feat: remote order and changelog"', { cwd: producerRepoPath, stdio: 'pipe' });
+  execSync('git push origin main', { cwd: producerRepoPath, stdio: 'pipe' });
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    remoteRepoPath,
+    producerRepoPath,
+    forkRepoPath,
+    prBranch,
+    forkBranch,
+    uiBranch,
+    apiBranch,
+    releaseBranch,
+    conflictBranch,
+    conflictFile,
+    trackedFiles,
+    seedComplexWorkingState(): ComplexWorkingState {
+      const staged = ['src/utils/validate.ts', 'data/users.json', 'config/app.json'];
+      const modifiedUnstaged = ['src/services/cacheService.ts', 'docs/getting-started.md'];
+      const mixed = ['src/utils/logger.ts'];
+      const untracked = ['src/utils/wipHelper.ts', 'data/scratch.json', 'notes/todo.md'];
+      const deleted = ['src/hooks/useToggle.ts'];
+      const renamed = { from: 'tests/fixtures.ts', to: 'tests/fixtures.renamed.ts' };
+
+      // Staged modifications.
+      for (const file of staged) {
+        writeDeep(base.repoPath, file, `${fs.readFileSync(path.join(base.repoPath, file), 'utf-8')}// staged edit\n`);
+      }
+      execInRepo(`git add ${staged.join(' ')}`);
+
+      // Modified-but-unstaged.
+      for (const file of modifiedUnstaged) {
+        writeDeep(base.repoPath, file, `${fs.readFileSync(path.join(base.repoPath, file), 'utf-8')}// unstaged edit\n`);
+      }
+
+      // Staged then modified again (MM).
+      for (const file of mixed) {
+        writeDeep(base.repoPath, file, `${fs.readFileSync(path.join(base.repoPath, file), 'utf-8')}// first edit\n`);
+        execInRepo(`git add ${file}`);
+        writeDeep(base.repoPath, file, `${fs.readFileSync(path.join(base.repoPath, file), 'utf-8')}// second edit\n`);
+      }
+
+      // Untracked (including new directories).
+      for (const file of untracked) {
+        writeDeep(base.repoPath, file, `untracked ${file}\n`);
+      }
+
+      // Unstaged deletion.
+      for (const file of deleted) {
+        fs.rmSync(path.join(base.repoPath, file));
+      }
+
+      // Staged rename.
+      execInRepo(`git mv ${renamed.from} ${renamed.to}`);
+
+      return { staged, modifiedUnstaged, mixed, untracked, deleted, renamed };
+    },
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+      fs.rmSync(forkRepoPath, { recursive: true, force: true });
+      fs.rmSync(producerRepoPath, { recursive: true, force: true });
+    },
+  };
 }

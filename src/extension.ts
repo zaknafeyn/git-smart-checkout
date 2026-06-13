@@ -275,7 +275,7 @@ export function activate(context: vscode.ExtensionContext) {
   const prCancelCloneMenuCommand = commands.registerCommand(
     `${EXTENSION_NAME}.prCancelCloneMenu`,
     async () => {
-      prCloneService.abortClonePR();
+      await prCloneService.abortClonePR();
     }
   );
 

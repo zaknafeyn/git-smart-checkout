@@ -25,6 +25,31 @@ export function supportsMergeTreeWriteTree(output: string): boolean {
   return major > 2 || (major === 2 && minor >= 38);
 }
 
+type StashConflictPreviewError = ExecException & {
+  stdout?: string;
+  stderr?: string;
+};
+
+export function handleStashConflictPreviewError(
+  error: StashConflictPreviewError,
+  logService: Pick<LoggingService, 'warn'>
+): string[] {
+  if (error.code !== 1) {
+    logService.warn(
+      `Stash conflict preview unavailable: git merge-tree exited with code ${String(error.code ?? 'unknown')}.`,
+      { stderr: error.stderr ?? '' }
+    );
+    return [];
+  }
+
+  // Exit 1 = conflicts; stdout is "<tree-oid>\nfile1\nfile2\n...".
+  const lines = (error.stdout ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.slice(1);
+}
+
 function stripStashSubjectPrefix(subject: string): string {
   const prefixEnd = subject.indexOf(': ');
   return prefixEnd === -1 ? subject : subject.slice(prefixEnd + 2);
@@ -522,12 +547,12 @@ export class GitExecutor {
     return stdout.trim();
   }
 
-  // Predicts stash-apply conflicts before any destructive operations by materializing
-  // the working tree as a temporary commit via `git stash create` (non-destructive —
-  // no entry is pushed to refs/stash) and then running `git merge-tree` to simulate
-  // a 3-way merge of that commit onto targetRef. Requires Git >= 2.38.
-  // `merge-tree` exits non-zero and writes conflicting paths to stdout when conflicts
-  // are found, so we capture stdout from both the success and error paths.
+  // Predicts tracked-file stash conflicts before any destructive operations by
+  // materializing tracked working-tree changes as a temporary commit via
+  // `git stash create` (non-destructive; no entry is pushed to refs/stash) and
+  // running `git merge-tree` to simulate a 3-way merge onto targetRef.
+  // Untracked files are not included in this preview and may still conflict when
+  // the real stash, which includes untracked files, is restored. Requires Git >= 2.38.
   async getStashConflictPreview(targetRef: string): Promise<string[]> {
     if (!(await this.#supportsMergeTreeWriteTree())) {
       if (!this.#mergeTreeFallbackLogged) {
@@ -548,11 +573,11 @@ export class GitExecutor {
     try {
       await this.#execGitCommand(['merge-tree', '--write-tree', '--name-only', '--no-messages', targetRef, sha]);
       return []; // exit 0 = clean merge, no conflicts
-    } catch (e: any) {
-      // exit 1 = conflicts; stdout is "<tree-oid>\nfile1\nfile2\n…"
-      const out: string = e?.stdout ?? '';
-      const lines = out.split('\n').map((l: string) => l.trim()).filter(Boolean);
-      return lines.slice(1); // skip the tree OID on the first line
+    } catch (error) {
+      return handleStashConflictPreviewError(
+        error as StashConflictPreviewError,
+        this.#logService
+      );
     }
   }
 
@@ -707,16 +732,6 @@ export class GitExecutor {
 
   async pushBranchToGitHub(branchName: string): Promise<void> {
     await this.#execGitCommand(['push', '-u', 'origin', branchName]);
-  }
-
-  async getCommitTimestamp(sha: string) {
-    try {
-      const { stdout } = await this.#execGitCommand(['show', '--format=%ct', '--no-patch', sha]);
-      const timestamp = parseInt(stdout.trim().replace(/"/g, ''));
-      return { sha, timestamp };
-    } catch (error) {
-      return { sha, timestamp: 0 };
-    }
   }
 
   async tagExists(tagName: string): Promise<boolean> {

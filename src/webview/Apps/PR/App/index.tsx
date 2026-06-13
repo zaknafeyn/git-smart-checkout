@@ -11,11 +11,18 @@ import {
   writeWebviewState,
 } from '../../../../common/vscode/webviewState';
 
+import { fetchPRLoadingReducer } from './fetchPRLoadingState';
+
 export const App: React.FC = () => {
   const logger = useLogger(false);
   const sendMessage = useSendMessage();
   const vscode = getVsCodeApi<AppState>();
-  
+
+  const [isFetchingPR, updateFetchPRLoading] = React.useReducer(
+    fetchPRLoadingReducer,
+    false
+  );
+
   const [state, setState] = useState<AppState>(() => {
     try {
       const savedState = readWebviewState(vscode, { view: 'input' });
@@ -41,7 +48,8 @@ export const App: React.FC = () => {
   }, [state, vscode, logger]);
 
   const handleFetchPR = (prInput: string) => {
-    sendMessage(WebviewCommand.FETCH_PR, { prInput } )
+    updateFetchPRLoading(WebviewCommand.FETCH_PR);
+    sendMessage(WebviewCommand.FETCH_PR, { prInput });
   };
 
   const handleClonePR = (data: any) => {
@@ -50,6 +58,7 @@ export const App: React.FC = () => {
   };
 
   const handleCancel = () => {
+    updateFetchPRLoading(WebviewCommand.CANCEL_PR_CLONE);
     // Send message to VS Code extension to close activity bar and hide webview
     sendMessage(WebviewCommand.CANCEL_PR_CLONE);
   };
@@ -68,6 +77,7 @@ export const App: React.FC = () => {
 
       switch (true) {
         case message.command === WebviewCommand.SHOW_PR_DATA:
+          updateFetchPRLoading(WebviewCommand.SHOW_PR_DATA);
           // Show notification about the fetched PR
           const prData = message.prData;
           
@@ -90,6 +100,9 @@ export const App: React.FC = () => {
             defaultTargetBranch: message.defaultTargetBranch,
             prBranchPrefix: message.prBranchPrefix
           });
+          break;
+        case message.command === WebviewCommand.FETCH_PR_ERROR:
+          updateFetchPRLoading(WebviewCommand.FETCH_PR_ERROR);
           break;
         case message.command === WebviewCommand.TARGET_BRANCH_SELECTED:
           setState(prev => ({
@@ -147,8 +160,9 @@ export const App: React.FC = () => {
     <PrInputForm 
       repoName={repoInfo.repo}
       repoOwner={repoInfo.owner}
-      onFetchPR={handleFetchPR} 
+      onFetchPR={handleFetchPR}
       onCancel={handleCancel}
+      isLoading={isFetchingPR}
     />
   );
 };

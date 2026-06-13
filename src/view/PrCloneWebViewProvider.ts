@@ -5,6 +5,7 @@ import {
   Disposable,
   ExtensionContext,
   Uri,
+  type Webview,
   WebviewView,
   WebviewViewProvider,
   window,
@@ -16,8 +17,10 @@ import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { PrCloneData, PrCloneService } from '../services/prCloneService';
+import { PrCloneReportedError } from '../services/prCloneError';
 import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
+import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 import {
@@ -25,11 +28,27 @@ import {
   setContextShowPRClone,
   setContextShowPRCommits,
 } from '../utils/setContext';
+import {
+  getRepositoryMismatchMessage,
+  INVALID_PR_INPUT_MESSAGE,
+  parsePRInput,
+} from '../commands/utils/parsePRInput';
+
+export function postFetchPRError(
+  webview: Pick<Webview, 'postMessage'> | undefined,
+  error: unknown
+): Thenable<boolean> | undefined {
+  return webview?.postMessage({
+    command: WebviewCommand.FETCH_PR_ERROR,
+    message: String(error),
+  });
+}
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
   private commitsProvider?: PrCommitsWebViewProvider;
   private currentPrData?: GitHubPR;
+  private currentCommits: GitHubCommit[] = [];
 
   private cloneServiceCleanUpAssigned = false;
   private readonly repositoryChangeSubscription: Disposable;
@@ -63,15 +82,15 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     if (!this.cloneServiceCleanUpAssigned) {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
-        cleanUpActionEnd: () => {
-          webviewView.webview.postMessage({
+        cleanUpActionEnd: async () => {
+          await webviewView.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });
 
-          this.updateCloningState(false);
+          await this.updateCloningState(false);
 
-          webviewView.webview.postMessage({
+          await webviewView.webview.postMessage({
             command: WebviewCommand.CANCEL_PR_CLONE,
           });
         },
@@ -140,8 +159,24 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     try {
       const git = this.prCloneService.git;
       const ghClient = this.prCloneService.ghClient;
-      const prNumber = this.extractPRNumber(prInput);
+      const parsedInput = parsePRInput(prInput);
+      if (!parsedInput) {
+        await postFetchPRError(this.webviewView?.webview, INVALID_PR_INPUT_MESSAGE);
+        await window.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
+        return;
+      }
 
+      const repositoryMismatchMessage = getRepositoryMismatchMessage(parsedInput, {
+        owner: ghClient.owner,
+        repo: ghClient.repo,
+      });
+      if (repositoryMismatchMessage) {
+        await postFetchPRError(this.webviewView?.webview, repositoryMismatchMessage);
+        await window.showErrorMessage(repositoryMismatchMessage, 'OK');
+        return;
+      }
+
+      const { prNumber } = parsedInput;
       const prData = await ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
 
@@ -177,25 +212,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       this.updateWebviewWithPRData(prData, detailedCommits, branches);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
+      await postFetchPRError(this.webviewView?.webview, error);
       await window.showErrorMessage(
         `Failed to fetch PR: ${error instanceof Error ? error.message : error}`,
         'OK'
       );
     }
-  }
-
-  private extractPRNumber(input: string): number {
-    const prNumberMatch = input.match(/(?:pull\/|#)(\d+)/);
-    if (prNumberMatch) {
-      return parseInt(prNumberMatch[1], 10);
-    }
-
-    const numberMatch = input.match(/^\d+$/);
-    if (numberMatch) {
-      return parseInt(input, 10);
-    }
-
-    throw new Error('Invalid PR number or URL format');
   }
 
   private async getBranches(git: GitExecutor): Promise<string[]> {
@@ -222,6 +244,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private updateWebviewWithPRData(prData: GitHubPR, commits: GitHubCommit[], branches: string[]) {
+    this.currentCommits = commits;
+
     if (!this.webviewView) {
       return;
     }
@@ -264,18 +288,20 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   public updateSelectedCommits(selectedCommits: string[]) {
-    this.loggingService.debug('selectedCommits', selectedCommits);
+    const orderedSelectedCommits = orderSelectedCommits(this.currentCommits, selectedCommits);
+    this.loggingService.debug('selectedCommits', orderedSelectedCommits);
     if (!this.webviewView) {
       return;
     }
 
     this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_SELECTED_COMMITS,
-      selectedCommits,
+      selectedCommits: orderedSelectedCommits,
     });
   }
 
   public clearState() {
+    this.currentCommits = [];
     this.currentPrData = undefined;
 
     this.loggingService.info('...clear state command invoked...');
@@ -300,7 +326,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleClonePR(data: any) {
     try {
       // Set loading state
-      this.updateCloningState(true);
+      await this.updateCloningState(true);
 
       if (!this.prCloneService || !this.currentPrData) {
         throw new Error('PR Clone service or PR data not initialized');
@@ -312,7 +338,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         targetBranch: data.targetBranch,
         featureBranch: data.featureBranch,
         description: data.description,
-        selectedCommits: data.selectedCommits,
+        selectedCommits: orderSelectedCommits(this.currentCommits, data.selectedCommits),
         isDraft: data.isDraft || false,
       };
 
@@ -320,9 +346,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       await this.prCloneService.clonePR(prCloneData);
     } catch (error) {
       this.loggingService.error(`Failed to clone PR: ${error}`);
-      window.showErrorMessage(
-        `Failed to clone PR: ${error instanceof Error ? error.message : error}`
-      );
+      await this.updateCloningState(false);
+      if (!(error instanceof PrCloneReportedError)) {
+        await window.showErrorMessage(
+          `Failed to clone PR: ${error instanceof Error ? error.message : error}`
+        );
+      }
     }
   }
 
@@ -375,12 +404,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateCloningState(isCloning: boolean) {
+  private async updateCloningState(isCloning: boolean): Promise<void> {
     if (!this.webviewView) {
       return;
     }
 
-    this.webviewView.webview.postMessage({
+    await this.webviewView.webview.postMessage({
       command: WebviewCommand.UPDATE_CLONING_STATE,
       isCloning,
     });
@@ -391,7 +420,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
 
     // Update context to disable/enable interactions
-    setContextIsCloning(isCloning);
+    await setContextIsCloning(isCloning);
   }
 
   private async handleShowConfirmationDialog(message: string, details: string, data: any) {

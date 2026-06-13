@@ -258,7 +258,7 @@ describe('CheckoutByPRCommand – input parsing', () => {
 
   after(() => { repo.cleanup(); });
 
-  for (const input of ['42', '#42', 'https://github.com/owner/repo/pull/42']) {
+  for (const input of ['42', '#42', 'https://github.com/owner/test-repo/pull/42']) {
     it(`accepts input "${input}" and fetches PR #42`, async () => {
       let fetchedNumber: number | undefined;
       const fakeClient = {
@@ -289,6 +289,41 @@ describe('CheckoutByPRCommand – input parsing', () => {
       }
     });
   }
+
+  it('rejects a PR URL from a different repository before fetching it', async () => {
+    const errors: string[] = [];
+    let fetchedNumber: number | undefined;
+    const restoreInput = stubInputBox('https://github.com/other-org/other-repo/pull/57');
+    const restoreErrors = stubErrorMessages(errors);
+
+    class PatchedCommand extends CheckoutByPRCommand {
+      protected async getGitExecutor(): Promise<GitExecutor> { return repo.git; }
+      protected createGitHubClient(): GitHubClient {
+        return {
+          fetchPullRequest: async (n: number) => {
+            fetchedNumber = n;
+            return makePR(repo.prBranch, { number: n });
+          },
+        } as unknown as GitHubClient;
+      }
+    }
+
+    try {
+      await new PatchedCommand(
+        makeMockConfigManager(AUTO_STASH_MODE_BRANCH),
+        mockLogService,
+        new AutoStashService(makeMockConfigManager(AUTO_STASH_MODE_BRANCH), mockLogService)
+      ).execute();
+
+      assert.strictEqual(fetchedNumber, undefined);
+      assert.deepStrictEqual(errors, [
+        'This PR URL belongs to other-org/other-repo, but the current repository is owner/test-repo.',
+      ]);
+    } finally {
+      restoreInput();
+      restoreErrors();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

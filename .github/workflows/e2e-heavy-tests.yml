@@ -1,0 +1,68 @@
+name: Heavy E2E Tests
+
+# Opt-in heavy e2e suite. It builds a large (~28-file) multi-branch repository
+# per test, so it is intentionally kept OUT of the per-PR `E2E Tests` workflow.
+# Trigger it manually from the Actions tab, or let the weekly schedule run it.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  e2e-heavy:
+    name: Run Heavy E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Cache VS Code test instance
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test
+          key: vscode-test-${{ runner.os }}-${{ hashFiles('.vscode-test.mjs') }}
+          restore-keys: |
+            vscode-test-${{ runner.os }}-
+
+      - name: Compile extension and tests
+        run: yarn compile && yarn compile-tests
+
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
+      - name: Run heavy e2e tests
+        run: yarn test:e2e:heavy:ci
+        env:
+          CI: true
+          GSC_DISABLE_TELEMETRY: '1'
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: heavy-e2e-test-results
+          path: test-results/
+          retention-days: 7
+
+      - name: Publish test report
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/heavy-results.xml
+          check_name: Heavy E2E Test Results
+          fail_on: nothing

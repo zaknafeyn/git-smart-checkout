@@ -6,7 +6,7 @@ Website: https://git-smart-checkout.vradchuk.info
 
 ## Requirements
 
-- Git **2.38** or newer is recommended for conflict pre-flight detection in auto stash and pop/apply modes. On older Git versions, the extension logs that the preview is unavailable and continues without it.
+- Git **2.38** or newer is recommended for tracked-file conflict pre-flight detection in auto stash and pop/apply modes. On older Git versions, the extension logs that the preview is unavailable and continues without it; untracked-file conflicts are not previewed.
 - GitHub features support HTTPS and SSH GitHub remotes, including repository names that contain dots.
 
 ## Info

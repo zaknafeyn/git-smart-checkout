@@ -1,9 +1,9 @@
+import React, { useEffect, useRef, useState } from 'react';
+
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Text } from '@/components/Text';
 import { useLogger } from '@/hooks';
-import { useLoadingState } from '@/hooks/useLoadingState';
-import React, { useState, useEffect, useRef } from 'react';
 
 import styles from './module.css';
 
@@ -12,16 +12,17 @@ interface PrInputFormProps {
   repoName?: string;
   onFetchPR: (prInput: string) => void;
   onCancel: () => void;
+  isLoading: boolean;
 }
 
 export const PrInputForm: React.FC<PrInputFormProps> = ({
-    repoOwner = 'owner',
-    repoName = 'repo',
-    onFetchPR,
-    onCancel
-  }) => {
+  repoOwner = 'owner',
+  repoName = 'repo',
+  onFetchPR,
+  onCancel,
+  isLoading,
+}) => {
   const [prInput, setPrInput] = useState('');
-  const loadPullRequestData = useLoadingState();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const logger = useLogger();
@@ -42,30 +43,22 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [loadPullRequestData.isLoading]);
+  }, [isLoading]);
 
   const handleCancel = () => {
-    if (loadPullRequestData.isLoading) {
-      // Cancel the fetch process but don't close panel
-      loadPullRequestData.finish();
+    if (isLoading) {
       logger.info('PR fetch cancelled by user');
-      // todo: remove onCancel and send message to provider to cancer running request
-      onCancel();
-    } else {
-      // Close the panel when not fetching
-      onCancel();
     }
+    onCancel();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    logger.info('Fetching PR data ...')
+    logger.info('Fetching PR data ...');
     e.preventDefault();
     if (!prInput.trim()) {
       alert('Please enter a PR number or URL');
       return;
     }
-    
-    loadPullRequestData.start();
     onFetchPR(prInput.trim());
   };
 
@@ -94,7 +87,7 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
           <Button 
             type="submit" 
             variant="primary" 
-            loading={loadPullRequestData.isLoading}
+            loading={isLoading}
             disabled={!prInput.trim()}
           >
             Fetch PR Data
