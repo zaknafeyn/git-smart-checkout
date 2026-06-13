@@ -19,11 +19,9 @@ import {
   getRefDetails,
   getRefLabel,
   getRefLabelWithStar,
-  ICON_BRANCH,
   ICON_STAR_FILLED,
   ICON_FOLDER,
-  ICON_PLUS,
-  ICON_REMOTE_BRANCH
+  ICON_PLUS
 } from '../utils/refFormatting';
 import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 
@@ -46,13 +44,17 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const git = await this.getGitExecutor(this.vscodeGitProvider);
 
-      const { currentBranch, selection, branchList } = await this.getSelectedOption(git);
-
-      const newBranch = await this.getTargetBranch(git, selection, branchList);
+      const { currentBranch, selection, selectedRef, branchList } =
+        await this.getSelectedOption(git);
 
       const isNewBranch =
         selection === LABEL_CREATE_NEW_BRANCH ||
         selection === LABEL_CREATE_NEW_BRANCH_FROM;
+
+      // For an existing ref the accepted quick-pick item already carries the
+      // full IGitRef, so use it directly instead of resolving from a display
+      // label (which broke tags, whose label is "$(tag) v1.2.3").
+      const newBranch = selectedRef ?? (await this.getTargetBranch(git, selection, branchList));
 
       if (!isNewBranch) {
         const conflictWorktree = await findWorktreeForBranch(git, newBranch.name);
@@ -96,7 +98,12 @@ export class CheckoutToCommand extends BaseCommand {
 
   async getSelectedOption(
     git: GitExecutor
-  ): Promise<{ currentBranch: string; selection: string; branchList: IGitRef[] }> {
+  ): Promise<{
+    currentBranch: string;
+    selection: string;
+    selectedRef?: IGitRef;
+    branchList: IGitRef[];
+  }> {
     let currentBranch = '';
     try {
       currentBranch = await git.getCurrentBranch();
@@ -286,6 +293,7 @@ export class CheckoutToCommand extends BaseCommand {
     return {
       currentBranch,
       selection: getRefLabel(picked.ref),
+      selectedRef: picked.ref,
       branchList,
     };
   }
@@ -295,24 +303,13 @@ export class CheckoutToCommand extends BaseCommand {
     selection: string,
     branchList: IGitRef[]
   ): Promise<IGitRef> {
-    const iconsToRemove = [ICON_BRANCH, ICON_REMOTE_BRANCH];
-
-    switch (true) {
-      case selection === LABEL_CREATE_NEW_BRANCH:
+    switch (selection) {
+      case LABEL_CREATE_NEW_BRANCH:
         return await this.createNewBranch(git);
-      case selection === LABEL_CREATE_NEW_BRANCH_FROM:
+      case LABEL_CREATE_NEW_BRANCH_FROM:
         return await this.createNewBranchFrom(git, branchList);
       default:
-        const branchName = iconsToRemove.reduce(
-          (prev, icon) => prev.replace(`${icon} `, ''),
-          selection
-        );
-        const branch = branchList.find((ref) => ref.fullName === branchName);
-        if (!branch) {
-          throw new Error(`Cannot find appropriate object for a ref ${branchName}`);
-        }
-
-        return branch;
+        throw new Error(`Cannot find appropriate object for a ref ${selection}`);
     }
   }
 

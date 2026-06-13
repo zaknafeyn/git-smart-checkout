@@ -244,6 +244,8 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     isDraft: boolean
   ): Promise<GitHubPR> {
     const prBody = description;
+    const labels = originalPr.labels?.map((label) => label.name) || [];
+    const assignees = originalPr.assignees?.map((assignee) => assignee.login) || [];
 
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(
@@ -251,7 +253,9 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
       prBody,
       featureBranch,
       targetBranch,
-      isDraft
+      isDraft,
+      labels,
+      assignees
     );
 
     this.loggingService.info(`Created PR #${newPr.number}: ${newPr.title}`);
