@@ -31,6 +31,7 @@ import {
 } from './commands/copyChangesFromWorktreeCommand';
 import { CreateBranchFromTemplateCommand } from './commands/createBranchFromTemplateCommand';
 import { SetJiraTokenCommand } from './commands/setJiraTokenCommand';
+import { InitJiraCommand } from './commands/initJiraCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplateAvailability';
 import { setContextCanCreateBranchFromTemplate } from './utils/setContext';
@@ -154,6 +155,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const setJiraTokenCommand = new SetJiraTokenCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.setJiraToken`, setJiraTokenCommand);
+
+  const initJiraCommand = new InitJiraCommand(configManager, logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.initJira`, initJiraCommand);
 
   const refreshBranchTemplateCommandVisibility = () => {
     logService.info('[Create Branch] Re-evaluating command visibility after configuration change');

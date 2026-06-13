@@ -38,6 +38,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
+| Set up Jira credentials (domain, username, and securely stored API token) in one guided flow | `Git Smart Checkout: Init Jira` | [Create branch from template](docs/create-branch-from-template.md#jira-configuration) |
 | Store the Jira API token securely in VS Code Secret Storage | `Git Smart Checkout: Set Jira token` | [Create branch from template](docs/create-branch-from-template.md#jira-configuration) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
 

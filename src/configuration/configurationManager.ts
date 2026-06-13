@@ -127,6 +127,18 @@ export class ConfigurationManager {
     await config.update('showStatusBar', enabled, ConfigurationTarget.Global);
   }
 
+  /** Persist the Jira Cloud host in settings (empty clears it). */
+  public async updateJiraDomain(domain: string): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('jira.domain', domain === '' ? undefined : domain, ConfigurationTarget.Global);
+  }
+
+  /** Persist the Jira account username in settings (empty clears it). */
+  public async updateJiraUsername(username: string): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('jira.username', username === '' ? undefined : username, ConfigurationTarget.Global);
+  }
+
   // Preferred refs helpers
   public getPreferredRefs(repoId: string): PreferredRefsRepo {
     return getRepoPrefs(this.config.preferredRefs, repoId);

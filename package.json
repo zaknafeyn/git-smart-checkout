@@ -139,6 +139,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.initJira",
+        "title": "Init Jira",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.setJiraToken",
         "title": "Set Jira token",
         "category": "GSC"
@@ -227,6 +232,9 @@
         {
           "command": "git-smart-checkout.createBranchFromTemplate",
           "when": "git-smart-checkout.canCreateBranchFromTemplate"
+        },
+        {
+          "command": "git-smart-checkout.initJira"
         },
         {
           "command": "git-smart-checkout.setJiraToken"
