@@ -69,6 +69,29 @@ export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   return worktrees;
 }
 
+/**
+ * Parses Git's `%(upstream:track)` output into `[ahead, behind]` counts.
+ * Missing directions are treated as zero; missing or gone upstreams have no counts.
+ */
+export function parseUpstreamTrack(upstreamTrack: string): TUpstreamTrack {
+  if (!upstreamTrack || upstreamTrack === '[gone]') {
+    return;
+  }
+
+  const arr = upstreamTrack.slice(1, -1).split(',');
+  if (arr.length === 1) {
+    if (arr[0].startsWith('ahead')) {
+      arr.push('behind 0');
+    } else {
+      arr.unshift('ahead 0');
+    }
+  }
+
+  const [ahead, behind] = arr.map((item) => Number(item.trim().split(' ')[1]));
+
+  return [ahead, behind];
+}
+
 export function parseGitHubRemoteUrl(remoteUrl: string): { owner: string; repo: string } | null {
   const value = remoteUrl.trim();
   const scpMatch = value.match(/^[^@\s]+@github\.com:([^/\s]+)\/([^/\s]+)\/?$/i);
@@ -131,33 +154,6 @@ export class GitExecutor {
 
   async #execGitCommand(args: string[]) {
     return await this.#execGitCommandWithOptions(args, {});
-  }
-
-  /*
-   * convert following strings:
-   * [ahead 3, behind 2]
-   * [ahead 3]
-   * [behind 2]
-   * [gone]
-   **/
-
-  #parseTrackData(upstreamTrack: string): TUpstreamTrack {
-    if (!upstreamTrack || upstreamTrack === '[gone]') {
-      return;
-    }
-
-    const arr = upstreamTrack.slice(1, -1).split(',');
-    if (arr.length === 1) {
-      if (arr[0].startsWith('ahead')) {
-        arr.push('behind 0');
-      } else {
-        arr.unshift('ahead 0');
-      }
-    }
-
-    const [ahead, behind] = arr.map((i) => Number(i.split(' ')[1]));
-
-    return [ahead, behind];
   }
 
   async #checkLocalBranchExists(branchName: string): Promise<boolean> {
@@ -344,7 +340,7 @@ export class GitExecutor {
           dereferredAuthorName,
         ] = line.split(SEPARATOR, FIELD_COUNT);
 
-        const parsedUpstreamTrack = this.#parseTrackData(upstreamTrack);
+        const parsedUpstreamTrack = parseUpstreamTrack(upstreamTrack);
 
         const branchArr = ref.split('/');
         const [_, refType, ...other] = branchArr;
