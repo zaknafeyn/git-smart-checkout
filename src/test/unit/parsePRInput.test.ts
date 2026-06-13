@@ -13,6 +13,14 @@ import { PrCloneService } from '../../services/prCloneService';
 import { PrCloneWebViewProvider } from '../../view/PrCloneWebViewProvider';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
+function createPrCloneService(ghClient: GitHubClient): PrCloneService {
+  return {
+    onDidChangeRepository: () => ({ dispose: () => {} }),
+    git: {},
+    ghClient,
+  } as unknown as PrCloneService;
+}
+
 describe('parsePRInput', () => {
   it('parses PR numbers without repository information', () => {
     assert.deepStrictEqual(parsePRInput('123'), { prNumber: 123 });
@@ -31,6 +39,8 @@ describe('parsePRInput', () => {
   });
 
   it('rejects non-GitHub and malformed PR URLs', () => {
+    assert.strictEqual(parsePRInput('0'), null);
+    assert.strictEqual(parsePRInput('https://github.com/owner/repo/pull/0'), null);
     assert.strictEqual(parsePRInput('https://example.com/owner/repo/pull/57'), null);
     assert.strictEqual(parsePRInput('https://github.com/owner/repo/issues/57'), null);
     assert.strictEqual(parsePRInput('not-a-pr'), null);
@@ -83,10 +93,8 @@ describe('PrCloneWebViewProvider PR input validation', () => {
       {} as vscode.ExtensionContext,
       mockLogService,
       {} as ConfigurationManager,
-      {} as PrCloneService
+      createPrCloneService(ghClient)
     );
-    (provider as any).git = {};
-    (provider as any).ghClient = ghClient;
 
     try {
       await (provider as any).handleFetchPR(
@@ -110,14 +118,13 @@ describe('PrCloneWebViewProvider PR input validation', () => {
       return 'OK';
     };
 
+    const ghClient = new GitHubClient('current-org', 'current-repo');
     const provider = new PrCloneWebViewProvider(
       {} as vscode.ExtensionContext,
       {} as LoggingService,
       {} as ConfigurationManager,
-      {} as PrCloneService
+      createPrCloneService(ghClient)
     );
-    (provider as any).git = {};
-    (provider as any).ghClient = new GitHubClient('current-org', 'current-repo');
 
     try {
       await (provider as any).handleFetchPR('not-a-pr');

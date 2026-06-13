@@ -33,9 +33,15 @@ On branch `feature/FEAT-123-login` with `package.json` version `12.3.4`:
 mobile-v12.3.4-FEAT-123-3
 ```
 
+## Confirmation
+
+After resolving the template, an **editable input box** shows the tag name. Edit it if needed, then press **Enter** to create the tag. Press **Escape** to cancel.
+
+Tag names are validated against `git check-ref-format` rules and checked for collisions before creation. The collision check is skipped only while the field still holds a template result that used a `{r:...}` uniqueness suffix.
+
 ## Manual Tag Entry
 
-If `git-smart-checkout.tagTemplate` is empty, the command prompts for a tag name. The input is validated and checked for uniqueness before creation.
+If `git-smart-checkout.tagTemplate` is empty, the same input box opens empty so you can type a tag name. The input is validated and checked for uniqueness before creation.
 
 ## Pushing Tags
 

@@ -312,11 +312,11 @@ describe('branchTemplateService', () => {
 });
 
 describe('jiraService sorting', () => {
-  it('sorts issues by key ascending', () => {
+  it('falls back to key order when issues have no created date', () => {
     const issues = [
-      { key: 'B-2', summary: '', statusName: 'Done', statusCategoryKey: 'done' },
-      { key: 'A-3', summary: '', statusName: 'In Progress', statusCategoryKey: 'indeterminate' },
-      { key: 'A-1', summary: '', statusName: 'To Do', statusCategoryKey: 'new' },
+      { key: 'B-2', summary: '', statusName: 'Done', statusCategoryKey: 'done', created: '' },
+      { key: 'A-3', summary: '', statusName: 'In Progress', statusCategoryKey: 'indeterminate', created: '' },
+      { key: 'A-1', summary: '', statusName: 'To Do', statusCategoryKey: 'new', created: '' },
     ];
 
     const sorted = sortJiraIssuesForPicker(issues);

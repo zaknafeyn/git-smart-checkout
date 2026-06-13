@@ -9,9 +9,10 @@ export interface ParsedPRInput {
 
 export function parsePRInput(input: string): ParsedPRInput | null {
   const trimmedInput = input.trim();
-  const num = trimmedInput.match(/^#?(\d+)$/);
+  const num = trimmedInput.match(/^#?([1-9]\d*)$/);
   if (num) {
-    return { prNumber: parseInt(num[1], 10) };
+    const prNumber = Number(num[1]);
+    return Number.isSafeInteger(prNumber) ? { prNumber } : null;
   }
 
   try {
@@ -25,10 +26,15 @@ export function parsePRInput(input: string): ParsedPRInput | null {
     if (
       pathParts.length >= 4 &&
       pathParts[2] === 'pull' &&
-      /^\d+$/.test(pathParts[3])
+      /^[1-9]\d*$/.test(pathParts[3])
     ) {
+      const prNumber = Number(pathParts[3]);
+      if (!Number.isSafeInteger(prNumber)) {
+        return null;
+      }
+
       return {
-        prNumber: parseInt(pathParts[3], 10),
+        prNumber,
         owner: pathParts[0],
         repo: pathParts[1],
       };
