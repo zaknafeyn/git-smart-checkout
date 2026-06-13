@@ -423,6 +423,49 @@ describe('VS Code command interface', () => {
       });
     }
 
+    it('checks out a selected tag without resolving its icon-decorated label', async () => {
+      const repo = createTestRepo();
+      const tagName = 'v1.0.0';
+      const tagSha = repo.exec(`git rev-parse ${tagName}`).trim();
+      let inspectedTagItem = false;
+      const restoreQuickPick = stubCreateQuickPick((items, quickPick) => {
+        assert.strictEqual(quickPick.placeholder, 'Select a branch to checkout');
+        const tagItem = items.find((item) =>
+          item.ref?.isTag &&
+          item.ref.name === tagName
+        );
+
+        assert.ok(tagItem, `${tagName} tag should be listed`);
+        assert.ok(tagItem.label.startsWith('$(tag) '), 'tag should use the tag icon');
+        inspectedTagItem = true;
+        return tagItem;
+      });
+      const restoreModePick = stubShowQuickPick((items, options) => {
+        assert.strictEqual(options?.placeHolder, 'Select auto stash mode');
+        return items.find((item) =>
+          typeof item !== 'string' && item.label === AUTO_STASH_IGNORE
+        ) as vscode.QuickPickItem;
+      });
+      const errors = stubErrorMessages();
+
+      try {
+        await withRepoWorkspace(repo, async () => {
+          await vscode.commands.executeCommand(commandId('checkoutTo'));
+          await delay();
+
+          assert.strictEqual(inspectedTagItem, true);
+          assert.deepStrictEqual(errors.messages, []);
+          assert.strictEqual(repo.exec('git rev-parse HEAD').trim(), tagSha);
+          assert.throws(() => repo.exec('git symbolic-ref -q HEAD'), /Command failed/);
+        });
+      } finally {
+        errors.restore();
+        restoreModePick();
+        restoreQuickPick();
+        repo.cleanup();
+      }
+    });
+
     it('marks branches already checked out in another worktree with a folder icon', async () => {
       const repo = createTestRepo();
       const worktreePath = getDefaultWorktreePath(repo, repo.featureBranch);

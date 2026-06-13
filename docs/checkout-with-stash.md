@@ -16,6 +16,8 @@ Use this command to switch to a local branch, remote branch, or tag while the ex
 8. Pulls the branch after checkout when the selected branch has an upstream.
 9. Restores or transfers local changes depending on the stash mode.
 
+Selecting a tag checks out the tag's commit directly and leaves the repository in detached HEAD state. Create a branch from that commit before making changes you intend to keep.
+
 When `git-smart-checkout.useFastBranchList` is enabled, the picker opens from VS Code's cached Git model. Before the picker appears, the extension preloads missing or expired details for the first visible refs and applies any valid cached details immediately. Details are cached for 48 hours and are invalidated when a ref points to a different commit.
 
 After the picker opens, the extension refreshes remaining missing or expired details in the background. If you focus a ref whose details are still missing, the same cache-backed enrichment is used as a fallback.
