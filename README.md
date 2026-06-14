@@ -39,6 +39,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
+| Open a quick-actions menu of common commands from the status bar item | `Git Smart Checkout: Quick Actions` | [Status bar quick actions](docs/status-bar-quick-actions.md) |
 
 ## Extension Settings
 
@@ -74,6 +75,7 @@ This extension collects anonymous usage events to help improve the extension.
 
 - Extension activation
 - Command usage (checkout, pull, rebase, tag creation, PR clone)
+- Opening the status bar quick-actions menu
 - Stash mode used during checkout and rebase commands
 - Whether the working directory had uncommitted changes (boolean)
 - Whether copy/move worktree commands copied staged/WIP changes, whether the target had local changes, included untracked files, and how many untracked files were copied
