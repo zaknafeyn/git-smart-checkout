@@ -6,6 +6,7 @@ import { CopyBranchNameCommand } from './commands/copyBranchNameCommand';
 import { CommandManager } from './commands/commandManager';
 import { PullRebaseWithStashCommand, PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
+import { StatusBarMenuCommand } from './commands/statusBarMenuCommand';
 import { VscodeGitProvider } from './common/git/vscodeGitProvider';
 import { ConfigurationManager } from './configuration/configurationManager';
 import { EXTENSION_NAME } from './const';
@@ -111,6 +112,9 @@ export function activate(context: vscode.ExtensionContext) {
   const pullRebaseWithStashCommand = new PullRebaseWithStashCommand(logService, autoStashService);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.switchMode`, switchModeCommand);
+
+  const statusBarMenuCommand = new StatusBarMenuCommand(statusBarManager, logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.showStatusBarMenu`, statusBarMenuCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 

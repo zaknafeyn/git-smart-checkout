@@ -97,6 +97,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.showStatusBarMenu",
+        "title": "Quick Actions",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.clonePullRequest",
         "title": "Clone pull request...",
         "category": "GSC",
