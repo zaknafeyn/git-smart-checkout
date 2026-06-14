@@ -35,6 +35,7 @@ import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplat
 import { setContextCanCreateBranchFromTemplate } from './utils/setContext';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { OpenWorktreeDevTerminalCommand } from './commands/openWorktreeDevTerminalCommand';
+import { ManageAutoStashesCommand } from './commands/manageAutoStashesCommand';
 import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
@@ -178,6 +179,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const openWorktreeDevTerminalCommand = new OpenWorktreeDevTerminalCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.openWorktreeDevTerminal`, openWorktreeDevTerminalCommand);
+
+  const manageAutoStashesCommand = new ManageAutoStashesCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.manageAutoStashes`, manageAutoStashesCommand);
 
   const removePRReviewInWorktreeCommand = new RemovePRReviewInWorktreeCommand(
     logService,
