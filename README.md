@@ -33,6 +33,7 @@ In fast-paced development environments, switching between Git branches is freque
 | Pull the current branch while preserving local changes | `Git Smart Checkout: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
 | Pull with rebase while preserving local changes | `Git Smart Checkout: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
 | Rebase the current branch onto another ref while preserving local changes | `Git Smart Checkout: Rebase ... (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
+| Inspect, recover, or remove stashes created by Git Smart Checkout | `Git Smart Checkout: Manage auto-stashes...` | [Manage auto-stashes](docs/manage-auto-stashes.md) |
 | Copy staged or WIP changes between existing worktrees | `Git Smart Checkout: Copy staged changes to worktree ...`, `Git Smart Checkout: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Open a terminal in a selected worktree's directory | `Git Smart Checkout: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
@@ -75,6 +76,7 @@ This extension collects anonymous usage events to help improve the extension.
 - Extension activation
 - Command usage (checkout, pull, rebase, tag creation, PR clone)
 - Stash mode used during checkout and rebase commands
+- Auto-stash manager action, changed file count, and whether the worktree already had changes
 - Whether the working directory had uncommitted changes (boolean)
 - Whether copy/move worktree commands copied staged/WIP changes, whether the target had local changes, included untracked files, and how many untracked files were copied
 - Whether PR review worktree removal stashed changes before removal

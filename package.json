@@ -187,6 +187,11 @@
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
         "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.manageAutoStashes",
+        "title": "Manage auto-stashes...",
+        "category": "GSC"
       }
     ],
     "menus": {
@@ -252,6 +257,9 @@
         },
         {
           "command": "git-smart-checkout.openWorktreeDevTerminal"
+        },
+        {
+          "command": "git-smart-checkout.manageAutoStashes"
         }
       ],
       "view/title": [
