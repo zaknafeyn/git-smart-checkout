@@ -21,7 +21,7 @@ The GitHub PR Clone feature creates a new pull request by cherry-picking selecte
 2. Select the GitHub pull request you want to clone from.
 3. Choose the target branch where your new PR should be merged.
 4. Choose the feature branch name for your new PR.
-5. Add a description for the new PR.
+5. Review the pre-filled description for the new PR (see [Description editor and templates](#description-editor-and-templates)).
 6. Select the commits to cherry-pick.
 7. Let the extension create the branch, cherry-pick commits, and create the new PR or draft PR.
 
@@ -35,6 +35,16 @@ During the cherry-pick process, the extension stashes uncommitted workspace chan
 In a multi-root workspace, the command asks which repository to use each time it runs. Switching repositories refreshes the repository shown in the PR Clone view and all subsequent PR data and Git operations use the newly selected repository.
 
 The new PR also copies labels and assignees from the original PR. These metadata updates are best effort: if GitHub rejects one of them, the new PR is still created and the failure is logged.
+
+## Description editor and templates
+
+The description field is pre-filled so you rarely start from scratch:
+
+- The first line is always a back-reference link to the source PR (`[Cloned from PR #N](...)`).
+- The body of the original pull request is used as the description.
+- When the source PR has an **empty** body, the extension falls back to the repository's pull request template, if it has one. The following locations are checked, and the first match wins: `.github/PULL_REQUEST_TEMPLATE.md`, `.github/pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`, `pull_request_template.md`, `docs/PULL_REQUEST_TEMPLATE.md`, and `docs/pull_request_template.md`.
+
+Use the **Edit / Preview** toggle above the field to switch between editing the raw Markdown and a rendered Markdown preview, so you can check formatting (headings, lists, task lists, links, code, and quotes) before creating the PR. The description stays fully editable regardless of how it was pre-filled.
 
 ## Conflict Handling
 
