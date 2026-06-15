@@ -51,6 +51,50 @@
   height: 100%;
 }
 
+.descriptionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toggleButton {
+  appearance: none;
+  border: none;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  background-color: transparent;
+  font-family: var(--vscode-font-family);
+
+  &:not(:last-child) {
+    border-right: 1px solid var(--vscode-dropdown-border);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+  }
+}
+
+.toggleButtonActive {
+  color: var(--vscode-button-foreground);
+  background-color: var(--vscode-button-background);
+}
+
 .inputField {
   display: flex;
   border-bottom: 1px solid var(--vscode-widget-border);

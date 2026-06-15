@@ -24,3 +24,7 @@ export const setContextIsCherryPickConflict = async (value: boolean) => {
 export const setContextCanCreateBranchFromTemplate = async (value: boolean) => {
   await setContextKey(`${EXTENSION_NAME}.canCreateBranchFromTemplate`, value);
 };
+
+export const setContextHasMultipleRemovableWorktrees = async (value: boolean) => {
+  await setContextKey(`${EXTENSION_NAME}.hasMultipleRemovableWorktrees`, value);
+};

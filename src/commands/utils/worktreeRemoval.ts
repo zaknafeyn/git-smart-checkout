@@ -2,6 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import { IGitWorktree } from '../../common/git/types';
+import { getStashMessage } from './getStashMessage';
+
 export async function removeWorkspaceFoldersForPath(removedPath: string): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   const indexesToRemove = folders
@@ -40,4 +43,45 @@ export function normalizePathForComparison(targetPath: string): string {
 
 export function getWorktreeBranchName(branchRef: string | undefined): string | undefined {
   return branchRef?.replace(/^refs\/heads\//, '');
+}
+
+/**
+ * Worktrees a user is allowed to remove: every linked worktree except the main
+ * one (always the first entry), excluding bare and prunable entries.
+ */
+export function getRemovableWorktrees(worktrees: IGitWorktree[]): IGitWorktree[] {
+  return worktrees.slice(1).filter((worktree) => !worktree.bare && !worktree.prunable);
+}
+
+export function getWorktreeShortHead(worktree: IGitWorktree): string {
+  return worktree.head?.slice(0, 7) ?? 'unknown';
+}
+
+export function getWorktreeLabel(worktree: IGitWorktree): string {
+  const branchName = getWorktreeBranchName(worktree.branch);
+
+  if (branchName) {
+    return branchName;
+  }
+
+  if (worktree.detached) {
+    return `Detached at ${getWorktreeShortHead(worktree)}`;
+  }
+
+  return path.basename(worktree.path);
+}
+
+export function getWorktreeDetail(worktree: IGitWorktree): string {
+  if (worktree.detached) {
+    return `Detached HEAD ${getWorktreeShortHead(worktree)}`;
+  }
+
+  return worktree.head ? `HEAD ${getWorktreeShortHead(worktree)}` : '';
+}
+
+export function getWorktreeStashName(worktree: IGitWorktree): string {
+  return getStashMessage(
+    getWorktreeBranchName(worktree.branch) ??
+      `detached-${worktree.head ? getWorktreeShortHead(worktree) : path.basename(worktree.path)}`
+  );
 }

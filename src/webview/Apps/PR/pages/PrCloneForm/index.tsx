@@ -1,17 +1,20 @@
+import classNames from 'classnames';
+import React, { useEffect, useState } from 'react';
+
 import { Button } from '@/components/Button';
 import { DropDownAction, DropDownButton } from '@/components/DropDownButton';
 import { Input } from '@/components/Input';
 import { Link } from '@/components/Link';
+import { MarkdownPreview } from '@/components/MarkdownPreview';
 import { Text } from '@/components/Text';
 import { Textarea } from '@/components/Textarea';
 import { useLogger } from '@/hooks';
-import { GitHubCommit, GitHubPR } from '@/types/dataTypes';
-import React, { useEffect, useState } from 'react';
-
+import { useSendMessage } from '@/hooks/useSendMessage';
 import { WebviewCommand } from '@/types/commands';
+import { GitHubCommit, GitHubPR } from '@/types/dataTypes';
+import { buildCloneDescription } from '@/utils/buildCloneDescription';
 
 import styles from './module.css';
-import { useSendMessage } from '@/hooks/useSendMessage';
 
 interface PrCloneFormProps {
   prData: GitHubPR;
@@ -22,6 +25,7 @@ interface PrCloneFormProps {
   selectedTargetBranch?: string;
   defaultTargetBranch?: string;
   prBranchPrefix?: string;
+  prTemplate?: string;
   isCloning: boolean;
 }
 
@@ -34,8 +38,9 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   selectedTargetBranch,
   defaultTargetBranch,
   prBranchPrefix,
+  prTemplate,
   isCloning,
-  
+
 }) => {
   const [targetBranch, setTargetBranch] = useState(() => {
     // Use defaultTargetBranch from settings if provided and not empty, otherwise fallback
@@ -55,15 +60,10 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
 
   const prefix = createPrefix(prBranchPrefix);
   const [featureBranch, setFeatureBranch] = useState(`${prefix}${prData.head.ref}_clone`);
-  const [description, setDescription] = useState(() => {
-    const result = [
-      `[Cloned from PR #${prData.number}](${prData.html_url})`,
-      "",
-      prData.body || ''
-    ]
-
-    return result.join("\n");
-  });
+  const [description, setDescription] = useState(() =>
+    buildCloneDescription(prData, prTemplate)
+  );
+  const [isPreview, setIsPreview] = useState(false);
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
 
   const logger = useLogger(false);
@@ -202,14 +202,44 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
 
       <div className={styles.form}>
 
+        <div className={styles.descriptionHeader}>
+          <Text.Label className={styles.branchLabel}>DESCRIPTION</Text.Label>
+          <div className={styles.viewToggle} role="tablist" aria-label="Description view mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isPreview}
+              className={classNames(styles.toggleButton, { [styles.toggleButtonActive]: !isPreview })}
+              onClick={() => setIsPreview(false)}
+              disabled={isCloning}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isPreview}
+              className={classNames(styles.toggleButton, { [styles.toggleButtonActive]: isPreview })}
+              onClick={() => setIsPreview(true)}
+              disabled={isCloning}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+
         <div className={styles.inputField}>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description"
-            rows={10}
-            disabled={isCloning}
-          />
+          {isPreview ? (
+            <MarkdownPreview markdown={description} />
+          ) : (
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description"
+              rows={10}
+              disabled={isCloning}
+            />
+          )}
         </div>
 
 

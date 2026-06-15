@@ -209,7 +209,17 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
       const branches = await this.getBranches(git);
 
-      this.updateWebviewWithPRData(prData, detailedCommits, branches);
+      // Best-effort: pre-fill the description from the repo's PR template when
+      // the source PR has no body. A missing template (or fetch failure) must
+      // not block the clone flow.
+      let prTemplate: string | undefined;
+      try {
+        prTemplate = await ghClient.fetchPullRequestTemplate();
+      } catch (templateError) {
+        this.loggingService.warn(`Failed to fetch PR template: ${templateError}`);
+      }
+
+      this.updateWebviewWithPRData(prData, detailedCommits, branches, prTemplate);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
       await postFetchPRError(this.webviewView?.webview, error);
@@ -243,7 +253,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateWebviewWithPRData(prData: GitHubPR, commits: GitHubCommit[], branches: string[]) {
+  private updateWebviewWithPRData(
+    prData: GitHubPR,
+    commits: GitHubCommit[],
+    branches: string[],
+    prTemplate?: string
+  ) {
     this.currentCommits = commits;
 
     if (!this.webviewView) {
@@ -272,6 +287,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       branches,
       defaultTargetBranch,
       prBranchPrefix,
+      prTemplate,
     });
 
     // Also update the commits webview

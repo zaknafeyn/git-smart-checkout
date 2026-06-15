@@ -98,7 +98,8 @@ export const App: React.FC = () => {
             commits: message.commits,
             branches: message.branches,
             defaultTargetBranch: message.defaultTargetBranch,
-            prBranchPrefix: message.prBranchPrefix
+            prBranchPrefix: message.prBranchPrefix,
+            prTemplate: message.prTemplate
           });
           break;
         case message.command === WebviewCommand.FETCH_PR_ERROR:
@@ -151,6 +152,7 @@ export const App: React.FC = () => {
         selectedTargetBranch={state.targetBranch}
         defaultTargetBranch={state.defaultTargetBranch}
         prBranchPrefix={state.prBranchPrefix}
+        prTemplate={state.prTemplate}
         isCloning={state.isCloning || false}
       />
     );

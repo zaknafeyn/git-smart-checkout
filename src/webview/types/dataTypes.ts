@@ -37,6 +37,7 @@ export interface AppState {
   targetBranch?: string;
   defaultTargetBranch?: string;
   prBranchPrefix?: string;
+  prTemplate?: string;
   isCloning?: boolean;
 }
 

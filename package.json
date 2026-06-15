@@ -189,6 +189,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.removeMultipleWorktrees",
+        "title": "Remove Multiple Worktrees...",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
         "category": "GSC"
@@ -254,6 +259,10 @@
         },
         {
           "command": "git-smart-checkout.removeWorktree"
+        },
+        {
+          "command": "git-smart-checkout.removeMultipleWorktrees",
+          "when": "git-smart-checkout.hasMultipleRemovableWorktrees"
         },
         {
           "command": "git-smart-checkout.openWorktreeDevTerminal"
