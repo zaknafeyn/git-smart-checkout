@@ -22,6 +22,7 @@ export enum AnalyticsEvent {
   PrReviewInWorktree = 'pr_review_in_worktree',
   PrReviewWorktreeRemoved = 'pr_review_worktree_removed',
   WorktreeRemoved = 'worktree_removed',
+  MultipleWorktreesRemoved = 'multiple_worktrees_removed',
   CopyStagedChangesToWorktree = 'copy_staged_changes_to_worktree',
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
   CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',
@@ -29,6 +30,7 @@ export enum AnalyticsEvent {
   WorktreeDevTerminalOpened = 'worktree_dev_terminal_opened',
   CopyBranchName = 'copy_branch_name',
   AutoStashManaged = 'auto_stash_managed',
+  StatusBarMenuOpened = 'status_bar_menu_opened',
 }
 
 let client: PostHog | null = null;

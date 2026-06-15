@@ -6,6 +6,7 @@ import { CopyBranchNameCommand } from './commands/copyBranchNameCommand';
 import { CommandManager } from './commands/commandManager';
 import { PullRebaseWithStashCommand, PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
+import { StatusBarMenuCommand } from './commands/statusBarMenuCommand';
 import { VscodeGitProvider } from './common/git/vscodeGitProvider';
 import { ConfigurationManager } from './configuration/configurationManager';
 import { EXTENSION_NAME } from './const';
@@ -38,6 +39,8 @@ import { OpenWorktreeDevTerminalCommand } from './commands/openWorktreeDevTermin
 import { ManageAutoStashesCommand } from './commands/manageAutoStashesCommand';
 import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
+import { RemoveMultipleWorktreesCommand } from './commands/removeMultipleWorktreesCommand';
+import { refreshRemoveMultipleWorktreesVisibility } from './commands/utils/worktreeCommandVisibility';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
 import { RefDetailsCache } from './services/refDetailsCache';
@@ -113,6 +116,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   commandManager.registerCommand(`${EXTENSION_NAME}.switchMode`, switchModeCommand);
 
+  const statusBarMenuCommand = new StatusBarMenuCommand(statusBarManager, logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.showStatusBarMenu`, statusBarMenuCommand);
+
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
@@ -176,6 +182,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
+
+  const removeMultipleWorktreesCommand = new RemoveMultipleWorktreesCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.removeMultipleWorktrees`,
+    removeMultipleWorktreesCommand
+  );
 
   const openWorktreeDevTerminalCommand = new OpenWorktreeDevTerminalCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.openWorktreeDevTerminal`, openWorktreeDevTerminalCommand);
@@ -297,6 +309,19 @@ export function activate(context: vscode.ExtensionContext) {
   // Register all commands with VS Code
   commandManager.registerAll(context);
 
+  // Gate the "Remove Multiple Worktrees..." command on having >= 2 removable
+  // worktrees. Recompute on activation and whenever the window regains focus or
+  // the workspace folders change (covers worktrees added/removed externally).
+  void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+  const windowStateListener = vscode.window.onDidChangeWindowState((state) => {
+    if (state.focused) {
+      void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+    }
+  });
+  const workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+  });
+
   // Listen for configuration changes
   const configChangeListener = vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration(EXTENSION_NAME)) {
@@ -312,6 +337,8 @@ export function activate(context: vscode.ExtensionContext) {
   // Add to context subscriptions
   context.subscriptions.push(
     configChangeListener,
+    windowStateListener,
+    workspaceFoldersListener,
     telemetryChangeListener,
     statusBarManager,
     logService,

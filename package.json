@@ -97,6 +97,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.showStatusBarMenu",
+        "title": "Quick Actions",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.clonePullRequest",
         "title": "Clone pull request...",
         "category": "GSC",
@@ -184,6 +189,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.removeMultipleWorktrees",
+        "title": "Remove Multiple Worktrees...",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
         "category": "GSC"
@@ -254,6 +264,10 @@
         },
         {
           "command": "git-smart-checkout.removeWorktree"
+        },
+        {
+          "command": "git-smart-checkout.removeMultipleWorktrees",
+          "when": "git-smart-checkout.hasMultipleRemovableWorktrees"
         },
         {
           "command": "git-smart-checkout.openWorktreeDevTerminal"

@@ -36,10 +36,12 @@ In fast-paced development environments, switching between Git branches is freque
 | Inspect, recover, or remove stashes created by Git Smart Checkout | `Git Smart Checkout: Manage auto-stashes...` | [Manage auto-stashes](docs/manage-auto-stashes.md) |
 | Copy staged or WIP changes between existing worktrees | `Git Smart Checkout: Copy staged changes to worktree ...`, `Git Smart Checkout: Copy WIP changes to worktree ...`, `Git Smart Checkout: Copy WIP from Worktree`, `Git Smart Checkout: Move WIP from Worktree` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Open a terminal in a selected worktree's directory | `Git Smart Checkout: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
+| Remove several Git worktrees at once with a single confirmation | `Git Smart Checkout: Remove Multiple Worktrees...` | [Remove multiple worktrees](docs/remove-multiple-worktrees.md) |
 | Create a new PR from selected commits in another GitHub PR | `Git Smart Checkout: Clone pull request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `Git Smart Checkout: Create Tag from Template` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `Git Smart Checkout: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
+| Open a quick-actions menu of common commands from the status bar item | `Git Smart Checkout: Quick Actions` | [Status bar quick actions](docs/status-bar-quick-actions.md) |
 
 ## Extension Settings
 
@@ -75,11 +77,13 @@ This extension collects anonymous usage events to help improve the extension.
 
 - Extension activation
 - Command usage (checkout, pull, rebase, tag creation, PR clone)
+- Opening the status bar quick-actions menu
 - Stash mode used during checkout and rebase commands
 - Auto-stash manager action, changed file count, and whether the worktree already had changes
 - Whether the working directory had uncommitted changes (boolean)
 - Whether copy/move worktree commands copied staged/WIP changes, whether the target had local changes, included untracked files, and how many untracked files were copied
 - Whether PR review worktree removal stashed changes before removal
+- Number of worktrees removed in a bulk removal and whether their changes were stashed or reset
 - Commit count for PR clone operations (number only)
 - Whether a PR was created as a draft (boolean)
 - Whether a tag template was used (boolean)
