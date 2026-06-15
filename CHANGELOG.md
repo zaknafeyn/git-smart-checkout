@@ -1,3 +1,12 @@
+# [0.10.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.9.0...v0.10.0) (2026-06-15)
+
+
+### Features
+
+* add "Remove Multiple Worktrees..." command ([#110](https://github.com/zaknafeyn/git-smart-checkout/issues/110)) ([0dd8f14](https://github.com/zaknafeyn/git-smart-checkout/commit/0dd8f140b54e21f66b715a1f1fb3742eca5419d8))
+* **pr-clone:** pre-fill description from PR template with markdown preview ([#109](https://github.com/zaknafeyn/git-smart-checkout/issues/109)) ([b6dcadd](https://github.com/zaknafeyn/git-smart-checkout/commit/b6dcaddc47ff812a27cda85f18234ee795ac836d))
+* **status-bar:** open a quick-actions menu from the status bar item ([#108](https://github.com/zaknafeyn/git-smart-checkout/issues/108)) ([ea75196](https://github.com/zaknafeyn/git-smart-checkout/commit/ea751961a97b5d038d3e986f758409a571f582f1))
+
 # [0.9.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.8.1...v0.9.0) (2026-06-13)
 
 
