@@ -2,6 +2,7 @@ import {
   commands,
   Disposable,
   QuickPickItem,
+  QuickPickItemKind,
   StatusBarAlignment,
   StatusBarItem,
   ThemeColor,
@@ -17,6 +18,10 @@ import {
   TAutoStashModeConfig,
 } from '../configuration/extensionConfig';
 import { AnalyticsEvent, capture } from '../analytics/analytics';
+
+interface QuickActionItem extends QuickPickItem {
+  commandId?: string;
+}
 
 export function getStatusBarBackgroundColor(
   mode: TAutoStashModeConfig
@@ -37,7 +42,7 @@ export class StatusBarManager implements Disposable {
 
     this.statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
 
-    this.statusBarItem.command = `${EXTENSION_NAME}.switchMode`;
+    this.statusBarItem.command = `${EXTENSION_NAME}.showStatusBarMenu`;
     this.updateStatusBar();
   }
 
@@ -47,7 +52,7 @@ export class StatusBarManager implements Disposable {
     const modeDetails = AUTO_STASH_MODES_DETAILS[config.mode as TAutoStashModeConfig];
 
     this.statusBarItem.text = `${modeDetails.icon} ${modeDetails.briefLabel}`;
-    this.statusBarItem.tooltip = `${EXTENSION_NAME}\nCurrent mode: ${modeDetails.label}\nClick to switch modes`;
+    this.statusBarItem.tooltip = `${EXTENSION_NAME}\nCurrent mode: ${modeDetails.label}\nClick to open quick actions`;
 
     this.statusBarItem.backgroundColor = getStatusBarBackgroundColor(config.mode);
 
@@ -105,6 +110,47 @@ export class StatusBarManager implements Disposable {
       //     }
       //   });
     }
+  }
+
+  public async showQuickActionsMenu(): Promise<void> {
+    capture(AnalyticsEvent.StatusBarMenuOpened);
+
+    const config = this.configManager.get();
+    const modeDetails = AUTO_STASH_MODES_DETAILS[config.mode as TAutoStashModeConfig];
+    const command = (name: string) => `${EXTENSION_NAME}.${name}`;
+
+    const items: QuickActionItem[] = [
+      { label: 'Stash mode', kind: QuickPickItemKind.Separator },
+      {
+        label: '$(gear) Switch stash mode',
+        description: `Current: ${modeDetails.briefLabel}`,
+        commandId: command('switchMode'),
+      },
+      { label: 'Checkout', kind: QuickPickItemKind.Separator },
+      { label: '$(arrow-swap) Checkout to…', commandId: command('checkoutTo') },
+      { label: '$(history) Checkout previous branch', commandId: command('checkoutPrevious') },
+      { label: '$(git-pull-request) Checkout by PR number…', commandId: command('checkoutByPR') },
+      { label: 'Update branch', kind: QuickPickItemKind.Separator },
+      { label: '$(repo-pull) Pull (With Stash)', commandId: command('pullWithStash') },
+      { label: '$(repo-pull) Pull (Rebase With Stash)', commandId: command('pullRebaseWithStash') },
+      { label: '$(git-merge) Rebase (With Stash)', commandId: command('rebaseWithStash') },
+      { label: 'Worktree', kind: QuickPickItemKind.Separator },
+      { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
+      { label: 'GitHub', kind: QuickPickItemKind.Separator },
+      { label: '$(repo-clone) Clone pull request…', commandId: command('clonePullRequest') },
+    ];
+
+    const selection = await window.showQuickPick(items, {
+      title: 'Git Smart Checkout',
+      placeHolder: 'Select an action',
+    });
+
+    if (!selection?.commandId) {
+      return;
+    }
+
+    this.loggingService.info(`Status bar quick action: ${selection.commandId}`);
+    await commands.executeCommand(selection.commandId);
   }
 
   public show(): void {

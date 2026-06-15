@@ -2,7 +2,7 @@
 
 Command: `Git Smart Checkout: Switch Mode`
 
-Use this command, or click the extension status bar item, to change the default stash mode used by checkout-style commands.
+Use this command to change the default stash mode used by checkout-style commands. It is also the first action in the status bar [quick-actions menu](status-bar-quick-actions.md).
 
 ## What It Controls
 
@@ -26,9 +26,9 @@ For rebase, `autoStashAndPop` and `autoStashAndApply` are treated as "Auto stash
 
 ## Status Bar
 
-The status bar item shows the current mode and opens the same mode picker. Manual mode uses
-the normal status bar background, while automatic modes use the warning background to remain
-visually distinct. Hide the item with:
+The status bar item shows the current mode and opens the [quick-actions menu](status-bar-quick-actions.md),
+where "Switch stash mode" is the first action. Manual mode uses the normal status bar background,
+while automatic modes use the warning background to remain visually distinct. Hide the item with:
 
 ```json
 "git-smart-checkout.showStatusBar": false
