@@ -4,6 +4,46 @@ import { authentication } from 'vscode';
 import { EXTENSION_NAME } from '../../const';
 import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubUser } from '../../types/dataTypes';
 
+/**
+ * Locations GitHub recognizes for a single pull request template, in priority
+ * order. The first non-empty match wins.
+ * @see https://docs.github.com/articles/creating-a-pull-request-template-for-your-repository
+ */
+export const PR_TEMPLATE_CANDIDATE_PATHS = [
+  '.github/PULL_REQUEST_TEMPLATE.md',
+  '.github/pull_request_template.md',
+  'PULL_REQUEST_TEMPLATE.md',
+  'pull_request_template.md',
+  'docs/PULL_REQUEST_TEMPLATE.md',
+  'docs/pull_request_template.md',
+];
+
+interface GitHubContentsResponse {
+  content?: string;
+  encoding?: string;
+}
+
+/**
+ * Decode a GitHub "get repository content" response into UTF-8 text. Returns
+ * undefined when the payload is not a base64-encoded file (e.g. a directory
+ * listing comes back as an array, or the encoding is unexpected).
+ */
+export const decodeGitHubFileContent = (
+  response: GitHubContentsResponse | undefined | null
+): string | undefined => {
+  if (!response || typeof response.content !== 'string') {
+    return undefined;
+  }
+  if (response.encoding && response.encoding !== 'base64') {
+    return undefined;
+  }
+  try {
+    return Buffer.from(response.content, 'base64').toString('utf-8');
+  } catch {
+    return undefined;
+  }
+};
+
 export class GitHubClient {
   private static readonly BASE_URL = 'https://api.github.com';
   private static readonly USER_AGENT = `${EXTENSION_NAME}-vscode-extension`;
@@ -287,5 +327,35 @@ export class GitHubClient {
   public async fetchLabels(): Promise<GitHubLabel[]> {
     const endpoint = `/repos/${this.owner}/${this.repo}/labels`;
     return this.makePaginatedRequest<GitHubLabel>(endpoint);
+  }
+
+  /**
+   * Fetch the repository's pull request template, if one exists.
+   *
+   * Probes the locations GitHub recognizes for a single template and returns
+   * the first non-empty match (in priority order). Missing templates surface as
+   * 404s, which are expected and swallowed; this method returns undefined when
+   * no template is found.
+   */
+  public async fetchPullRequestTemplate(): Promise<string | undefined> {
+    const responses = await Promise.allSettled(
+      PR_TEMPLATE_CANDIDATE_PATHS.map((path) =>
+        this.makeRequest<GitHubContentsResponse>(
+          `/repos/${this.owner}/${this.repo}/contents/${encodeURI(path)}`
+        )
+      )
+    );
+
+    for (const result of responses) {
+      if (result.status !== 'fulfilled') {
+        continue;
+      }
+      const decoded = decodeGitHubFileContent(result.value);
+      if (decoded && decoded.trim().length > 0) {
+        return decoded;
+      }
+    }
+
+    return undefined;
   }
 }
