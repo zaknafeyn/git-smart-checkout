@@ -11,7 +11,7 @@ import {
   window,
 } from 'vscode';
 
-import { GitHubClient } from '../common/api/ghClient';
+import { GitHubApiError, GitHubClient } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
@@ -36,12 +36,83 @@ import {
 
 export function postFetchPRError(
   webview: Pick<Webview, 'postMessage'> | undefined,
-  error: unknown
+  error: unknown,
+  message = String(error)
 ): Thenable<boolean> | undefined {
   return webview?.postMessage({
     command: WebviewCommand.FETCH_PR_ERROR,
-    message: String(error),
+    message,
   });
+}
+
+interface FetchPRErrorNotification {
+  message: string;
+  detail: string;
+}
+
+function formatExactError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function getFetchPRRequestLine(
+  prNumber: number,
+  ghClient: Pick<GitHubClient, 'owner' | 'repo'>,
+  error: unknown
+): string {
+  if (error instanceof GitHubApiError) {
+    return `${error.method} ${error.url}`;
+  }
+
+  return `GET https://api.github.com/repos/${ghClient.owner}/${ghClient.repo}/pulls/${prNumber}`;
+}
+
+function isMissingPullRequestError(
+  prNumber: number,
+  ghClient: Pick<GitHubClient, 'owner' | 'repo'>,
+  error: unknown
+): boolean {
+  return (
+    error instanceof GitHubApiError &&
+    error.statusCode === 404 &&
+    error.method === 'GET' &&
+    error.endpoint === `/repos/${ghClient.owner}/${ghClient.repo}/pulls/${prNumber}`
+  );
+}
+
+export function getFetchPRErrorNotification(
+  prNumber: number,
+  ghClient: Pick<GitHubClient, 'owner' | 'repo'>,
+  error: unknown
+): FetchPRErrorNotification {
+  const message = isMissingPullRequestError(prNumber, ghClient, error)
+    ? `PR #${prNumber} does not exist.`
+    : 'Something went wrong';
+  const detailLines = [
+    'Exact error:',
+    formatExactError(error),
+    '',
+    'Failed request:',
+    getFetchPRRequestLine(prNumber, ghClient, error),
+  ];
+
+  if (error instanceof GitHubApiError) {
+    detailLines.push(
+      `Status: ${error.statusCode ?? 'Unknown'} ${error.statusMessage || 'Unknown error'}`
+    );
+
+    if (error.responseBody) {
+      detailLines.push('', 'Response:', error.responseBody);
+    }
+  }
+
+  return {
+    message,
+    detail: detailLines.join('\n'),
+  };
 }
 
 export class PrCloneWebViewProvider implements WebviewViewProvider {
@@ -219,12 +290,18 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         this.loggingService.warn(`Failed to fetch PR template: ${templateError}`);
       }
 
-      this.updateWebviewWithPRData(prData, detailedCommits, branches, prTemplate);
+      await this.updateWebviewWithPRData(prData, detailedCommits, branches, prTemplate);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
-      await postFetchPRError(this.webviewView?.webview, error);
+      const notification = getFetchPRErrorNotification(
+        parsePRInput(prInput)?.prNumber ?? Number.NaN,
+        this.prCloneService.ghClient,
+        error
+      );
+      await postFetchPRError(this.webviewView?.webview, error, notification.message);
       await window.showErrorMessage(
-        `Failed to fetch PR: ${error instanceof Error ? error.message : error}`,
+        notification.message,
+        { detail: notification.detail },
         'OK'
       );
     }
@@ -253,12 +330,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateWebviewWithPRData(
+  private async updateWebviewWithPRData(
     prData: GitHubPR,
     commits: GitHubCommit[],
     branches: string[],
     prTemplate?: string
-  ) {
+  ): Promise<void> {
     this.currentCommits = commits;
 
     if (!this.webviewView) {
@@ -276,7 +353,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       defaultTargetBranch.trim() &&
       !branches.includes(defaultTargetBranch)
     ) {
-      this.handleInvalidDefaultBranch(defaultTargetBranch);
+      await this.handleInvalidDefaultBranch(defaultTargetBranch);
       return;
     }
 
@@ -402,6 +479,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleInvalidDefaultBranch(defaultTargetBranch: string) {
     const errorMessage = `Default target branch '${defaultTargetBranch}' does not exist in your repository. Please update the extension settings.`;
     this.loggingService.error(errorMessage);
+    await postFetchPRError(this.webviewView?.webview, errorMessage);
 
     // Hide the activity bar and webviews
     await setContextShowPRClone(false);

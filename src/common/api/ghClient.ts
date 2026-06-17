@@ -23,6 +23,40 @@ interface GitHubContentsResponse {
   encoding?: string;
 }
 
+interface GitHubApiErrorDetails {
+  endpoint: string;
+  method: string;
+  url: string;
+  statusCode?: number;
+  statusMessage?: string;
+  responseBody?: string;
+}
+
+export class GitHubApiError extends Error {
+  readonly endpoint: string;
+  readonly method: string;
+  readonly url: string;
+  readonly statusCode?: number;
+  readonly statusMessage?: string;
+  readonly responseBody?: string;
+
+  constructor(details: GitHubApiErrorDetails) {
+    const status = `${details.statusCode ?? 'Unknown status'} ${
+      details.statusMessage || 'Unknown error'
+    }`;
+    const response = details.responseBody ? `\nResponse: ${details.responseBody}` : '';
+    super(`GitHub API error: ${status}${response}`);
+    this.name = 'GitHubApiError';
+    this.endpoint = details.endpoint;
+    this.method = details.method;
+    this.url = details.url;
+    this.statusCode = details.statusCode;
+    this.statusMessage = details.statusMessage;
+    this.responseBody = details.responseBody;
+    Object.setPrototypeOf(this, GitHubApiError.prototype);
+  }
+}
+
 /**
  * Decode a GitHub "get repository content" response into UTF-8 text. Returns
  * undefined when the payload is not a base64-encoded file (e.g. a directory
@@ -145,9 +179,14 @@ export class GitHubClient {
             }
           } else {
             reject(
-              new Error(
-                `GitHub API error: ${res.statusCode} ${res.statusMessage || 'Unknown error'}\nResponse: ${data}`
-              )
+              new GitHubApiError({
+                endpoint,
+                method,
+                url,
+                statusCode: res.statusCode,
+                statusMessage: res.statusMessage,
+                responseBody: data,
+              })
             );
           }
         });
