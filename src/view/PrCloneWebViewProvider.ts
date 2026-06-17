@@ -233,7 +233,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       const parsedInput = parsePRInput(prInput);
       if (!parsedInput) {
         await postFetchPRError(this.webviewView?.webview, INVALID_PR_INPUT_MESSAGE);
-        await window.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
+        void window.showErrorMessage(INVALID_PR_INPUT_MESSAGE, 'OK');
         return;
       }
 
@@ -243,7 +243,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       });
       if (repositoryMismatchMessage) {
         await postFetchPRError(this.webviewView?.webview, repositoryMismatchMessage);
-        await window.showErrorMessage(repositoryMismatchMessage, 'OK');
+        void window.showErrorMessage(repositoryMismatchMessage, 'OK');
         return;
       }
 
@@ -299,7 +299,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         error
       );
       await postFetchPRError(this.webviewView?.webview, error, notification.message);
-      await window.showErrorMessage(
+      void window.showErrorMessage(
         notification.message,
         { detail: notification.detail },
         'OK'
