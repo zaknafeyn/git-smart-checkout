@@ -58,10 +58,19 @@ const features: Feature[] = [
     color: 'purple',
   },
   {
+    icon: '⭐',
+    title: 'Preferred Branches',
+    description:
+      'Star the branches, tags, and remotes you use most — they float to the top of the checkout picker, marked with a star. Toggle a star straight from the picker, no settings file to edit.',
+    command: 'Git Smart Checkout: Checkout to... (With Stash)',
+    tag: 'New',
+    color: 'blue',
+  },
+  {
     icon: '🍒',
     title: 'GitHub PR Clone',
     description:
-      'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR.',
+      'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR. The description preview renders full GitHub-Flavored Markdown and can pre-fill from the repo PR template.',
     command: 'Git Smart Checkout: Clone pull request...',
     tag: 'Beta',
     color: 'orange',
@@ -88,7 +97,6 @@ const features: Feature[] = [
     description:
       'Open a new integrated terminal straight in any worktree directory. Pick a project, choose the worktree, and get a shell in the right working directory — no manual navigation.',
     command: 'Git Smart Checkout: Open Worktree Dev Terminal...',
-    tag: 'New',
     color: 'blue',
   },
   {
@@ -105,14 +113,13 @@ const features: Feature[] = [
     description:
       'Create and check out a branch from a reusable template. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
     command: 'Git Smart Checkout: Create Branch from Template...',
-    tag: 'New',
     color: 'green',
   },
   {
     icon: '🌲',
     title: 'Worktree Workflows',
     description:
-      'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove worktrees safely.',
+      'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove several worktrees at once with a single confirmation.',
     command: 'Git Smart Checkout: Move to new worktree',
     color: 'green',
   },
@@ -124,10 +131,20 @@ const features: Feature[] = [
     color: 'green',
   },
   {
+    icon: '📋',
+    title: 'Auto-Stash Manager',
+    description:
+      'Inspect, recover, or remove the stashes Git Smart Checkout creates — see branch, age, file count and a diff preview, then Apply, Pop, or Drop each one with a single click.',
+    command: 'Git Smart Checkout: Manage auto-stashes...',
+    tag: 'New',
+    color: 'green',
+  },
+  {
     icon: '📊',
     title: 'Status Bar Integration',
     description:
-      'See your current stash mode at a glance in the VS Code status bar. Click once to switch modes — no need to open settings.',
+      "See your current stash mode at a glance, then click the status bar item for a quick-actions menu — checkout, pull/rebase, worktree commands, clone PR, and settings, each gated to your repo's state.",
+    command: 'Git Smart Checkout: Quick Actions',
     color: 'purple',
   },
 ];

@@ -1,4 +1,5 @@
 import { DownloadStats } from '../DownloadStats/DownloadStats';
+import { VersionBadge } from '../VersionBadge/VersionBadge';
 import { getCommandPaletteShortcut } from '../../utils/shortcuts';
 import styles from './Hero.module.css';
 
@@ -19,9 +20,12 @@ export function Hero() {
   return (
     <section className={styles.hero}>
       <div className={`container ${styles.inner}`}>
-        <div className={styles.badge}>
-          <span className={styles.badgeDot} />
-          Free & Open Source
+        <div className={styles.badgeRow}>
+          <div className={styles.badge}>
+            <span className={styles.badgeDot} />
+            Free & Open Source
+          </div>
+          <VersionBadge />
         </div>
 
         <h1 className={styles.title}>

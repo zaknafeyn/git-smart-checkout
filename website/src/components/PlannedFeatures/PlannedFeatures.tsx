@@ -10,25 +10,11 @@ interface PlannedFeature {
 
 const planned: PlannedFeature[] = [
   {
-    icon: '⭐',
-    tier: 1,
-    title: 'Preferred Branches',
-    description:
-      'Star your most-used branches and see them at the top of the checkout picker — separated from the full branch list.',
-  },
-  {
     icon: '🕒',
     tier: 1,
     title: 'Recent Branches',
     description:
       'Automatically surface the last 5–10 branches you visited using reflog data, so your most relevant branches are always first.',
-  },
-  {
-    icon: '📋',
-    tier: 1,
-    title: 'Stash Manager',
-    description:
-      'A dedicated side panel listing all auto-created stashes with branch, age, file count, diff preview, and one-click Apply / Pop / Drop actions.',
   },
   {
     icon: '⚡',
