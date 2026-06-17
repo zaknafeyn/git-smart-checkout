@@ -7,6 +7,7 @@ import { CommandManager } from './commands/commandManager';
 import { PullRebaseWithStashCommand, PullWithStashCommand } from './commands/pullWithStashCommand';
 import { SwitchModeCommand } from './commands/switchModeCommand';
 import { StatusBarMenuCommand } from './commands/statusBarMenuCommand';
+import { OpenSettingsCommand } from './commands/openSettingsCommand';
 import { VscodeGitProvider } from './common/git/vscodeGitProvider';
 import { ConfigurationManager } from './configuration/configurationManager';
 import { EXTENSION_NAME } from './const';
@@ -120,6 +121,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const statusBarMenuCommand = new StatusBarMenuCommand(statusBarManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.showStatusBarMenu`, statusBarMenuCommand);
+
+  const openSettingsCommand = new OpenSettingsCommand(logService);
+  commandManager.registerCommand(`${EXTENSION_NAME}.openSettings`, openSettingsCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 

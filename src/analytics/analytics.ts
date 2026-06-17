@@ -33,6 +33,7 @@ export enum AnalyticsEvent {
   JiraInitialized = 'jira_initialized',
   AutoStashManaged = 'auto_stash_managed',
   StatusBarMenuOpened = 'status_bar_menu_opened',
+  SettingsOpened = 'settings_opened',
 }
 
 let client: PostHog | null = null;
