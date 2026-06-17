@@ -25,6 +25,9 @@ settings.local.json
 changed-files.jsonl
 plans/
 
+# .agents
+.agents
+
 # website build artifacts (sources kept, build output lives in gh-web-site branch)
 website/dist/
 website/node_modules/
