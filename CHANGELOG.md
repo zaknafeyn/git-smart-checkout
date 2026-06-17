@@ -1,3 +1,17 @@
+# [0.12.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.11.0...v0.12.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* PR clone missing PR error ([#116](https://github.com/zaknafeyn/git-smart-checkout/issues/116)) ([fd51fe7](https://github.com/zaknafeyn/git-smart-checkout/commit/fd51fe7b2f2168710335ac8a745ebb5e723ddd72))
+
+
+### Features
+
+* **gitignore:** add .agents directory to ignore list ([e2060f5](https://github.com/zaknafeyn/git-smart-checkout/commit/e2060f5113b36e6491cfd46f2436294d3d1f94a7))
+* **pr-clone:** render description preview as full GitHub-Flavored Markdown ([#115](https://github.com/zaknafeyn/git-smart-checkout/issues/115)) ([756cb27](https://github.com/zaknafeyn/git-smart-checkout/commit/756cb273b2ee1f0d1eeea9ef1f4b4454e3901f84))
+* **status-bar:** gate condition-dependent quick actions on repo state ([#114](https://github.com/zaknafeyn/git-smart-checkout/issues/114)) ([403dcf1](https://github.com/zaknafeyn/git-smart-checkout/commit/403dcf1fb79375c48bedde8a3c08f1ce79d13ab4))
+
 # [0.11.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.10.0...v0.11.0) (2026-06-17)
 
 
