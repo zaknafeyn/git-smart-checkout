@@ -80,7 +80,14 @@ export function activate(context: vscode.ExtensionContext) {
   capture(AnalyticsEvent.ExtensionActivated);
 
   const logService = new LoggingService(configManager);
-  const statusBarManager = new StatusBarManager(configManager, logService);
+  const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
+  const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
+  const statusBarManager = new StatusBarManager(
+    configManager,
+    logService,
+    prReviewWorktreeStore,
+    vscodeGitProvider
+  );
   const prCloneService = new PrCloneService(context, logService, configManager);
   const prCloneWebViewProvider = new PrCloneWebViewProvider(
     context,
@@ -94,8 +101,6 @@ export function activate(context: vscode.ExtensionContext) {
     prCloneService
   );
   const autoStashService = new AutoStashService(configManager, logService);
-  const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
-  const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);

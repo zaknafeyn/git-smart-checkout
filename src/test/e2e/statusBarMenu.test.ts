@@ -14,6 +14,7 @@ const commandId = (name: string) => `${EXTENSION_NAME}.${name}`;
 
 const MENU_PLACEHOLDER = 'Select an action';
 
+// Actions that are always shown, regardless of repository state.
 const EXPECTED_ACTIONS = [
   'switchMode',
   'checkoutTo',
@@ -25,6 +26,15 @@ const EXPECTED_ACTIONS = [
   'moveToNewWorktree',
   'prReviewInWorktree',
   'openWorktreeDevTerminal',
+  'clonePullRequest',
+  'openSettings',
+];
+
+// Actions gated on repository state (worktrees / pending changes). They are
+// absent from the menu when their precondition is not met — which is the case
+// in the clean, worktree-free e2e host. Their per-state visibility is covered
+// by the quickActions unit tests.
+const CONDITIONAL_ACTIONS = [
   'copyStagedChangesToWorktree',
   'copyWipChangesToWorktree',
   'copyWipChangesFromWorktree',
@@ -32,8 +42,6 @@ const EXPECTED_ACTIONS = [
   'removeWorktree',
   'removeMultipleWorktrees',
   'removePRReviewInWorktree',
-  'clonePullRequest',
-  'openSettings',
 ];
 
 function delay(ms = 0): Promise<void> {
@@ -119,6 +127,15 @@ describe('status bar quick actions menu', () => {
         assert.ok(
           actionCommands.includes(commandId(name)),
           `menu should include the ${name} action`
+        );
+      }
+
+      // The e2e host opens a clean window with no extra worktrees, so every
+      // state-gated action should be hidden.
+      for (const name of CONDITIONAL_ACTIONS) {
+        assert.ok(
+          !actionCommands.includes(commandId(name)),
+          `menu should hide the state-gated ${name} action in a clean workspace`
         );
       }
 
