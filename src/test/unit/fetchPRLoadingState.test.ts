@@ -1,7 +1,10 @@
 import * as assert from 'assert';
 
 import { WebviewCommand } from '../../types/webviewCommands';
-import { fetchPRLoadingReducer } from '../../webview/Apps/PR/App/fetchPRLoadingState';
+import {
+  FETCH_PR_LOADING_TIMEOUT,
+  fetchPRLoadingReducer,
+} from '../../webview/Apps/PR/App/fetchPRLoadingState';
 
 describe('fetchPRLoadingReducer', () => {
   it('starts loading when a PR fetch is submitted', () => {
@@ -18,6 +21,10 @@ describe('fetchPRLoadingReducer', () => {
 
   it('stops loading when the user cancels', () => {
     assert.strictEqual(fetchPRLoadingReducer(true, WebviewCommand.CANCEL_PR_CLONE), false);
+  });
+
+  it('stops loading when the PR fetch response times out', () => {
+    assert.strictEqual(fetchPRLoadingReducer(true, FETCH_PR_LOADING_TIMEOUT), false);
   });
 
   it('preserves loading state for unrelated messages', () => {
