@@ -14,6 +14,14 @@
   gap: 28px;
 }
 
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
