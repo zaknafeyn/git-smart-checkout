@@ -76,13 +76,24 @@
   margin: 2px 0;
 }
 
-.preview li.task {
+.preview ul ul,
+.preview ul ol,
+.preview ol ul,
+.preview ol ol {
+  margin: 2px 0;
+}
+
+.preview li :global(.task-list-item) {
+  list-style: none;
+}
+
+.preview li:global(.task-list-item) {
   list-style: none;
   margin-left: -18px;
 }
 
-.preview li.task input {
-  margin-right: 6px;
+.preview li:global(.task-list-item) input[type='checkbox'] {
+  margin: 0 6px 0 0;
   vertical-align: middle;
 }
 
@@ -119,4 +130,63 @@
   margin: 12px 0;
   border: none;
   background-color: var(--vscode-widget-border);
+}
+
+.preview img {
+  max-width: 100%;
+  height: auto;
+  box-sizing: border-box;
+}
+
+.preview table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 10px;
+  overflow: auto;
+  border-collapse: collapse;
+}
+
+.preview th,
+.preview td {
+  padding: 5px 12px;
+  border: 1px solid var(--vscode-widget-border);
+}
+
+.preview th {
+  font-weight: 600;
+}
+
+.preview tr {
+  background-color: transparent;
+}
+
+.preview tr:nth-child(2n) {
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+}
+
+.preview kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: var(--vscode-foreground);
+  vertical-align: middle;
+  background-color: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.2));
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+}
+
+.preview details {
+  margin: 0 0 10px;
+}
+
+.preview summary {
+  cursor: pointer;
+}
+
+.preview sub,
+.preview sup {
+  font-size: 0.75em;
 }

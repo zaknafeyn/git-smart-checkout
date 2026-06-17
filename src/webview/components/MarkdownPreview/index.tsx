@@ -2,6 +2,7 @@ import classNames from 'classnames';
 import { FC } from 'react';
 
 import { renderMarkdown } from '@/utils/renderMarkdown';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 import styles from './module.css';
 
@@ -22,6 +23,9 @@ export const MarkdownPreview: FC<MarkdownPreviewProps> = ({ markdown, className 
   }
 
   return (
-    <div className={classes} dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }} />
+    <div
+      className={classes}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMarkdown(markdown)) }}
+    />
   );
 };
