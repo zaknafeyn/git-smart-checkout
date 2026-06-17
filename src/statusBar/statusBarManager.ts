@@ -18,9 +18,17 @@ import {
   TAutoStashModeConfig,
 } from '../configuration/extensionConfig';
 import { AnalyticsEvent, capture } from '../analytics/analytics';
+import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
+import { PRReviewWorktreeStore } from '../services/prReviewWorktreeStore';
+import {
+  gatherWorktreeQuickActionsState,
+  WorktreeQuickActionsState,
+} from './quickActionsState';
 
 interface QuickActionItem extends QuickPickItem {
   commandId?: string;
+  /** Whether the item is shown; defaults to true when omitted. */
+  visible?: boolean;
 }
 
 export function getStatusBarBackgroundColor(
@@ -31,14 +39,125 @@ export function getStatusBarBackgroundColor(
     : new ThemeColor('statusBarItem.warningBackground');
 }
 
+/**
+ * Builds the full quick-actions item list. Condition-dependent items carry a
+ * `visible` flag derived from {@link WorktreeQuickActionsState}; everything else
+ * is always visible. Pure (no VS Code interaction) so it can be unit-tested.
+ */
+export function buildQuickActionItems(
+  modeBriefLabel: string,
+  state: WorktreeQuickActionsState
+): QuickActionItem[] {
+  const command = (name: string) => `${EXTENSION_NAME}.${name}`;
+
+  return [
+    { label: 'Stash mode', kind: QuickPickItemKind.Separator },
+    {
+      label: '$(gear) Switch stash mode',
+      description: `Current: ${modeBriefLabel}`,
+      commandId: command('switchMode'),
+    },
+    { label: 'Checkout', kind: QuickPickItemKind.Separator },
+    { label: '$(arrow-swap) Checkout to…', commandId: command('checkoutTo') },
+    { label: '$(history) Checkout previous branch', commandId: command('checkoutPrevious') },
+    { label: '$(git-pull-request) Checkout by PR number…', commandId: command('checkoutByPR') },
+    { label: 'Update branch', kind: QuickPickItemKind.Separator },
+    { label: '$(repo-pull) Pull (With Stash)', commandId: command('pullWithStash') },
+    { label: '$(repo-pull) Pull (Rebase With Stash)', commandId: command('pullRebaseWithStash') },
+    { label: '$(git-merge) Rebase (With Stash)', commandId: command('rebaseWithStash') },
+    { label: 'Worktree', kind: QuickPickItemKind.Separator },
+    { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
+    { label: '$(eye) PR review in worktree…', commandId: command('prReviewInWorktree') },
+    {
+      label: '$(terminal) Open worktree dev terminal…',
+      commandId: command('openWorktreeDevTerminal'),
+    },
+    { label: 'Worktree changes', kind: QuickPickItemKind.Separator },
+    {
+      label: '$(diff-added) Copy staged changes to worktree…',
+      commandId: command('copyStagedChangesToWorktree'),
+      visible: state.canCopyStagedToWorktree,
+    },
+    {
+      label: '$(copy) Copy WIP changes to worktree…',
+      commandId: command('copyWipChangesToWorktree'),
+      visible: state.canCopyWipToWorktree,
+    },
+    {
+      label: '$(arrow-left) Copy WIP from worktree…',
+      commandId: command('copyWipChangesFromWorktree'),
+      visible: state.hasOtherWorktree,
+    },
+    {
+      label: '$(arrow-right) Move WIP from worktree…',
+      commandId: command('moveWipChangesFromWorktree'),
+      visible: state.hasOtherWorktree,
+    },
+    { label: 'Remove worktrees', kind: QuickPickItemKind.Separator },
+    {
+      label: '$(trash) Remove worktree…',
+      commandId: command('removeWorktree'),
+      visible: state.hasRemovableWorktree,
+    },
+    {
+      label: '$(trash) Remove multiple worktrees…',
+      commandId: command('removeMultipleWorktrees'),
+      visible: state.hasMultipleRemovableWorktrees,
+    },
+    {
+      label: '$(trash) Remove PR review worktree…',
+      commandId: command('removePRReviewInWorktree'),
+      visible: state.hasPRReviewWorktree,
+    },
+    { label: 'GitHub', kind: QuickPickItemKind.Separator },
+    { label: '$(repo-clone) Clone pull request…', commandId: command('clonePullRequest') },
+    { label: 'Settings', kind: QuickPickItemKind.Separator },
+    { label: '$(settings-gear) Open settings', commandId: command('openSettings') },
+  ];
+}
+
+/**
+ * Drops items hidden via `visible === false`, then removes section separators
+ * that no longer head at least one action item (prevents orphaned headers such
+ * as "Worktree changes" or "Remove worktrees"). Pure and unit-testable.
+ */
+export function filterVisibleQuickActions(items: QuickActionItem[]): QuickActionItem[] {
+  const shown = items.filter((item) => item.visible !== false);
+
+  return shown.filter((item, index) => {
+    if (item.kind !== QuickPickItemKind.Separator) {
+      return true;
+    }
+
+    // Keep this separator only if an action item follows before the next separator.
+    for (let next = index + 1; next < shown.length; next++) {
+      if (shown[next].kind === QuickPickItemKind.Separator) {
+        return false;
+      }
+      return true;
+    }
+
+    return false;
+  });
+}
+
 export class StatusBarManager implements Disposable {
   private statusBarItem: StatusBarItem;
   private configManager: ConfigurationManager;
   private loggingService: LoggingService;
+  private prReviewWorktreeStore: PRReviewWorktreeStore;
+  private vscodeGitProvider?: VscodeGitProvider;
 
-  constructor(configManager: ConfigurationManager, loggingService: LoggingService) {
+  constructor(
+    configManager: ConfigurationManager,
+    loggingService: LoggingService,
+    prReviewWorktreeStore: PRReviewWorktreeStore,
+    vscodeGitProvider?: VscodeGitProvider
+  ) {
     this.configManager = configManager;
     this.loggingService = loggingService;
+    this.prReviewWorktreeStore = prReviewWorktreeStore;
+    this.vscodeGitProvider = vscodeGitProvider;
 
     this.statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
 
@@ -117,59 +236,15 @@ export class StatusBarManager implements Disposable {
 
     const config = this.configManager.get();
     const modeDetails = AUTO_STASH_MODES_DETAILS[config.mode as TAutoStashModeConfig];
-    const command = (name: string) => `${EXTENSION_NAME}.${name}`;
 
-    const items: QuickActionItem[] = [
-      { label: 'Stash mode', kind: QuickPickItemKind.Separator },
-      {
-        label: '$(gear) Switch stash mode',
-        description: `Current: ${modeDetails.briefLabel}`,
-        commandId: command('switchMode'),
-      },
-      { label: 'Checkout', kind: QuickPickItemKind.Separator },
-      { label: '$(arrow-swap) Checkout to…', commandId: command('checkoutTo') },
-      { label: '$(history) Checkout previous branch', commandId: command('checkoutPrevious') },
-      { label: '$(git-pull-request) Checkout by PR number…', commandId: command('checkoutByPR') },
-      { label: 'Update branch', kind: QuickPickItemKind.Separator },
-      { label: '$(repo-pull) Pull (With Stash)', commandId: command('pullWithStash') },
-      { label: '$(repo-pull) Pull (Rebase With Stash)', commandId: command('pullRebaseWithStash') },
-      { label: '$(git-merge) Rebase (With Stash)', commandId: command('rebaseWithStash') },
-      { label: 'Worktree', kind: QuickPickItemKind.Separator },
-      { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
-      { label: '$(eye) PR review in worktree…', commandId: command('prReviewInWorktree') },
-      {
-        label: '$(terminal) Open worktree dev terminal…',
-        commandId: command('openWorktreeDevTerminal'),
-      },
-      { label: 'Worktree changes', kind: QuickPickItemKind.Separator },
-      {
-        label: '$(diff-added) Copy staged changes to worktree…',
-        commandId: command('copyStagedChangesToWorktree'),
-      },
-      {
-        label: '$(copy) Copy WIP changes to worktree…',
-        commandId: command('copyWipChangesToWorktree'),
-      },
-      {
-        label: '$(arrow-left) Copy WIP from worktree…',
-        commandId: command('copyWipChangesFromWorktree'),
-      },
-      {
-        label: '$(arrow-right) Move WIP from worktree…',
-        commandId: command('moveWipChangesFromWorktree'),
-      },
-      { label: 'Remove worktrees', kind: QuickPickItemKind.Separator },
-      { label: '$(trash) Remove worktree…', commandId: command('removeWorktree') },
-      { label: '$(trash) Remove multiple worktrees…', commandId: command('removeMultipleWorktrees') },
-      {
-        label: '$(trash) Remove PR review worktree…',
-        commandId: command('removePRReviewInWorktree'),
-      },
-      { label: 'GitHub', kind: QuickPickItemKind.Separator },
-      { label: '$(repo-clone) Clone pull request…', commandId: command('clonePullRequest') },
-      { label: 'Settings', kind: QuickPickItemKind.Separator },
-      { label: '$(settings-gear) Open settings', commandId: command('openSettings') },
-    ];
+    const state = await gatherWorktreeQuickActionsState(
+      this.loggingService,
+      this.prReviewWorktreeStore,
+      this.vscodeGitProvider
+    );
+    const items = filterVisibleQuickActions(
+      buildQuickActionItems(modeDetails.briefLabel, state)
+    );
 
     const selection = await window.showQuickPick(items, {
       title: 'Git Smart Checkout',
