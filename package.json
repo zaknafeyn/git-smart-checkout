@@ -464,6 +464,8 @@
     "@semantic-release/git": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/jira-client": "^7.1.9",
+    "@types/jsdom": "^28.0.3",
+    "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
     "@types/react": "^18.2.0",
@@ -479,6 +481,7 @@
     "eslint": "^9.25.1",
     "glob": "^12.0.0",
     "html-webpack-plugin": "^5.5.3",
+    "jsdom": "^29.1.1",
     "mini-css-extract-plugin": "^2.7.6",
     "mocha": "^10.1.0",
     "mocha-junit-reporter": "^2.2.1",
@@ -498,7 +501,10 @@
   "dependencies": {
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
+    "dompurify": "^3.4.11",
     "jira-client": "^8.2.2",
+    "markdown-it": "^14.2.0",
+    "markdown-it-task-lists": "^2.1.1",
     "posthog-node": "^5.33.0"
   },
   "resolutions": {

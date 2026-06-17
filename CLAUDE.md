@@ -125,6 +125,10 @@ All Git commands should go through `GitExecutor` for consistency. The utility fu
 
 The WebView provider creates HTML with VS Code CSS variables for proper theming. Message handling between WebView and extension happens through `onDidReceiveMessage`.
 
+### Markdown Preview
+
+The PR Clone description **Preview** renders full GitHub-Flavored Markdown via `markdown-it` (plus `markdown-it-task-lists`) in `src/webview/utils/renderMarkdown.ts` — covering tables, images, nested lists, autolinks and the GitHub raw-HTML subset (`<details>`, `<kbd>`, `<sub>`/`<sup>`). The raw HTML is sanitized with DOMPurify in `src/webview/utils/sanitizeHtml.ts` before being injected via `dangerouslySetInnerHTML` in the `MarkdownPreview` component. Rendering is fully client-side (no web server). Styling lives in `MarkdownPreview/module.css` and uses VS Code theme variables; class names produced by the renderer (e.g. `task-list-item`) must be matched with `:global(...)` selectors in the CSS module.
+
 ## React Development Guidelines
 
 - When creating React components, create them in a separate folder along with own CSS module file, and add styles related to this component to neighbour CSS module file, avoid using global CSS file unless it's necessary
