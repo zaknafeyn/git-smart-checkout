@@ -50,9 +50,9 @@ interface FetchPRErrorNotification {
   detail: string;
 }
 
-function formatErrorDetail(error: unknown): string {
+function formatExactError(error: unknown): string {
   if (error instanceof Error) {
-    return error.stack || error.message;
+    return error.message;
   }
 
   return String(error);
@@ -92,7 +92,8 @@ export function getFetchPRErrorNotification(
     ? `PR #${prNumber} does not exist.`
     : 'Something went wrong';
   const detailLines = [
-    `Failed while fetching PR #${prNumber}.`,
+    'Exact error:',
+    formatExactError(error),
     '',
     'Failed request:',
     getFetchPRRequestLine(prNumber, ghClient, error),
@@ -107,8 +108,6 @@ export function getFetchPRErrorNotification(
       detailLines.push('', 'Response:', error.responseBody);
     }
   }
-
-  detailLines.push('', 'Error details:', formatErrorDetail(error));
 
   return {
     message,
@@ -291,7 +290,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         this.loggingService.warn(`Failed to fetch PR template: ${templateError}`);
       }
 
-      this.updateWebviewWithPRData(prData, detailedCommits, branches, prTemplate);
+      await this.updateWebviewWithPRData(prData, detailedCommits, branches, prTemplate);
     } catch (error) {
       this.loggingService.error(`Failed to fetch PR: ${error}`);
       const notification = getFetchPRErrorNotification(
@@ -302,7 +301,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       await postFetchPRError(this.webviewView?.webview, error, notification.message);
       await window.showErrorMessage(
         notification.message,
-        { modal: true, detail: notification.detail },
+        { detail: notification.detail },
         'OK'
       );
     }
@@ -331,12 +330,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
     }
   }
 
-  private updateWebviewWithPRData(
+  private async updateWebviewWithPRData(
     prData: GitHubPR,
     commits: GitHubCommit[],
     branches: string[],
     prTemplate?: string
-  ) {
+  ): Promise<void> {
     this.currentCommits = commits;
 
     if (!this.webviewView) {
@@ -354,7 +353,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       defaultTargetBranch.trim() &&
       !branches.includes(defaultTargetBranch)
     ) {
-      this.handleInvalidDefaultBranch(defaultTargetBranch);
+      await this.handleInvalidDefaultBranch(defaultTargetBranch);
       return;
     }
 
@@ -480,6 +479,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private async handleInvalidDefaultBranch(defaultTargetBranch: string) {
     const errorMessage = `Default target branch '${defaultTargetBranch}' does not exist in your repository. Please update the extension settings.`;
     this.loggingService.error(errorMessage);
+    await postFetchPRError(this.webviewView?.webview, errorMessage);
 
     // Hide the activity bar and webviews
     await setContextShowPRClone(false);
