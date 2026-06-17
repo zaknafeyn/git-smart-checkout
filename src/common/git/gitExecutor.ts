@@ -6,7 +6,7 @@ import * as path from 'path';
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
 import { VscodeGitProvider } from './vscodeGitProvider';
-import { IGitRef, IGitWorktree, TUpstreamTrack } from './types';
+import { IGitRef, IGitStash, IGitWorktree, TUpstreamTrack } from './types';
 
 export function parseGitVersion(output: string): [number, number, number] | undefined {
   const match = output.match(/\bgit version (\d+)\.(\d+)(?:\.(\d+))?/i);
@@ -53,6 +53,54 @@ export function handleStashConflictPreviewError(
 function stripStashSubjectPrefix(subject: string): string {
   const prefixEnd = subject.indexOf(': ');
   return prefixEnd === -1 ? subject : subject.slice(prefixEnd + 2);
+}
+
+function getStashSourceBranch(subject: string): string | undefined {
+  const prefixEnd = subject.indexOf(': ');
+  if (prefixEnd === -1) {
+    return undefined;
+  }
+
+  const prefix = subject.slice(0, prefixEnd);
+  if (prefix.startsWith('On ')) {
+    return prefix.slice(3);
+  }
+  if (prefix.startsWith('WIP on ')) {
+    return prefix.slice(7);
+  }
+
+  return undefined;
+}
+
+export function parseStashListOutput(output: string): IGitStash[] {
+  const fields = output.split('\0');
+  const stashes: IGitStash[] = [];
+
+  for (let index = 0; index + 3 < fields.length; index += 4) {
+    const selector = fields[index].replace(/^\n+/, '');
+    const hash = fields[index + 1];
+    const timestamp = Number(fields[index + 2]);
+    const subject = fields[index + 3];
+
+    if (!selector || !hash || !Number.isFinite(timestamp)) {
+      continue;
+    }
+
+    stashes.push({
+      selector,
+      hash,
+      message: stripStashSubjectPrefix(subject),
+      sourceBranch: getStashSourceBranch(subject),
+      timestamp,
+      files: [],
+    });
+  }
+
+  return stashes;
+}
+
+export function parseStashFilesOutput(output: string): string[] {
+  return output.split('\0').filter((file) => file.length > 0);
 }
 
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
@@ -458,6 +506,62 @@ export class GitExecutor {
 
     // Pop the stash
     await this.#execGitCommand(['stash', apply ? 'apply' : 'pop', `stash@{${stashIndex}}`]);
+  }
+
+  async listStashes(): Promise<IGitStash[]> {
+    const { stdout } = await this.#execGitCommand([
+      '--no-pager',
+      'stash',
+      'list',
+      '--format=%gd%x00%H%x00%ct%x00%gs%x00',
+    ]);
+    const stashes = parseStashListOutput(stdout);
+
+    return await Promise.all(
+      stashes.map(async (stash) => ({
+        ...stash,
+        files: await this.getStashFiles(stash.selector),
+      }))
+    );
+  }
+
+  async getStashFiles(selector: string): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand([
+      'stash',
+      'show',
+      '--name-only',
+      '-z',
+      '--include-untracked',
+      '--format=',
+      selector,
+    ]);
+
+    return parseStashFilesOutput(stdout);
+  }
+
+  async applyStash(selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'apply', selector]);
+  }
+
+  async popStashBySelector(selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'pop', selector]);
+  }
+
+  async dropStash(selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'drop', selector]);
+  }
+
+  async getStashPatch(selector: string): Promise<string> {
+    const { stdout } = await this.#execGitCommand([
+      'stash',
+      'show',
+      '--patch',
+      '--binary',
+      '--include-untracked',
+      '--format=',
+      selector,
+    ]);
+    return stdout;
   }
 
   async isWorkdirHasChanges() {

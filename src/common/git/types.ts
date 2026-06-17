@@ -21,3 +21,12 @@ export interface IGitWorktree {
   bare?: boolean;
   prunable?: boolean;
 }
+
+export interface IGitStash {
+  selector: string;
+  hash: string;
+  message: string;
+  sourceBranch?: string;
+  timestamp: number;
+  files: string[];
+}
