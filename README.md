@@ -43,7 +43,8 @@ In fast-paced development environments, switching between Git branches is freque
 | Set up Jira credentials (domain, username, and securely stored API token) in one guided flow | `Git Smart Checkout: Init Jira` | [Create branch from template](docs/create-branch-from-template.md#jira-configuration) |
 | Store the Jira API token securely in VS Code Secret Storage | `Git Smart Checkout: Set Jira token` | [Create branch from template](docs/create-branch-from-template.md#jira-configuration) |
 | Change the default stash mode used by checkout-style commands | `Git Smart Checkout: Switch Mode` | [Switch mode](docs/switch-mode.md) |
-| Open a quick-actions menu of common commands from the status bar item | `Git Smart Checkout: Quick Actions` | [Status bar quick actions](docs/status-bar-quick-actions.md) |
+| Open a quick-actions menu of common commands (checkout, pull/rebase, all worktree commands, clone PR, open settings) from the status bar item | `Git Smart Checkout: Quick Actions` | [Status bar quick actions](docs/status-bar-quick-actions.md) |
+| Open this extension's settings | `Git Smart Checkout: Open Settings` | [Status bar quick actions](docs/status-bar-quick-actions.md) |
 
 ## Extension Settings
 

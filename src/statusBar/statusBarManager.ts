@@ -136,8 +136,39 @@ export class StatusBarManager implements Disposable {
       { label: '$(git-merge) Rebase (With Stash)', commandId: command('rebaseWithStash') },
       { label: 'Worktree', kind: QuickPickItemKind.Separator },
       { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
+      { label: '$(eye) PR review in worktree…', commandId: command('prReviewInWorktree') },
+      {
+        label: '$(terminal) Open worktree dev terminal…',
+        commandId: command('openWorktreeDevTerminal'),
+      },
+      { label: 'Worktree changes', kind: QuickPickItemKind.Separator },
+      {
+        label: '$(diff-added) Copy staged changes to worktree…',
+        commandId: command('copyStagedChangesToWorktree'),
+      },
+      {
+        label: '$(copy) Copy WIP changes to worktree…',
+        commandId: command('copyWipChangesToWorktree'),
+      },
+      {
+        label: '$(arrow-left) Copy WIP from worktree…',
+        commandId: command('copyWipChangesFromWorktree'),
+      },
+      {
+        label: '$(arrow-right) Move WIP from worktree…',
+        commandId: command('moveWipChangesFromWorktree'),
+      },
+      { label: 'Remove worktrees', kind: QuickPickItemKind.Separator },
+      { label: '$(trash) Remove worktree…', commandId: command('removeWorktree') },
+      { label: '$(trash) Remove multiple worktrees…', commandId: command('removeMultipleWorktrees') },
+      {
+        label: '$(trash) Remove PR review worktree…',
+        commandId: command('removePRReviewInWorktree'),
+      },
       { label: 'GitHub', kind: QuickPickItemKind.Separator },
       { label: '$(repo-clone) Clone pull request…', commandId: command('clonePullRequest') },
+      { label: 'Settings', kind: QuickPickItemKind.Separator },
+      { label: '$(settings-gear) Open settings', commandId: command('openSettings') },
     ];
 
     const selection = await window.showQuickPick(items, {

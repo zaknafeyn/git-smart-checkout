@@ -23,7 +23,17 @@ const EXPECTED_ACTIONS = [
   'pullRebaseWithStash',
   'rebaseWithStash',
   'moveToNewWorktree',
+  'prReviewInWorktree',
+  'openWorktreeDevTerminal',
+  'copyStagedChangesToWorktree',
+  'copyWipChangesToWorktree',
+  'copyWipChangesFromWorktree',
+  'moveWipChangesFromWorktree',
+  'removeWorktree',
+  'removeMultipleWorktrees',
+  'removePRReviewInWorktree',
   'clonePullRequest',
+  'openSettings',
 ];
 
 function delay(ms = 0): Promise<void> {
@@ -84,6 +94,11 @@ describe('status bar quick actions menu', () => {
   it('contributes the quick actions command', async () => {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes(commandId('showStatusBarMenu')));
+  });
+
+  it('contributes the open settings command', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(commands.includes(commandId('openSettings')));
   });
 
   it('lists the expected actions grouped by separators', async () => {
