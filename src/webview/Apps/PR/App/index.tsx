@@ -11,12 +11,19 @@ import {
   writeWebviewState,
 } from '../../../../common/vscode/webviewState';
 
-import { fetchPRLoadingReducer } from './fetchPRLoadingState';
+import {
+  FETCH_PR_LOADING_TIMEOUT,
+  FetchPRLoadingAction,
+  fetchPRLoadingReducer,
+} from './fetchPRLoadingState';
+
+const FETCH_PR_RESPONSE_TIMEOUT_MS = 30_000;
 
 export const App: React.FC = () => {
   const logger = useLogger(false);
   const sendMessage = useSendMessage();
   const vscode = getVsCodeApi<AppState>();
+  const fetchPRTimeoutRef = React.useRef<number | undefined>(undefined);
 
   const [isFetchingPR, updateFetchPRLoading] = React.useReducer(
     fetchPRLoadingReducer,
@@ -39,6 +46,27 @@ export const App: React.FC = () => {
     owner: 'owner'
   });
 
+  const clearFetchPRTimeout = React.useCallback(() => {
+    if (fetchPRTimeoutRef.current !== undefined) {
+      window.clearTimeout(fetchPRTimeoutRef.current);
+      fetchPRTimeoutRef.current = undefined;
+    }
+  }, []);
+
+  const updateFetchPRState = React.useCallback(
+    (action: FetchPRLoadingAction) => {
+      if (action !== WebviewCommand.FETCH_PR) {
+        clearFetchPRTimeout();
+      }
+      updateFetchPRLoading(action);
+    },
+    [clearFetchPRTimeout]
+  );
+
+  useEffect(() => {
+    return clearFetchPRTimeout;
+  }, [clearFetchPRTimeout]);
+
   useEffect(() => {
     try {
       writeWebviewState(vscode, state);
@@ -48,8 +76,20 @@ export const App: React.FC = () => {
   }, [state, vscode, logger]);
 
   const handleFetchPR = (prInput: string) => {
+    clearFetchPRTimeout();
     updateFetchPRLoading(WebviewCommand.FETCH_PR);
-    sendMessage(WebviewCommand.FETCH_PR, { prInput });
+
+    try {
+      sendMessage(WebviewCommand.FETCH_PR, { prInput });
+      fetchPRTimeoutRef.current = window.setTimeout(() => {
+        logger.warn('Timed out waiting for PR fetch response');
+        fetchPRTimeoutRef.current = undefined;
+        updateFetchPRLoading(FETCH_PR_LOADING_TIMEOUT);
+      }, FETCH_PR_RESPONSE_TIMEOUT_MS);
+    } catch (error) {
+      logger.error(`Failed to request PR data: ${error}`);
+      updateFetchPRLoading(WebviewCommand.FETCH_PR_ERROR);
+    }
   };
 
   const handleClonePR = (data: any) => {
@@ -58,16 +98,16 @@ export const App: React.FC = () => {
   };
 
   const handleCancel = () => {
-    updateFetchPRLoading(WebviewCommand.CANCEL_PR_CLONE);
+    updateFetchPRState(WebviewCommand.CANCEL_PR_CLONE);
     // Send message to VS Code extension to close activity bar and hide webview
     sendMessage(WebviewCommand.CANCEL_PR_CLONE);
   };
 
-  const handleStartOver = () => {
+  const handleStartOver = React.useCallback(() => {
     logger.info('Starting over ...');
     const newState: AppState = { view: 'input', isCloning: false };
     setState(newState);
-  };
+  }, [logger]);
 
   // Handle messages from VS Code extension
   React.useEffect(() => {
@@ -77,7 +117,7 @@ export const App: React.FC = () => {
 
       switch (true) {
         case message.command === WebviewCommand.SHOW_PR_DATA:
-          updateFetchPRLoading(WebviewCommand.SHOW_PR_DATA);
+          updateFetchPRState(WebviewCommand.SHOW_PR_DATA);
           // Show notification about the fetched PR
           const prData = message.prData;
           
@@ -103,7 +143,7 @@ export const App: React.FC = () => {
           });
           break;
         case message.command === WebviewCommand.FETCH_PR_ERROR:
-          updateFetchPRLoading(WebviewCommand.FETCH_PR_ERROR);
+          updateFetchPRState(WebviewCommand.FETCH_PR_ERROR);
           break;
         case message.command === WebviewCommand.TARGET_BRANCH_SELECTED:
           setState(prev => ({
@@ -139,7 +179,7 @@ export const App: React.FC = () => {
 
       return () => window.removeEventListener('message', handleMessage);
     }
-  }, []);
+  }, [handleStartOver, logger, sendMessage, updateFetchPRState]);
 
   if (state.view === 'clone' && state.prData && state.commits && state.branches) {
     return (
