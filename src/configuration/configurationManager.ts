@@ -1,7 +1,8 @@
-import { ConfigurationTarget, workspace } from 'vscode';
+import { ConfigurationTarget, Disposable, SecretStorage, workspace } from 'vscode';
 import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, PreferredRefsMap, PreferredRefsRepo } from './extensionConfig';
 import { EXTENSION_NAME } from '../const';
 import { IGitRef } from '../common/git/types';
+import { JIRA_TOKEN_SECRET_KEY, migrateJiraTokenSetting } from './jiraTokenStore';
 import {
   cleanupMissingRefs,
   getRepoPrefs,
@@ -12,8 +13,55 @@ import {
 
 export class ConfigurationManager {
   private config: ExtensionConfig;
+  /** Jira API token cached from Secret Storage; never read from settings. */
+  private jiraToken = '';
 
-  constructor() {
+  constructor(private readonly secrets: SecretStorage) {
+    this.config = this.readConfig();
+  }
+
+  /**
+   * Migrate any legacy plaintext token into Secret Storage, load the stored
+   * token into the in-memory config, and keep it in sync with external changes.
+   * Call once during activation.
+   *
+   * @param onChange invoked after the cached token is refreshed from an
+   *   external secret change (e.g. another window), so dependent UI such as
+   *   command visibility can re-evaluate.
+   * @returns a disposable for the secret-change subscription.
+   */
+  public async initJiraToken(onChange?: () => void): Promise<Disposable> {
+    await migrateJiraTokenSetting(this.secrets);
+    await this.refreshJiraToken();
+
+    return this.secrets.onDidChange(async (event) => {
+      if (event.key === JIRA_TOKEN_SECRET_KEY) {
+        await this.refreshJiraToken();
+        onChange?.();
+      }
+    });
+  }
+
+  /** Store (or, when empty, remove) the Jira API token in Secret Storage. */
+  public async setJiraToken(token: string): Promise<void> {
+    const trimmed = token.trim();
+    if (trimmed === '') {
+      await this.secrets.delete(JIRA_TOKEN_SECRET_KEY);
+    } else {
+      await this.secrets.store(JIRA_TOKEN_SECRET_KEY, trimmed);
+    }
+    // Refresh eagerly so callers see the new value immediately; the onDidChange
+    // listener will also fire and is idempotent.
+    await this.refreshJiraToken();
+  }
+
+  /** Whether a non-empty Jira API token is currently stored. */
+  public hasJiraToken(): boolean {
+    return this.jiraToken.trim() !== '';
+  }
+
+  private async refreshJiraToken(): Promise<void> {
+    this.jiraToken = (await this.secrets.get(JIRA_TOKEN_SECRET_KEY)) ?? '';
     this.config = this.readConfig();
   }
 
@@ -54,7 +102,8 @@ export class ConfigurationManager {
     return {
       domain: vscodeConfig.get('jira.domain', ''),
       username,
-      token: vscodeConfig.get('jira.token', ''),
+      // The token lives in Secret Storage, not settings. See initJiraToken.
+      token: this.jiraToken,
       projectKeys: vscodeConfig.get<string[]>('jira.projectKeys', []),
     };
   }
@@ -76,6 +125,18 @@ export class ConfigurationManager {
   public async updateShowStatusBar(enabled: boolean): Promise<void> {
     const config = workspace.getConfiguration(EXTENSION_NAME);
     await config.update('showStatusBar', enabled, ConfigurationTarget.Global);
+  }
+
+  /** Persist the Jira Cloud host in settings (empty clears it). */
+  public async updateJiraDomain(domain: string): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('jira.domain', domain === '' ? undefined : domain, ConfigurationTarget.Global);
+  }
+
+  /** Persist the Jira account username in settings (empty clears it). */
+  public async updateJiraUsername(username: string): Promise<void> {
+    const config = workspace.getConfiguration(EXTENSION_NAME);
+    await config.update('jira.username', username === '' ? undefined : username, ConfigurationTarget.Global);
   }
 
   // Preferred refs helpers
