@@ -1,3 +1,12 @@
+# [0.11.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.10.0...v0.11.0) (2026-06-17)
+
+
+### Features
+
+* add auto-stash manager ([#107](https://github.com/zaknafeyn/git-smart-checkout/issues/107)) ([103fccb](https://github.com/zaknafeyn/git-smart-checkout/commit/103fccbdd231094bc2a1064a7a8e234095c99f63))
+* **jira:** store Jira API token in VS Code Secret Storage ([#106](https://github.com/zaknafeyn/git-smart-checkout/issues/106)) ([738e31e](https://github.com/zaknafeyn/git-smart-checkout/commit/738e31e6c1254da899d983a5bb734a4b43a5b3c7))
+* **status-bar:** add all worktree commands and Open Settings to quick actions menu ([#112](https://github.com/zaknafeyn/git-smart-checkout/issues/112)) ([fcc1fe8](https://github.com/zaknafeyn/git-smart-checkout/commit/fcc1fe874ae9dad9c2c4a76d16b8c89f7810d0e6))
+
 # [0.10.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.9.0...v0.10.0) (2026-06-15)
 
 
