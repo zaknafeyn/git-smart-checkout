@@ -63,6 +63,44 @@ export async function withRepoWorkspace(repo: TestRepo, run: () => Promise<void>
   }
 }
 
+/** Run `run` with the VS Code workspace pointed at multiple test repos, then restore it. */
+export async function withMultiRepoWorkspace(repos: TestRepo[], run: () => Promise<void>): Promise<void> {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(vscode.workspace, 'workspaceFolders');
+  const folders = repos.map((repo, index) => ({
+    uri: vscode.Uri.file(repo.repoPath),
+    name: path.basename(repo.repoPath),
+    index,
+  })) as vscode.WorkspaceFolder[];
+
+  Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+    configurable: true,
+    get: () => folders,
+  });
+
+  try {
+    await vscode.commands.executeCommand('workbench.view.scm');
+    await visualPause();
+    await run();
+    await visualPause();
+  } finally {
+    if (originalDescriptor) {
+      Object.defineProperty(vscode.workspace, 'workspaceFolders', originalDescriptor);
+    } else {
+      delete (vscode.workspace as any).workspaceFolders;
+    }
+  }
+}
+
+/** Predicate for the "Choose a repository" quick-pick: matches the item whose label equals the repo's directory name. */
+export function selectRepositoryByName(
+  items: readonly (vscode.QuickPickItem | string)[],
+  repo: TestRepo
+): vscode.QuickPickItem | undefined {
+  return items.find(
+    (item) => typeof item !== 'string' && item.label === path.basename(repo.repoPath)
+  ) as vscode.QuickPickItem | undefined;
+}
+
 export async function ensureExtensionActivated(): Promise<void> {
   const extension = vscode.extensions.all.find(
     (item) => item.packageJSON?.name === EXTENSION_NAME
