@@ -43,6 +43,8 @@ const ALWAYS_VISIBLE_COMMANDS = [
   'checkoutTo',
   'checkoutPrevious',
   'checkoutByPR',
+  'createBranchFromTemplate',
+  'createTagFromTemplate',
   'pullWithStash',
   'pullRebaseWithStash',
   'rebaseWithStash',

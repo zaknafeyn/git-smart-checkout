@@ -61,6 +61,8 @@ export function buildQuickActionItems(
     { label: '$(arrow-swap) Checkout to…', commandId: command('checkoutTo') },
     { label: '$(history) Checkout previous branch', commandId: command('checkoutPrevious') },
     { label: '$(git-pull-request) Checkout by PR number…', commandId: command('checkoutByPR') },
+    { label: '$(git-branch) Create branch from template…', commandId: command('createBranchFromTemplate') },
+    { label: '$(tag) Create tag from template…', commandId: command('createTagFromTemplate') },
     { label: 'Update branch', kind: QuickPickItemKind.Separator },
     { label: '$(repo-pull) Pull (With Stash)', commandId: command('pullWithStash') },
     { label: '$(repo-pull) Pull (Rebase With Stash)', commandId: command('pullRebaseWithStash') },
