@@ -1,3 +1,11 @@
+# [0.13.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.12.0...v0.13.0) (2026-06-18)
+
+
+### Features
+
+* **quick-actions:** add Create Branch/Tag from Template to quick actions panel ([#121](https://github.com/zaknafeyn/git-smart-checkout/issues/121)) ([2152e2e](https://github.com/zaknafeyn/git-smart-checkout/commit/2152e2ec7d6037b87f8810a81e3b5dcea0a5f49d))
+* **website:** actualize features, roadmap, and add dynamic version badge ([#119](https://github.com/zaknafeyn/git-smart-checkout/issues/119)) ([cff7090](https://github.com/zaknafeyn/git-smart-checkout/commit/cff7090da4fb12842559d29ad862057f557435a9))
+
 # [0.12.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.11.0...v0.12.0) (2026-06-17)
 
 
