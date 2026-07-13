@@ -72,9 +72,9 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
             throwIfCancellationRequested(token);
 
-            // Step 2: Pull all branches
-            progress.report({ message: 'Fetching latest branches...' });
-            await this.fetchAllBranches();
+            // Step 2: Fetch the target branch and the PR's commits (works for forks too)
+            progress.report({ message: `Fetching PR #${data.prData.number} commits...` });
+            await this.fetchAllBranches(data.prData.number);
 
             throwIfCancellationRequested(token);
 
@@ -193,12 +193,18 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     return tempPath;
   }
 
-  private async fetchAllBranches(): Promise<void> {
+  private async fetchAllBranches(prNumber: number): Promise<void> {
     if (!this.tempGit) {
       throw new Error('Temporary git workspace not initialized');
     }
 
     await this.tempGit.fetchAllRemoteBranchesAndTags();
+
+    try {
+      await this.tempGit.fetchPullRequestHead(prNumber);
+    } catch (fetchError) {
+      throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);
+    }
   }
 
   private async createUniqueFeatureBranch(
@@ -242,6 +248,12 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     this.loggingService.info('Cherry-picking commits in GitHub API order:', orderedCommits);
 
     throwIfCancellationRequested(token);
+
+    for (const sha of orderedCommits) {
+      if (!(await this.tempGit.commitExists(sha))) {
+        throw new Error(`Commit ${sha} is not available locally`);
+      }
+    }
 
     try {
       await this.tempGit.cherryPick(orderedCommits, false, 'skip');

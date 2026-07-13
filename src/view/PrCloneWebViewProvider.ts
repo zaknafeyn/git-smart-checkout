@@ -251,18 +251,13 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       const prData = await ghClient.fetchPullRequest(prNumber);
       this.currentPrData = prData; // Store PR data for later use
 
-      // Fetch the latest changes for the PR's specific branch
-      this.loggingService.info(`Fetching latest changes for PR branch: ${prData.head.ref}`);
+      // Fetch the PR's commits (works for same-repo and fork PRs alike)
+      this.loggingService.info(`Fetching commits for PR #${prNumber}`);
       try {
-        await git.fetchSpecificBranch(prData.head.ref);
-        this.loggingService.info(
-          `Successfully fetched latest changes for branch: ${prData.head.ref}`
-        );
+        await git.fetchPullRequestHead(prNumber);
+        this.loggingService.info(`Successfully fetched commits for PR #${prNumber}`);
       } catch (fetchError) {
-        this.loggingService.warn(
-          `Failed to fetch latest changes for branch ${prData.head.ref}: ${fetchError}`
-        );
-        // Continue with PR fetching even if fetch fails
+        throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);
       }
 
       // GitHub's list-commits endpoint caps at 250 commits. If the PR reports

@@ -46,7 +46,7 @@ describe('PrCloneInPlaceService error recovery', () => {
         return 'original';
       },
       isWorkdirHasChanges: async () => false,
-      fetchSpecificBranch: async () => {},
+      fetchPullRequestHead: async () => {},
       checkout: async (branch: string) => {
         events.push(`checkout:${branch}`);
         if (branch === 'main' && !targetCheckoutAttempted) {
@@ -106,7 +106,8 @@ describe('PrCloneInPlaceService error recovery', () => {
       createStash: async (message: string) => {
         events.push(`stash:${message}`);
       },
-      fetchSpecificBranch: async () => {},
+      fetchPullRequestHead: async () => {},
+      commitExists: async () => true,
       checkout: async (branch: string) => {
         events.push(`checkout:${branch}`);
       },

@@ -249,13 +249,13 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         }
       }
 
-      // Step 2: Fetch the PR's origin branch
-      updateProgress.report({ message: `Fetching PR branch: ${data.prData.head.ref}...` });
+      // Step 2: Fetch the PR's commits (works for same-repo and fork PRs alike)
+      updateProgress.report({ message: `Fetching PR #${data.prData.number} commits...` });
       try {
-        await this.git.fetchSpecificBranch(data.prData.head.ref);
-        this.loggingService.info(`Fetched PR branch: ${data.prData.head.ref}`);
+        await this.git.fetchPullRequestHead(data.prData.number);
+        this.loggingService.info(`Fetched PR #${data.prData.number} commits`);
       } catch (fetchError) {
-        this.loggingService.warn(`Failed to fetch PR branch: ${fetchError}`);
+        throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);
       }
 
       // Step 3: Switch to base branch and pull latest changes
@@ -287,6 +287,13 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       this.loggingService.info(
         `Created and switched to feature branch: ${this.serviceStore.createdBranchName}`
       );
+
+      // Preflight: ensure every selected commit is actually available locally
+      for (const sha of data.selectedCommits) {
+        if (!(await this.git.commitExists(sha))) {
+          throw new Error(`Commit ${sha} is not available locally`);
+        }
+      }
 
       // create commits generator
       this.commitGenerator = new CommitsGenerator(data.selectedCommits)[Symbol.asyncIterator]();
