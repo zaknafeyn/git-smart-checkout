@@ -14,6 +14,15 @@ export type TAutoStashModeConfig = (typeof autoStashModeConfig)[keyof typeof aut
 
 export const AUTO_STASH_MODES = Object.values(autoStashModeConfig);
 
+export const PULL_AFTER_CHECKOUT_OFF = 'off';
+export const PULL_AFTER_CHECKOUT_FF_ONLY = 'ffOnly';
+export const PULL_AFTER_CHECKOUT_PULL = 'pull';
+
+export type TPullAfterCheckout =
+  | typeof PULL_AFTER_CHECKOUT_OFF
+  | typeof PULL_AFTER_CHECKOUT_FF_ONLY
+  | typeof PULL_AFTER_CHECKOUT_PULL;
+
 export interface PreferredRefsRepo {
   locals: string[];
   remotes: string[];
@@ -37,6 +46,7 @@ export interface ExtensionConfig {
   defaultWorktreeDirectory: string;
   prBranchPrefix: string;
   useInPlaceCherryPick: boolean;
+  pullAfterCheckout: TPullAfterCheckout;
   logging: {
     enabled: boolean;
   };

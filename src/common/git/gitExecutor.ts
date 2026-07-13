@@ -306,6 +306,10 @@ export class GitExecutor {
     await this.#execGitCommand(['pull']);
   }
 
+  async pullCurrentBranchFfOnly() {
+    await this.#execGitCommand(['pull', '--ff-only']);
+  }
+
   async createUniqueFeatureBranch(baseBranchName: string, sourceBranch: string): Promise<string> {
     let branchName = baseBranchName;
     let suffix = 1;

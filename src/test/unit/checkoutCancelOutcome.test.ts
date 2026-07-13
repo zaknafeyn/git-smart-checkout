@@ -28,6 +28,12 @@ function makeGitStub(overrides: Partial<GitExecutor> = {}): GitExecutor {
   } as unknown as GitExecutor;
 }
 
+function makeConfigManagerStub(): ConfigurationManager {
+  return {
+    get: () => ({ pullAfterCheckout: 'ffOnly' }),
+  } as unknown as ConfigurationManager;
+}
+
 describe('AutoStashService checkout cancellation outcome', () => {
   it('reports "cancelled" and never checks out when the user rejects the conflict warning', async () => {
     const checkoutCalls: string[] = [];
@@ -41,7 +47,7 @@ describe('AutoStashService checkout cancellation outcome', () => {
     (vscode.window as any).showWarningMessage = async () => undefined;
 
     try {
-      const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+      const service = new AutoStashService(makeConfigManagerStub(), mockLogService);
       const outcome = await service.checkoutAndStashChanges(
         git,
         'main',
@@ -68,7 +74,7 @@ describe('AutoStashService checkout cancellation outcome', () => {
     (vscode.window as any).showWarningMessage = async () => 'Continue';
 
     try {
-      const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+      const service = new AutoStashService(makeConfigManagerStub(), mockLogService);
       const outcome = await service.checkoutAndStashChanges(
         git,
         'main',
@@ -85,7 +91,7 @@ describe('AutoStashService checkout cancellation outcome', () => {
 
   it('reports "completed" when there is nothing to stash (no conflict preview requested)', async () => {
     const git = makeGitStub({ isWorkdirHasChanges: async () => false });
-    const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService);
 
     const outcome = await service.checkoutAndStashChanges(
       git,

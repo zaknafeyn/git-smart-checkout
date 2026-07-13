@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig } from '../../configuration/extensionConfig';
+import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig, PULL_AFTER_CHECKOUT_FF_ONLY } from '../../configuration/extensionConfig';
 import { canShowCreateBranchFromTemplateCommand } from '../../services/branchTemplateAvailability';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
@@ -16,6 +16,7 @@ function baseConfig(overrides: {
     defaultWorktreeDirectory: '',
     prBranchPrefix: '',
     useInPlaceCherryPick: true,
+    pullAfterCheckout: PULL_AFTER_CHECKOUT_FF_ONLY,
     logging: { enabled: false },
     telemetry: { enabled: false },
     tagTemplate: '',

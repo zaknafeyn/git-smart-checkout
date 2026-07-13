@@ -15,6 +15,11 @@ describe('ConfigurationManager', () => {
     await config.update('jira.token', undefined, vscode.ConfigurationTarget.Global);
   });
 
+  it('defaults pullAfterCheckout to "ffOnly"', () => {
+    const manager = new ConfigurationManager(new FakeSecretStorage());
+    assert.strictEqual(manager.get().pullAfterCheckout, 'ffOnly');
+  });
+
   it('uses deprecated jira.email only when jira.username is empty', async () => {
     await config.update('jira.username', '', vscode.ConfigurationTarget.Global);
     await config.update('jira.email', 'legacy@example.com', vscode.ConfigurationTarget.Global);
