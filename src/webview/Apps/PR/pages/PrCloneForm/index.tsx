@@ -65,6 +65,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   );
   const [isPreview, setIsPreview] = useState(false);
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
+  const [validationError, setValidationError] = useState<string | undefined>();
 
   const logger = useLogger(false);
   const sendMessage = useSendMessage();
@@ -124,17 +125,19 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
 
   const handleSubmit = (isDraft: boolean = false) => {
     if (isCloning) return; // Prevent submit during cloning
-    
+
     if (!featureBranch.trim()) {
-      alert('Please enter a feature branch name');
+      setValidationError('Please enter a feature branch name');
       return;
     }
-    
+
     logger.log(`selectedCommits.length = ${selectedCommits.length}`);
     if (selectedCommits.length === 0) {
-      alert('Please select at least one commit');
+      setValidationError('Please select at least one commit');
       return;
     }
+
+    setValidationError(undefined);
 
     // Show confirmation modal
     const isDraftPr = isDraft ? " draft " : " ";
@@ -192,7 +195,10 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
             <Input
               type="text"
               value={featureBranch}
-              onChange={(e) => setFeatureBranch(e.target.value)}
+              onChange={(e) => {
+                setFeatureBranch(e.target.value);
+                setValidationError(undefined);
+              }}
               placeholder="Feature branch name"
               disabled={isCloning}
             />
@@ -243,15 +249,20 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
         </div>
 
 
+        {validationError && (
+          <Text.Error className={styles.validationError}>{validationError}</Text.Error>
+        )}
+
         <div className={styles.actions}>
           <Button type="button" variant="secondary" onClick={handleCancel} disabled={isCloning}>
             Cancel
           </Button>
-          <DropDownButton 
+          <DropDownButton
             actions={dropdownActions}
             defaultActionId="create"
             popupDirection="up"
             loading={isCloning}
+            disabled={selectedCommits.length === 0}
           />
         </div>
       </div>
