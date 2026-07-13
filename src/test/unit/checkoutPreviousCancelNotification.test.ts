@@ -15,6 +15,7 @@ class TestCheckoutPreviousCommand extends CheckoutPreviousCommand {
       getCurrentBranch: async () => 'main',
       getPreviousBranch: async () => ({ name: 'feature-x', fullName: 'feature-x', remote: false, isTag: false }),
       worktreeListDetailed: async () => [],
+      isWorkdirHasChanges: async () => true,
     } as unknown as GitExecutor;
   }
 

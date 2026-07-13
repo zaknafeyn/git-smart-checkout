@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { GitHubClient } from '../../common/api/ghClient';
+import { AUTO_STASH_IGNORE } from '../checkoutToCommand/constants';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
@@ -90,7 +91,10 @@ export class CheckoutByPRCommand extends BaseCommand {
 
       const currentBranch = await git.getCurrentBranch();
 
-      const autoStashMode = await this.autoStashService.getAutoStashMode();
+      const isDirty = await git.isWorkdirHasChanges();
+      const autoStashMode = isDirty
+        ? await this.autoStashService.getAutoStashMode()
+        : AUTO_STASH_IGNORE;
       if (!autoStashMode) {
         return;
       }

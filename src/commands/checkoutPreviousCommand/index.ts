@@ -1,6 +1,7 @@
 import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
+import { AUTO_STASH_IGNORE } from '../checkoutToCommand/constants';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 
@@ -47,8 +48,11 @@ export class CheckoutPreviousCommand extends BaseCommand {
         return;
       }
 
-      // Get auto stash mode
-      const autoStashMode = await this.autoStashService.getAutoStashMode();
+      // Get auto stash mode (skip the prompt entirely when the tree is clean)
+      const isDirty = await git.isWorkdirHasChanges();
+      const autoStashMode = isDirty
+        ? await this.autoStashService.getAutoStashMode()
+        : AUTO_STASH_IGNORE;
       if (!autoStashMode) {
         return;
       }
