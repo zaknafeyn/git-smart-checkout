@@ -239,3 +239,119 @@ describe('PrCloneWebViewProvider fetch error handling', () => {
     }
   });
 });
+
+describe('PrCloneWebViewProvider default target branch resolution', () => {
+  async function runFetchPR(options: {
+    defaultTargetBranch: string;
+    branches: string[];
+    prBaseRef?: string;
+  }): Promise<{ messages: unknown[]; errors: string[] }> {
+    const messages: unknown[] = [];
+    const errors: string[] = [];
+    const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
+    (vscode.window as any).showErrorMessage = async (message: string) => {
+      errors.push(message);
+      return 'OK';
+    };
+
+    const pr = createPullRequest(42);
+    if (options.prBaseRef !== undefined) {
+      pr.base = { ref: options.prBaseRef };
+    }
+
+    const ghClient = new GitHubClient('owner', 'repo');
+    ghClient.fetchPullRequest = async () => pr;
+    ghClient.fetchPullRequestCommits = async () => [];
+    ghClient.fetchCommitsDetails = async () => [];
+    ghClient.fetchPullRequestTemplate = async () => undefined;
+
+    const provider = new PrCloneWebViewProvider(
+      {} as vscode.ExtensionContext,
+      mockLogService,
+      {
+        get: () => ({
+          defaultTargetBranch: options.defaultTargetBranch,
+          prBranchPrefix: '',
+        }),
+      } as unknown as ConfigurationManager,
+      createPrCloneService(ghClient, {
+        fetchPullRequestHead: async () => {},
+        getAllRefListExtended: async () =>
+          options.branches.map((name) => ({ name, remote: false, isTag: false })),
+      })
+    );
+    (provider as any).webviewView = {
+      webview: {
+        postMessage: async (message: unknown) => {
+          messages.push(message);
+          return true;
+        },
+      },
+    };
+
+    try {
+      await (provider as any).handleFetchPR('42');
+    } finally {
+      (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+    }
+
+    return { messages, errors };
+  }
+
+  function getShowPrDataMessage(messages: unknown[]): any {
+    return messages.find(
+      (message: any) => message.command === WebviewCommand.SHOW_PR_DATA
+    );
+  }
+
+  it('uses the configured branch when it exists', async () => {
+    const { messages, errors } = await runFetchPR({
+      defaultTargetBranch: 'develop',
+      branches: ['main', 'develop'],
+      prBaseRef: 'main',
+    });
+
+    assert.deepStrictEqual(errors, []);
+    const showPrData = getShowPrDataMessage(messages);
+    assert.ok(showPrData, 'expected SHOW_PR_DATA message');
+    assert.strictEqual(showPrData.defaultTargetBranch, 'develop');
+  });
+
+  it('triggers invalid-branch handling when the configured branch does not exist', async () => {
+    const { messages, errors } = await runFetchPR({
+      defaultTargetBranch: 'release/missing',
+      branches: ['main'],
+      prBaseRef: 'main',
+    });
+
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0], /release\/missing.*does not exist/);
+    assert.strictEqual(getShowPrDataMessage(messages), undefined);
+  });
+
+  it('falls back to the PR base branch when config is empty and the base branch exists', async () => {
+    const { messages, errors } = await runFetchPR({
+      defaultTargetBranch: '',
+      branches: ['master', 'develop'],
+      prBaseRef: 'develop',
+    });
+
+    assert.deepStrictEqual(errors, []);
+    const showPrData = getShowPrDataMessage(messages);
+    assert.ok(showPrData, 'expected SHOW_PR_DATA message');
+    assert.strictEqual(showPrData.defaultTargetBranch, 'develop');
+  });
+
+  it('falls back to the first available branch when config is empty and the PR base branch is missing locally', async () => {
+    const { messages, errors } = await runFetchPR({
+      defaultTargetBranch: '',
+      branches: ['master', 'develop'],
+      prBaseRef: 'release/not-local',
+    });
+
+    assert.deepStrictEqual(errors, []);
+    const showPrData = getShowPrDataMessage(messages);
+    assert.ok(showPrData, 'expected SHOW_PR_DATA message');
+    assert.strictEqual(showPrData.defaultTargetBranch, 'master');
+  });
+});

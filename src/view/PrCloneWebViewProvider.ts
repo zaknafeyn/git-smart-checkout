@@ -339,18 +339,28 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
     // Get default target branch and PR branch prefix from configuration
     const config = this.configurationManager.get();
-    const defaultTargetBranch = config.defaultTargetBranch || 'main';
     const prBranchPrefix = config.prBranchPrefix || '';
 
-    // Validate that the default target branch exists in available branches
-    if (
-      defaultTargetBranch &&
-      defaultTargetBranch.trim() &&
-      !branches.includes(defaultTargetBranch)
-    ) {
-      await this.handleInvalidDefaultBranch(defaultTargetBranch);
+    // Resolve the effective default target branch in priority order:
+    // 1. explicitly configured branch (if it still exists)
+    // 2. the original PR's base branch (if it exists locally)
+    // 3. the first available branch
+    const configuredTargetBranch = config.defaultTargetBranch?.trim();
+
+    // Only treat this as an error when the user explicitly configured a branch
+    // that no longer exists - never for the empty/auto-resolved case.
+    if (configuredTargetBranch && !branches.includes(configuredTargetBranch)) {
+      await this.handleInvalidDefaultBranch(configuredTargetBranch);
       return;
     }
+
+    const defaultTargetBranch =
+      (configuredTargetBranch &&
+        branches.includes(configuredTargetBranch) &&
+        configuredTargetBranch) ||
+      (prData.base?.ref && branches.includes(prData.base.ref) && prData.base.ref) ||
+      branches[0] ||
+      '';
 
     this.webviewView.webview.postMessage({
       command: WebviewCommand.SHOW_PR_DATA,

@@ -343,7 +343,7 @@
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",
           "default": "main",
-          "description": "Default target branch for PR cloning. Leave empty to use the first available branch."
+          "description": "Default target branch for PR cloning. Leave empty to use the original PR's base branch."
         },
         "git-smart-checkout.defaultWorktreeDirectory": {
           "type": "string",
