@@ -18,7 +18,7 @@ const features: Feature[] = [
     title: 'Smart Branch Checkout',
     description:
       'Switch branches without worrying about uncommitted changes. Choose your stash strategy once or per checkout — the extension handles everything else.',
-    command: 'Git Smart Checkout: Checkout to... (With Stash)',
+    command: 'GSC: Checkout to... (With Stash)',
     color: 'blue',
   },
   {
@@ -26,7 +26,7 @@ const features: Feature[] = [
     title: 'Pull with Stash',
     description:
       'Pull the latest changes from remote without losing your local work. Changes are stashed before the pull and restored automatically after.',
-    command: 'Git Smart Checkout: Pull (With Stash)',
+    command: 'GSC: Pull (With Stash)',
     color: 'green',
   },
   {
@@ -34,7 +34,7 @@ const features: Feature[] = [
     title: 'Pull with Rebase',
     description:
       'Pull with rebase while preserving local changes. The extension stashes your work, rebases onto the remote branch, and restores your changes afterward.',
-    command: 'Git Smart Checkout: Pull (Rebase With Stash)',
+    command: 'GSC: Pull (Rebase With Stash)',
     color: 'orange',
   },
   {
@@ -42,7 +42,7 @@ const features: Feature[] = [
     title: 'Rebase with Stash',
     description:
       'Rebase the current branch onto any other branch, tag, or ref while your local changes are stashed and restored automatically — no need to commit or clean up first.',
-    command: 'Git Smart Checkout: Rebase ... (With Stash)',
+    command: 'GSC: Rebase (With Stash)',
     color: 'purple',
   },
   {
@@ -54,7 +54,7 @@ const features: Feature[] = [
         magic. Think of it as <kbd>Ctrl + Z</kbd> for branch switching.
       </>
     ),
-    command: 'Git Smart Checkout: Checkout previous branch (With Stash)',
+    command: 'GSC: Checkout previous branch (With Stash)',
     color: 'purple',
   },
   {
@@ -62,7 +62,7 @@ const features: Feature[] = [
     title: 'Preferred Branches',
     description:
       'Star the branches, tags, and remotes you use most — they float to the top of the checkout picker, marked with a star. Toggle a star straight from the picker, no settings file to edit.',
-    command: 'Git Smart Checkout: Checkout to... (With Stash)',
+    command: 'GSC: Checkout to... (With Stash)',
     tag: 'New',
     color: 'blue',
   },
@@ -71,7 +71,7 @@ const features: Feature[] = [
     title: 'GitHub PR Clone',
     description:
       'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR. The description preview renders full GitHub-Flavored Markdown and can pre-fill from the repo PR template.',
-    command: 'Git Smart Checkout: Clone pull request...',
+    command: 'GSC: Clone pull request...',
     tag: 'Beta',
     color: 'orange',
   },
@@ -80,7 +80,7 @@ const features: Feature[] = [
     title: 'Checkout by PR Number',
     description:
       "Check out any GitHub pull request's branch by its PR number or URL, with the same auto-stash handling as a regular checkout. No more copying branch names by hand.",
-    command: 'Git Smart Checkout: Checkout by PR number... (With Stash)',
+    command: 'GSC: Checkout by PR number... (With Stash)',
     color: 'orange',
   },
   {
@@ -88,7 +88,7 @@ const features: Feature[] = [
     title: 'PR Review in Worktree',
     description:
       'Open a GitHub PR in an isolated linked worktree, track its review metadata, and remove the review worktree later with dirty-state stash handling.',
-    command: 'Git Smart Checkout: PR Review in Worktree',
+    command: 'GSC: PR Review in Worktree',
     color: 'purple',
   },
   {
@@ -96,7 +96,7 @@ const features: Feature[] = [
     title: 'Worktree Dev Terminal',
     description:
       'Open a new integrated terminal straight in any worktree directory. Pick a project, choose the worktree, and get a shell in the right working directory — no manual navigation.',
-    command: 'Git Smart Checkout: Open Worktree Dev Terminal...',
+    command: 'GSC: Open Worktree Dev Terminal...',
     color: 'blue',
   },
   {
@@ -104,7 +104,7 @@ const features: Feature[] = [
     title: 'Tag from Template',
     description:
       'Generate version tags from a configurable template. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
-    command: 'Git Smart Checkout: Create Tag from Template',
+    command: 'GSC: Create Tag from Template...',
     color: 'blue',
   },
   {
@@ -112,7 +112,7 @@ const features: Feature[] = [
     title: 'Branch from Template',
     description:
       'Create and check out a branch from a reusable template. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
-    command: 'Git Smart Checkout: Create Branch from Template...',
+    command: 'GSC: Create Branch from Template...',
     color: 'green',
   },
   {
@@ -120,7 +120,7 @@ const features: Feature[] = [
     title: 'Worktree Workflows',
     description:
       'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove several worktrees at once with a single confirmation.',
-    command: 'Git Smart Checkout: Move to new worktree',
+    command: 'GSC: Move to new worktree',
     color: 'green',
   },
   {
@@ -135,7 +135,7 @@ const features: Feature[] = [
     title: 'Auto-Stash Manager',
     description:
       'Inspect, recover, or remove the stashes Git Smart Checkout creates — see branch, age, file count and a diff preview, then Apply, Pop, or Drop each one with a single click.',
-    command: 'Git Smart Checkout: Manage auto-stashes...',
+    command: 'GSC: Manage auto-stashes...',
     tag: 'New',
     color: 'green',
   },
@@ -144,7 +144,7 @@ const features: Feature[] = [
     title: 'Status Bar Integration',
     description:
       "See your current stash mode at a glance, then click the status bar item for a quick-actions menu — checkout, pull/rebase, worktree commands, clone PR, and settings, each gated to your repo's state.",
-    command: 'Git Smart Checkout: Quick Actions',
+    command: 'GSC: Quick Actions',
     color: 'purple',
   },
 ];
