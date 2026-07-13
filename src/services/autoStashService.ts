@@ -14,6 +14,8 @@ import { VscodeGitProvider } from "../common/git/vscodeGitProvider";
 
 export type TPullWithStashStrategy = 'merge' | 'rebase';
 
+export type CheckoutOutcome = 'completed' | 'cancelled';
+
 export class AutoStashService {
   
   constructor(
@@ -196,15 +198,16 @@ export class AutoStashService {
     currentBranch: string,
     nextBranch: IGitRef,
     autoStashMode: TAutoStashMode = AUTO_STASH_CURRENT_BRANCH
-  ) {
+  ): Promise<CheckoutOutcome> {
     const nextBranchName = nextBranch.name;
     const isWorkdirHasChanges = await git.isWorkdirHasChanges();
+    let outcome: CheckoutOutcome = 'completed';
     switch (autoStashMode) {
       case AUTO_STASH_CURRENT_BRANCH:
-        await this.doAutoStashCurrentBranch(git, currentBranch, nextBranchName, isWorkdirHasChanges);
+        outcome = await this.doAutoStashCurrentBranch(git, currentBranch, nextBranchName, isWorkdirHasChanges);
         break;
       case AUTO_STASH_AND_POP_IN_NEW_BRANCH:
-        await this.doAutoStashAndPopInNewBranch(
+        outcome = await this.doAutoStashAndPopInNewBranch(
           git,
           currentBranch,
           nextBranchName,
@@ -212,7 +215,7 @@ export class AutoStashService {
         );
         break;
       case AUTO_STASH_AND_APPLY_IN_NEW_BRANCH:
-        await this.doAutoStashAndPopInNewBranch(
+        outcome = await this.doAutoStashAndPopInNewBranch(
           git,
           currentBranch,
           nextBranchName,
@@ -233,7 +236,12 @@ export class AutoStashService {
         }
         break;
     }
-    capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
+
+    if (outcome === 'completed') {
+      capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
+    }
+
+    return outcome;
   }
 
   async doAutoStashCurrentBranch(
@@ -241,7 +249,7 @@ export class AutoStashService {
     currentBranch: string,
     nextBranch: string,
     isWorkdirHasChanges: boolean
-  ) {
+  ): Promise<CheckoutOutcome> {
     try {
       if (isWorkdirHasChanges) {
         const stashMessage = getStashMessage(currentBranch);
@@ -274,6 +282,8 @@ export class AutoStashService {
     } catch (e) {
       handleErrorMessage(e, 'No stash found', 'No stash to pop on the new branch.', 'Failed to pop the stash on the new branch.');
     }
+
+    return 'completed';
   }
 
   async #confirmStashConflicts(files: string[], operation: string): Promise<boolean> {
@@ -293,7 +303,7 @@ export class AutoStashService {
     nextBranch: string,
     isWorkdirHasChanges: boolean,
     apply: boolean = false
-  ) {
+  ): Promise<CheckoutOutcome> {
     const stashMessage = getStashMessage(currentBranch, true);
     const operation = apply ? 'apply' : 'pop';
 
@@ -304,7 +314,7 @@ export class AutoStashService {
           const proceed = await this.#confirmStashConflicts(conflicts, operation);
           if (!proceed) {
             this.logService.info('User cancelled checkout due to predicted stash conflicts');
-            return;
+            return 'cancelled';
           }
         }
         await git.createStash(stashMessage);
@@ -326,7 +336,7 @@ export class AutoStashService {
 
     // nothing to pop if no changes were stashed before checkout
     if (!isWorkdirHasChanges) {
-      return;
+      return 'completed';
     }
 
     // Pop or apply the stash on the new branch
@@ -338,5 +348,7 @@ export class AutoStashService {
     } catch (e) {
       handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
     }
+
+    return 'completed';
   }
 }

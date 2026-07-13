@@ -118,7 +118,10 @@ export class CheckoutByPRCommand extends BaseCommand {
         return;
       }
 
-      await this.autoStashService.checkoutAndStashChanges(git, currentBranch, prBranch, autoStashMode);
+      const outcome = await this.autoStashService.checkoutAndStashChanges(git, currentBranch, prBranch, autoStashMode);
+      if (outcome === 'cancelled') {
+        return;
+      }
 
       await this.showInformationMessage(`Switched to PR #${prNumber}: ${pr.title}`, 'OK');
 

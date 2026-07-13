@@ -54,7 +54,10 @@ export class CheckoutPreviousCommand extends BaseCommand {
       }
 
       // Perform checkout with auto stash
-      await this.autoStashService.checkoutAndStashChanges(git, currentBranch, previousBranch, autoStashMode);
+      const outcome = await this.autoStashService.checkoutAndStashChanges(git, currentBranch, previousBranch, autoStashMode);
+      if (outcome === 'cancelled') {
+        return;
+      }
 
       capture(AnalyticsEvent.CheckoutPreviousBranch, { stash_mode: autoStashMode });
 
