@@ -114,6 +114,13 @@ export class AutoStashService {
       ? AnalyticsEvent.PullRebaseWithStash
       : AnalyticsEvent.PullWithStash;
     const stashMessage = getStashMessage(currentBranch, true);
+
+    if (!(await git.hasUpstreamBranch(currentBranch))) {
+      throw new Error(
+        `Branch "${currentBranch}" has no upstream branch to pull from. Publish the branch first (git push -u origin ${currentBranch}).`
+      );
+    }
+
     const isWorkdirHasChangesBeforeStash = await git.isWorkdirHasChanges();
 
     if (isWorkdirHasChangesBeforeStash) {
@@ -126,6 +133,16 @@ export class AutoStashService {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       const operation = strategy === 'rebase' ? 'Pull with rebase' : 'Pull';
+
+      if (isWorkdirHasChangesBeforeStash) {
+        const isWorkdirHasChangesAfterFailedPull = await git.isWorkdirHasChanges();
+        if (!isWorkdirHasChangesAfterFailedPull) {
+          // Nothing partially merged/rebased - safe to restore the user's changes.
+          await git.popStash(stashMessage);
+          throw new Error(`${operation} failed: ${msg}`);
+        }
+      }
+
       throw new Error(`${operation} failed: ${msg}${isWorkdirHasChangesBeforeStash ? '\n\nYour changes are preserved in the stash.' : ''}`);
     }
 
