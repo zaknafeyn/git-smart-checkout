@@ -47,7 +47,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     if (defaultTargetBranch && defaultTargetBranch.trim()) {
       return defaultTargetBranch;
     }
-    return prData.head.ref || branches[0] || 'main';
+    return prData.base?.ref || branches[0] || 'main';
   });
   
   // Create the prefix - add "/" if the prefix doesn't end with "/" and is not empty
