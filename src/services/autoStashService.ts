@@ -217,6 +217,7 @@ export class AutoStashService {
     autoStashMode: TAutoStashMode = AUTO_STASH_CURRENT_BRANCH
   ): Promise<CheckoutOutcome> {
     const nextBranchName = nextBranch.name;
+    const previewRef = nextBranch.remote ? nextBranch.fullName : nextBranch.name;
     const isWorkdirHasChanges = await git.isWorkdirHasChanges();
     let outcome: CheckoutOutcome = 'completed';
     switch (autoStashMode) {
@@ -228,7 +229,9 @@ export class AutoStashService {
           git,
           currentBranch,
           nextBranchName,
-          isWorkdirHasChanges
+          isWorkdirHasChanges,
+          false,
+          previewRef
         );
         break;
       case AUTO_STASH_AND_APPLY_IN_NEW_BRANCH:
@@ -237,7 +240,8 @@ export class AutoStashService {
           currentBranch,
           nextBranchName,
           isWorkdirHasChanges,
-          true
+          true,
+          previewRef
         );
         break;
       case AUTO_STASH_IGNORE:
@@ -319,14 +323,15 @@ export class AutoStashService {
     currentBranch: string,
     nextBranch: string,
     isWorkdirHasChanges: boolean,
-    apply: boolean = false
+    apply: boolean = false,
+    previewRef: string = nextBranch
   ): Promise<CheckoutOutcome> {
     const stashMessage = getStashMessage(currentBranch, true);
     const operation = apply ? 'apply' : 'pop';
 
     try {
       if (isWorkdirHasChanges) {
-        const conflicts = await git.getStashConflictPreview(nextBranch);
+        const conflicts = await git.getStashConflictPreview(previewRef);
         if (conflicts.length > 0) {
           const proceed = await this.#confirmStashConflicts(conflicts, operation);
           if (!proceed) {
