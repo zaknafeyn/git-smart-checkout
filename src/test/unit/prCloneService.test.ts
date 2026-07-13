@@ -105,6 +105,16 @@ describe('PrCloneService re-initialization', () => {
   });
 });
 
+describe('PrCloneService.abortClonePR guard', () => {
+  it('resolves without throwing when called before init() (no active clone)', async () => {
+    const service = new PrCloneService(context, mockLogService, configurationManager);
+
+    await assert.doesNotReject(() => service.abortClonePR());
+
+    service.dispose();
+  });
+});
+
 describe('PrCloneWebViewProvider repository refresh', () => {
   it('clears stale PR data and posts updated repository info after re-init', () => {
     const service = new PrCloneService(context, mockLogService, configurationManager);

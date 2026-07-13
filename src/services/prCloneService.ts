@@ -143,6 +143,10 @@ export class PrCloneService {
   }
 
   async abortClonePR() {
+    if (!this.isInited) {
+      return;
+    }
+
     const config = this.configurationManager.get();
 
     if (config.useInPlaceCherryPick) {

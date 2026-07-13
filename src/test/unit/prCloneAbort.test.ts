@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { window as vscodeWindow } from 'vscode';
 
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { PrCloneInPlaceService } from '../../services/prCloneInPlaceService';
@@ -133,6 +134,46 @@ describe('PrCloneInPlaceService.cleanUp (abort) guard', () => {
       calls.checkout,
       ['main'],
       'the original branch should still be restored'
+    );
+  });
+});
+
+describe('PrCloneInPlaceService.cherryPickNext guard', () => {
+  const createGitStub = () => {
+    const calls = { hasConflicts: 0 };
+
+    const gitStub = {
+      hasConflicts: async () => {
+        calls.hasConflicts += 1;
+        return false;
+      },
+    } as unknown as GitExecutor;
+
+    return { gitStub, calls };
+  };
+
+  it('shows "No PR clone in progress." and does not throw when no clone is active', async () => {
+    const { gitStub, calls } = createGitStub();
+    const service = new PrCloneInPlaceService(gitStub, {} as any, mockLogService);
+
+    const messages: string[] = [];
+    const originalShowInformationMessage = vscodeWindow.showInformationMessage;
+    (vscodeWindow as any).showInformationMessage = async (message: string) => {
+      messages.push(message);
+      return undefined;
+    };
+
+    try {
+      await assert.doesNotReject(() => service.cherryPickNext());
+    } finally {
+      (vscodeWindow as any).showInformationMessage = originalShowInformationMessage;
+    }
+
+    assert.deepStrictEqual(messages, ['No PR clone in progress.']);
+    assert.strictEqual(
+      calls.hasConflicts,
+      0,
+      'should return before touching git state when no clone is in progress'
     );
   });
 });

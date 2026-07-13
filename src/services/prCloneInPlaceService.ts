@@ -35,6 +35,12 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
   }
 
   async cherryPickNext(isContinue = false) {
+    if (!this.commitGenerator) {
+      await window.showInformationMessage('No PR clone in progress.');
+
+      return;
+    }
+
     if (await this.git.hasConflicts()) {
       await window.showWarningMessage(
         'Working directory still has conflicts, resolve them to proceed',
