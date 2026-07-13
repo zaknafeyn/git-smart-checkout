@@ -32,9 +32,20 @@ const Label: FC<TextProps> = ({ children, className }) => {
   return <span className={style}>{children}</span>;
 };
 
+const ErrorText: FC<TextProps> = ({ children, className }) => {
+  const style = classNames(styles.textCommon, styles.textError, className);
+
+  return (
+    <span className={style} role="alert">
+      {children}
+    </span>
+  );
+};
+
 export const Text = {
   Paragraph,
   Header,
   SubHeader,
-  Label
+  Label,
+  Error: ErrorText
 };

@@ -31,4 +31,10 @@
     white-space: pre-wrap;
     font-weight: 400;
   }
+
+  &.textError {
+    font-size: 12px;
+    white-space: pre-wrap;
+    color: var(--vscode-errorForeground);
+  }
 }

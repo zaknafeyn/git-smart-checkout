@@ -23,6 +23,7 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
   isLoading,
 }) => {
   const [prInput, setPrInput] = useState('');
+  const [validationError, setValidationError] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const logger = useLogger();
@@ -56,9 +57,10 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
     logger.info('Fetching PR data ...');
     e.preventDefault();
     if (!prInput.trim()) {
-      alert('Please enter a PR number or URL');
+      setValidationError('Please enter a PR number or URL');
       return;
     }
+    setValidationError(undefined);
     onFetchPR(prInput.trim());
   };
 
@@ -72,9 +74,16 @@ export const PrInputForm: React.FC<PrInputFormProps> = ({
           type="text"
           label="PR Number or URL:"
           value={prInput}
-          onChange={(e) => setPrInput(e.target.value)}
+          onChange={(e) => {
+            setPrInput(e.target.value);
+            setValidationError(undefined);
+          }}
           placeholder={`e.g., 123 or https://github.com/${repoOwner}/${repoName}/pull/123`}
         />
+
+        {validationError && (
+          <Text.Error className={styles.validationError}>{validationError}</Text.Error>
+        )}
 
         <div className={styles.buttonGroup}>
           <Button
