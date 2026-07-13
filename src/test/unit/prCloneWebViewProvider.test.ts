@@ -209,7 +209,7 @@ describe('PrCloneWebViewProvider fetch error handling', () => {
         }),
       } as unknown as ConfigurationManager,
       createPrCloneService(ghClient, {
-        fetchSpecificBranch: async () => {},
+        fetchPullRequestHead: async () => {},
         getAllRefListExtended: async () => [{ name: 'main', remote: false, isTag: false }],
       })
     );

@@ -289,6 +289,19 @@ export class GitExecutor {
     await this.#execGitCommand(['fetch', remoteUrl, `${headRef}:${headRef}`]);
   }
 
+  async fetchPullRequestHead(prNumber: number, remoteName = 'origin'): Promise<void> {
+    await this.#execGitCommand(['fetch', remoteName, `pull/${prNumber}/head`]);
+  }
+
+  async commitExists(sha: string): Promise<boolean> {
+    try {
+      await this.#execGitCommand(['cat-file', '-e', `${sha}^{commit}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async pullCurrentBranch() {
     await this.#execGitCommand(['pull']);
   }

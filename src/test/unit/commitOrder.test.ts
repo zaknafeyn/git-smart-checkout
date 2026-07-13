@@ -48,10 +48,11 @@ describe('PR commit ordering', () => {
       cherryPickCommits(commitShas: string[], token: CancellationToken): Promise<void>;
     };
     testableService.tempGit = {
+      commitExists: async () => true,
       cherryPick: async (commits: string | string[]) => {
         cherryPicks.push(commits);
       },
-    } as GitExecutor;
+    } as unknown as GitExecutor;
 
     await testableService.cherryPickCommits(
       ['parent', 'middle', 'child'],
