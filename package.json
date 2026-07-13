@@ -222,6 +222,10 @@
     "menus": {
       "commandPalette": [
         {
+          "command": "git-smart-checkout.prCancelCloneMenu",
+          "when": "false"
+        },
+        {
           "command": "git-smart-checkout.prConflictsResolvedMenu",
           "when": "false"
         },
