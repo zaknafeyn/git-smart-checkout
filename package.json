@@ -50,6 +50,13 @@
     "views": {
       "git-smart-checkout": [
         {
+          "id": "git-smart-checkout.worktrees",
+          "name": "Worktrees",
+          "type": "tree",
+          "icon": "$(repo)",
+          "when": "git-smart-checkout.hasRepository"
+        },
+        {
           "id": "git-smart-checkout.prClone",
           "name": "PR Clone",
           "type": "webview",
