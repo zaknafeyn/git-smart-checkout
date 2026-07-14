@@ -11,6 +11,11 @@ import {
   togglePreferredRef,
 } from './preferredRefs';
 
+/** Minimal slice of `vscode.WorkspaceConfiguration` needed to update the stash mode. */
+export interface ModeConfig {
+  update(section: 'mode', value: ExtensionConfig['mode'], target: ConfigurationTarget): Thenable<void>;
+}
+
 export class ConfigurationManager {
   private config: ExtensionConfig;
   /** Jira API token cached from Secret Storage; never read from settings. */
@@ -113,9 +118,23 @@ export class ConfigurationManager {
     return this.config;
   }
 
-  public async updateMode(mode: ExtensionConfig['mode']): Promise<void> {
-    const config = workspace.getConfiguration(EXTENSION_NAME);
-    await config.update('mode', mode, ConfigurationTarget.Global);
+  /**
+   * Persist the stash mode. Scoped to the current workspace when one is open,
+   * so the mode shadows the global default per-repo (matches the website's
+   * "remembers it per workspace" promise); falls back to Global when no
+   * workspace is open (e.g. an empty editor window) since there is nothing to
+   * scope to.
+   *
+   * `config` and `hasWorkspace` are overridable for unit testing without a
+   * real workspace open.
+   */
+  public async updateMode(
+    mode: ExtensionConfig['mode'],
+    config: ModeConfig = workspace.getConfiguration(EXTENSION_NAME),
+    hasWorkspace: boolean = Boolean(workspace.workspaceFolders && workspace.workspaceFolders.length > 0)
+  ): Promise<void> {
+    const target = hasWorkspace ? ConfigurationTarget.Workspace : ConfigurationTarget.Global;
+    await config.update('mode', mode, target);
   }
 
   public async updateLoggingEnabled(enabled: boolean): Promise<void> {
