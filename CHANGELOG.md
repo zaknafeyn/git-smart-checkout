@@ -1,3 +1,10 @@
+## [0.13.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.1...v0.13.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* resolve ten assorted small defects (issue 21 a-j) ([#145](https://github.com/zaknafeyn/git-smart-checkout/issues/145)) ([cb61302](https://github.com/zaknafeyn/git-smart-checkout/commit/cb613027df526233198572e1c13cf451745021b0))
+
 ## [0.13.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.0...v0.13.1) (2026-07-14)
 
 
