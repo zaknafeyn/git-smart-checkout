@@ -21,7 +21,9 @@ import { mockLogService } from '../e2e/helpers/mockLogService';
  * touches a disjoint set of files (so pop/apply never conflicts by accident).
  */
 
-const mockConfigManager = {} as unknown as ConfigurationManager;
+const mockConfigManager = {
+  get: () => ({ pullAfterCheckout: 'ffOnly' }),
+} as unknown as ConfigurationManager;
 const sut = new AutoStashService(mockConfigManager, mockLogService);
 
 function makeRef(name: string): IGitRef {

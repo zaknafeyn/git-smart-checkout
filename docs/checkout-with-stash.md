@@ -13,7 +13,7 @@ Use this command to switch to a local branch, remote branch, or tag while the ex
 5. Lets you create a new branch from the current branch, or create a new branch from a selected base ref.
 6. Uses the configured stash mode, or asks you to choose one when the mode is `manual`.
 7. Checks out the selected ref.
-8. Pulls the branch after checkout when the selected branch has an upstream.
+8. Optionally pulls the branch after checkout when it has an upstream, according to `git-smart-checkout.pullAfterCheckout` (see [Pull After Checkout](#pull-after-checkout) below).
 9. Restores or transfers local changes depending on the stash mode.
 
 When `git-smart-checkout.useFastBranchList` is enabled, the picker opens from VS Code's cached Git model. Before the picker appears, the extension preloads missing or expired details for the first visible refs and applies any valid cached details immediately. Details are cached for 48 hours and are invalidated when a ref points to a different commit.
@@ -40,6 +40,16 @@ Temporary stashes used by the pop/apply flows are named `auto-stash-<branch>-<yy
 > Stashes created by "Auto stash and apply in new branch" are not used by the automatic branch-restore flow. They remain available for manual stash access.
 
 Stashes are matched by their complete message after Git's `On <branch>: ` subject prefix. Message text containing `: ` is preserved when the extension locates a stash to pop or apply.
+
+## Pull After Checkout
+
+After checking out a branch that has an upstream, the extension can optionally pull it, controlled by `git-smart-checkout.pullAfterCheckout`:
+
+| Value | Behavior |
+| --- | --- |
+| `off` | Never pulls. Checkout behaves like plain `git checkout`. |
+| `ffOnly` (default) | Runs `git pull --ff-only`. Never creates a merge commit. If a fast-forward isn't possible (e.g. the local branch has diverged from its upstream), the extension shows a warning notification and leaves the branch as checked out — it does not fail the checkout. |
+| `pull` | Runs a full `git pull`, which may create a merge commit if the branch has diverged. |
 
 ## Conflict Pre-Flight
 

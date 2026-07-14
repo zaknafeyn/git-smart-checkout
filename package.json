@@ -369,6 +369,21 @@
           "default": true,
           "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning (this method doesn't allow to solve conflicts, so use when completely sure that there will be no conflicts during cherry pick"
         },
+        "git-smart-checkout.pullAfterCheckout": {
+          "type": "string",
+          "enum": [
+            "off",
+            "ffOnly",
+            "pull"
+          ],
+          "markdownEnumDescriptions": [
+            "Never pull after checkout",
+            "Fast-forward only (`git pull --ff-only`), never creates merge commits",
+            "Full pull (may create a merge commit)"
+          ],
+          "default": "ffOnly",
+          "description": "After checking out a branch with an upstream: 'off' — never pull; 'ffOnly' — fast-forward only (git pull --ff-only, never creates merge commits); 'pull' — full pull."
+        },
         "git-smart-checkout.preferredRefs": {
           "type": "object",
           "default": {},

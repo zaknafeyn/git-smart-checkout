@@ -18,7 +18,9 @@ import {
 } from './helpers/gitTestRepo';
 import { mockLogService } from './helpers/mockLogService';
 
-const mockConfigManager = {} as unknown as ConfigurationManager;
+const mockConfigManager = {
+  get: () => ({ pullAfterCheckout: 'ffOnly' }),
+} as unknown as ConfigurationManager;
 const sut = new AutoStashService(mockConfigManager, mockLogService);
 
 function makeRef(name: string): IGitRef {

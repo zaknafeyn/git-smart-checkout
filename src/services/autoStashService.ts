@@ -2,7 +2,7 @@ import { QuickPickItem, window } from "vscode";
 import { AUTO_STASH_AND_APPLY_IN_NEW_BRANCH, AUTO_STASH_AND_POP_IN_NEW_BRANCH, AUTO_STASH_CURRENT_BRANCH, AUTO_STASH_IGNORE, AUTO_STASH_PREFIX, DESC_AUTO_STASH_AND_APPLY_IN_NEW_BRANCH, DESC_AUTO_STASH_AND_POP_IN_NEW_BRANCH, DESC_AUTO_STASH_CURRENT_BRANCH, DESC_AUTO_STASH_IGNORE } from "../commands/checkoutToCommand/constants";
 import { TAutoStashMode } from "../commands/checkoutToCommand/types";
 import { ConfigurationManager } from "../configuration/configurationManager";
-import { AUTO_STASH_MODE_APPLY, AUTO_STASH_MODE_BRANCH, AUTO_STASH_MODE_MANUAL, AUTO_STASH_MODE_POP } from "../configuration/extensionConfig";
+import { AUTO_STASH_MODE_APPLY, AUTO_STASH_MODE_BRANCH, AUTO_STASH_MODE_MANUAL, AUTO_STASH_MODE_POP, PULL_AFTER_CHECKOUT_FF_ONLY, PULL_AFTER_CHECKOUT_OFF, PULL_AFTER_CHECKOUT_PULL } from "../configuration/extensionConfig";
 import { LoggingService } from "../logging/loggingService";
 import { showQuickPick } from "../commands/utils/showQuickPick";
 import { GitExecutor } from "../common/git/gitExecutor";
@@ -200,6 +200,43 @@ export class AutoStashService {
     capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
   }
 
+  /**
+   * After a checkout, optionally pull the upstream of the given branch
+   * according to the `pullAfterCheckout` setting:
+   * - 'off': never pull.
+   * - 'ffOnly': fast-forward only; never creates a merge commit. On failure
+   *   (e.g. the branches have diverged), show a non-fatal warning instead of
+   *   aborting the checkout.
+   * - 'pull': full pull (today's default behavior before this setting existed).
+   */
+  async #maybePullAfterCheckout(git: GitExecutor, branch: string): Promise<void> {
+    const { pullAfterCheckout } = this.configManager.get();
+
+    if (pullAfterCheckout === PULL_AFTER_CHECKOUT_OFF) {
+      return;
+    }
+
+    if (!(await git.hasUpstreamBranch(branch))) {
+      return;
+    }
+
+    if (pullAfterCheckout === PULL_AFTER_CHECKOUT_PULL) {
+      await git.pullCurrentBranch();
+      return;
+    }
+
+    // PULL_AFTER_CHECKOUT_FF_ONLY (default)
+    try {
+      await git.pullCurrentBranchFfOnly();
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await window.showWarningMessage(
+        `Checked out '${branch}', but could not fast-forward to its upstream: ${msg}`
+      );
+    }
+  }
+
   async #doRebase(git: GitExecutor, targetRef: string, vscodeGitProvider?: VscodeGitProvider): Promise<void> {
     if (vscodeGitProvider) {
       const used = await vscodeGitProvider.rebase(git.repositoryPath, targetRef);
@@ -248,13 +285,11 @@ export class AutoStashService {
       default:
         try {
           await git.checkout(nextBranchName);
-          if (await git.hasUpstreamBranch(nextBranchName)) {
-            await git.pullCurrentBranch();
-          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           throw new Error(`Failed to checkout the selected branch: ${msg}`);
         }
+        await this.#maybePullAfterCheckout(git, nextBranchName);
         break;
     }
 
@@ -282,14 +317,12 @@ export class AutoStashService {
 
     try {
       await git.checkout(nextBranch);
-      if (await git.hasUpstreamBranch(nextBranch)) {
-        await git.pullCurrentBranch();
-      }
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
+    await this.#maybePullAfterCheckout(git, nextBranch);
 
     try {
       const message = `${AUTO_STASH_PREFIX}-${nextBranch}`;
@@ -347,14 +380,12 @@ export class AutoStashService {
 
     try {
       await git.checkout(nextBranch);
-      if (await git.hasUpstreamBranch(nextBranch)) {
-        await git.pullCurrentBranch();
-      }
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Failed to checkout the selected branch: ${msg}`);
     }
+    await this.#maybePullAfterCheckout(git, nextBranch);
 
     // nothing to pop if no changes were stashed before checkout
     if (!isWorkdirHasChanges) {
