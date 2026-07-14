@@ -586,6 +586,32 @@ export class GitExecutor {
     return stdout.trim().length !== 0;
   }
 
+  /**
+   * A `stash@{N}` selector is positional: if any stash is created or removed
+   * elsewhere between listing and acting on it, the index can silently point
+   * at a different stash. This re-verifies the selector still resolves to the
+   * expected commit hash and, if not, re-lists stashes to find the selector
+   * that now matches the hash.
+   */
+  async resolveStashSelector(selector: string, expectedHash: string): Promise<string> {
+    try {
+      const { stdout } = await this.#execGitCommand(['rev-parse', selector]);
+      if (stdout.trim() === expectedHash) {
+        return selector;
+      }
+    } catch {
+      // fall through to re-list and resolve by hash
+    }
+
+    const stashes = await this.listStashes();
+    const match = stashes.find((stash) => stash.hash === expectedHash);
+    if (!match) {
+      throw new Error('The selected stash no longer exists.');
+    }
+
+    return match.selector;
+  }
+
   async getStagedChangesPatch(): Promise<string> {
     const { stdout } = await this.#execGitCommand(['diff', '--cached', '--binary']);
     return stdout;

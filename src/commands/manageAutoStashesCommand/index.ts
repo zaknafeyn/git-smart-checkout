@@ -159,18 +159,24 @@ export class ManageAutoStashesCommand extends BaseCommand {
     action: StashAction
   ): Promise<void> {
     switch (action) {
-      case 'apply':
-        await git.applyStash(stash.selector);
+      case 'apply': {
+        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
+        await git.applyStash(selector);
         await vscode.window.showInformationMessage('Auto-stash applied.', 'OK');
         return;
-      case 'pop':
-        await git.popStashBySelector(stash.selector);
+      }
+      case 'pop': {
+        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
+        await git.popStashBySelector(selector);
         await vscode.window.showInformationMessage('Auto-stash popped.', 'OK');
         return;
-      case 'drop':
-        await git.dropStash(stash.selector);
+      }
+      case 'drop': {
+        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
+        await git.dropStash(selector);
         await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
         return;
+      }
       case 'diff': {
         const patch = await git.getStashPatch(stash.selector);
         if (!patch) {
