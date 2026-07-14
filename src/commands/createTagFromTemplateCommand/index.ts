@@ -32,8 +32,6 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
       await this.showErrorMessage('No workspace folder is open.');
       return;
     }
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    log(`Current workspace folder: ${workspaceRoot}`);
 
     let git: Awaited<ReturnType<typeof this.getGitExecutor>>;
     try {
@@ -43,6 +41,8 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
       await this.showErrorMessage('Current workspace is not a Git repository.');
       return;
     }
+    const workspaceRoot = git.repositoryPath;
+    log(`Current workspace folder: ${workspaceRoot}`);
 
     const cfg = this.configManager.get();
     const template = (cfg.tagTemplate ?? '').trim();
