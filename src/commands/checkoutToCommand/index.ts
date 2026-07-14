@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { AUTO_STASH_IGNORE } from './constants';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { getFullRefname } from '../../common/git/refName';
 import { IGitRef } from '../../common/git/types';
@@ -76,7 +77,10 @@ export class CheckoutToCommand extends BaseCommand {
           return;
         }
 
-        const autoStashMode = await this.autoStashService.getAutoStashMode();
+        const isDirty = await git.isWorkdirHasChanges();
+        const autoStashMode = isDirty
+          ? await this.autoStashService.getAutoStashMode()
+          : AUTO_STASH_IGNORE;
 
         if (!autoStashMode) {
           return;

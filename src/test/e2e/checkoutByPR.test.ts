@@ -126,6 +126,44 @@ describe('CheckoutByPRCommand – same-repo PR', () => {
       assert.strictEqual(repo.stashCount(), 0, 'no stash should be created for a clean workdir');
       assert.ok(infoMessages.some((m) => m.includes('42') && m.includes('Test PR title')));
     });
+
+  });
+
+  describe('clean working tree — stash-mode prompt skip', () => {
+    // Uses its own repo (rather than the shared one above) so this test's
+    // precondition — a genuinely clean, not-yet-checked-out PR branch — holds
+    // regardless of what earlier tests in this file already checked out.
+    let repo: PRTestRepo;
+    let restoreStubs: () => void;
+
+    before(() => {
+      repo = createPRTestRepo();
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      restoreStubs = withStubs(stubInputBox('42'), stubInfoMessages([]));
+    });
+
+    after(() => {
+      restoreStubs();
+      repo.cleanup();
+    });
+
+    it('does not prompt for a stash mode when the working tree is clean', async () => {
+      let getAutoStashModeCalled = false;
+      const autoStashService = new AutoStashService(makeMockConfigManager(AUTO_STASH_MODE_BRANCH), mockLogService);
+      const originalGetAutoStashMode = autoStashService.getAutoStashMode.bind(autoStashService);
+      autoStashService.getAutoStashMode = async (...args: Parameters<typeof originalGetAutoStashMode>) => {
+        getAutoStashModeCalled = true;
+        return originalGetAutoStashMode(...args);
+      };
+
+      const pr = makePR(repo.prBranch);
+      const sut = new TestableCheckoutByPRCommand(repo.git, pr, autoStashService);
+
+      await sut.execute();
+
+      assert.strictEqual(getAutoStashModeCalled, false, 'getAutoStashMode should be skipped for a clean tree');
+      assert.strictEqual(await repo.git.getCurrentBranch(), repo.prBranch);
+    });
   });
 
   describe('dirty working tree – AUTO_STASH_CURRENT_BRANCH', () => {
@@ -398,6 +436,8 @@ describe('CheckoutByPRCommand – error handling', () => {
 
   it('does not checkout when stash mode selection is cancelled', async () => {
     const restoreInput = stubInputBox('42');
+    // Make the tree dirty so the stash-mode prompt is actually shown (and can be cancelled).
+    repo.makeChange('file1.txt', 'work in progress\n');
     const fakeAutoStashService = {
       getAutoStashMode: async () => undefined,
       checkoutAndStashChanges: async () => { throw new Error('should not be called'); },
