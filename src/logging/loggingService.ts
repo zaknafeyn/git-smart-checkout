@@ -65,6 +65,10 @@ export class LoggingService implements Disposable {
     this.log('debug', message, data);
   }
 
+  public show(): void {
+    this.outputChannel.show();
+  }
+
   public dispose(): void {
     this.outputChannel.dispose();
   }
