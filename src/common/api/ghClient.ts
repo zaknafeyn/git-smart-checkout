@@ -88,6 +88,8 @@ export class GitHubClient {
    */
   public static readonly MAX_PR_COMMITS = 250;
 
+  private cachedCurrentUserLogin?: Promise<string | undefined>;
+
   constructor(
     private readonly _owner: string,
     private readonly _repo: string,
@@ -320,7 +322,9 @@ export class GitHubClient {
     base: string,
     isDraft: boolean = false,
     labels?: string[],
-    assignees?: string[]
+    assignees?: string[],
+    reviewers?: string[],
+    teamReviewers?: string[]
   ): Promise<GitHubPR> {
     const endpoint = `/repos/${this.owner}/${this.repo}/pulls`;
     const requestBody: any = {
@@ -357,7 +361,36 @@ export class GitHubClient {
       }
     }
 
+    if (reviewers?.length || teamReviewers?.length) {
+      try {
+        await this.makeRequest(
+          `/repos/${this.owner}/${this.repo}/pulls/${newPr.number}/requested_reviewers`,
+          'POST',
+          { reviewers, team_reviewers: teamReviewers }
+        );
+      } catch (error) {
+        this.warn(`Failed to copy reviewers to PR #${newPr.number}:`, error);
+      }
+    }
+
     return newPr;
+  }
+
+  /**
+   * Fetch (and cache) the login of the currently authenticated GitHub user.
+   * Used to filter the authenticated user out of reviewer lists, since GitHub
+   * rejects requests where a PR author is requested as their own reviewer.
+   */
+  public async getCurrentUserLogin(): Promise<string | undefined> {
+    if (!this.cachedCurrentUserLogin) {
+      this.cachedCurrentUserLogin = this.makeRequest<GitHubUser>('/user')
+        .then((user) => user.login)
+        .catch((error) => {
+          this.warn('Failed to fetch authenticated GitHub user:', error);
+          return undefined;
+        });
+    }
+    return this.cachedCurrentUserLogin;
   }
 
   /**

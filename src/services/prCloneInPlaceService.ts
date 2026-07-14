@@ -361,6 +361,14 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     const labels = originalPr.labels?.map((label) => label.name) || [];
     const assignees = originalPr.assignees?.map((assignee) => assignee.login) || [];
 
+    // Extract reviewers/team reviewers from original PR, excluding the
+    // authenticated user (GitHub rejects requesting a review from the PR author).
+    const currentUserLogin = await this.ghClient.getCurrentUserLogin();
+    const reviewers = (originalPr.requested_reviewers?.map((reviewer) => reviewer.login) || []).filter(
+      (login) => login !== currentUserLogin
+    );
+    const teamReviewers = originalPr.requested_teams?.map((team) => team.slug) || [];
+
     // Create PR using the GitHub API
     const newPr = await this.ghClient.createPullRequest(
       originalPr.title, // Use original PR title
@@ -369,7 +377,9 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       targetBranch,
       isDraft,
       labels,
-      assignees
+      assignees,
+      reviewers,
+      teamReviewers
     );
 
     this.loggingService.info(`Created PR #${newPr.number}: ${newPr.title}`);
