@@ -297,8 +297,18 @@ export class GitExecutor {
     await this.#execGitCommand(['fetch', remoteName, `${branchName}:refs/remotes/${remoteName}/${branchName}`]);
   }
 
-  async fetchFromUrl(remoteUrl: string, headRef: string) {
-    await this.#execGitCommand(['fetch', remoteUrl, `${headRef}:${headRef}`]);
+  async fetchFromUrl(remoteUrl: string, headRef: string, toFetchHead = false) {
+    if (toFetchHead) {
+      // Git refuses to fetch into the branch that is currently checked out, so
+      // fetch to FETCH_HEAD instead of updating the local branch ref directly.
+      await this.#execGitCommand(['fetch', remoteUrl, headRef]);
+      return;
+    }
+
+    // Force the update (`+` prefix) so a subsequent checkout of the same fork PR
+    // succeeds even if the PR author force-pushed and the update is otherwise a
+    // non-fast-forward. This local branch exists solely to mirror the PR head.
+    await this.#execGitCommand(['fetch', remoteUrl, `+${headRef}:${headRef}`]);
   }
 
   async fetchPullRequestHead(prNumber: number, remoteName = 'origin'): Promise<void> {

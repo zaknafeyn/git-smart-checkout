@@ -3,11 +3,25 @@ import * as vscode from 'vscode';
 
 import {
   ConfigurationManager,
+  ModeConfig,
   shouldShowJiraEmailMigrationNotice,
 } from '../../configuration/configurationManager';
 import { EXTENSION_NAME } from '../../const';
 import { JIRA_TOKEN_SECRET_KEY } from '../../configuration/jiraTokenStore';
 import { FakeSecretStorage } from './helpers/fakeSecretStorage';
+
+/** Fake `vscode.WorkspaceConfiguration` slice that records `update` calls to the `mode` setting. */
+class FakeModeConfig implements ModeConfig {
+  readonly calls: Array<{ value: string; target: vscode.ConfigurationTarget }> = [];
+
+  async update(
+    _section: 'mode',
+    value: string,
+    target: vscode.ConfigurationTarget
+  ): Promise<void> {
+    this.calls.push({ value, target });
+  }
+}
 
 describe('ConfigurationManager', () => {
   const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
@@ -21,6 +35,30 @@ describe('ConfigurationManager', () => {
   it('defaults pullAfterCheckout to "ffOnly"', () => {
     const manager = new ConfigurationManager(new FakeSecretStorage());
     assert.strictEqual(manager.get().pullAfterCheckout, 'ffOnly');
+  });
+
+  describe('updateMode', () => {
+    it('writes to the Workspace scope when a workspace is open', async () => {
+      const manager = new ConfigurationManager(new FakeSecretStorage());
+      const fakeConfig = new FakeModeConfig();
+
+      await manager.updateMode('autoStashAndPop', fakeConfig, /* hasWorkspace */ true);
+
+      assert.deepStrictEqual(fakeConfig.calls, [
+        { value: 'autoStashAndPop', target: vscode.ConfigurationTarget.Workspace },
+      ]);
+    });
+
+    it('falls back to the Global scope when no workspace is open', async () => {
+      const manager = new ConfigurationManager(new FakeSecretStorage());
+      const fakeConfig = new FakeModeConfig();
+
+      await manager.updateMode('manual', fakeConfig, /* hasWorkspace */ false);
+
+      assert.deepStrictEqual(fakeConfig.calls, [
+        { value: 'manual', target: vscode.ConfigurationTarget.Global },
+      ]);
+    });
   });
 
   it('uses deprecated jira.email only when jira.username is empty', async () => {

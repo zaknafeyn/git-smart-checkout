@@ -120,6 +120,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   private commitsProvider?: PrCommitsWebViewProvider;
   private currentPrData?: GitHubPR;
   private currentCommits: GitHubCommit[] = [];
+  private pendingReset = false;
 
   private cloneServiceCleanUpAssigned = false;
   private readonly repositoryChangeSubscription: Disposable;
@@ -207,7 +208,29 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async handleWebViewReady() {
+    if (this.pendingReset) {
+      this.pendingReset = false;
+      this.clearState();
+    }
+
     this.updateRepoInfo();
+  }
+
+  /**
+   * Requests a fresh start for the PR Clone webview (e.g. when the
+   * "clone pull request" command is invoked). If the webview is already
+   * resolved and visible, the state is cleared immediately. Otherwise, a
+   * pending-reset flag is set and honored once the webview finishes
+   * mounting and sends the WEBVIEW_READY handshake (see `handleWebViewReady`).
+   */
+  public requestFreshStart(): void {
+    if (this.webviewView?.visible) {
+      this.clearState();
+      this.pendingReset = false;
+      return;
+    }
+
+    this.pendingReset = true;
   }
 
   private updateRepoInfo() {

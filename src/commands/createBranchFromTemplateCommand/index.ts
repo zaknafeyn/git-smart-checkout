@@ -38,7 +38,6 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
       await this.showErrorMessage('No workspace folder is open.');
       return;
     }
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
 
     let git: Awaited<ReturnType<typeof this.getGitExecutor>>;
     try {
@@ -48,6 +47,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
       await this.showErrorMessage('Current workspace is not a Git repository.');
       return;
     }
+    const workspaceRoot = git.repositoryPath;
 
     const cfg = this.configManager.get();
     const template = (cfg.branchTemplate ?? '').trim();

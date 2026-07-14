@@ -305,6 +305,89 @@ describe('PrCloneWebViewProvider fetch error handling', () => {
   });
 });
 
+describe('PrCloneWebViewProvider requestFreshStart / WEBVIEW_READY handshake', () => {
+  function createProvider(): PrCloneWebViewProvider {
+    const ghClient = new GitHubClient('owner', 'repo');
+    return new PrCloneWebViewProvider(
+      {} as vscode.ExtensionContext,
+      mockLogService,
+      {} as ConfigurationManager,
+      createPrCloneService(ghClient)
+    );
+  }
+
+  it('clears state immediately when the webview is already resolved and visible', () => {
+    const provider = createProvider();
+    let clearStateCalls = 0;
+    (provider as any).clearState = () => {
+      clearStateCalls++;
+    };
+    (provider as any).webviewView = { visible: true };
+
+    provider.requestFreshStart();
+
+    assert.strictEqual(clearStateCalls, 1);
+    assert.strictEqual((provider as any).pendingReset, false);
+  });
+
+  it('sets a pending-reset flag (without clearing state) when the webview is not yet resolved', () => {
+    const provider = createProvider();
+    let clearStateCalls = 0;
+    (provider as any).clearState = () => {
+      clearStateCalls++;
+    };
+
+    provider.requestFreshStart();
+
+    assert.strictEqual(clearStateCalls, 0);
+    assert.strictEqual((provider as any).pendingReset, true);
+  });
+
+  it('sets a pending-reset flag when the webview is resolved but not visible', () => {
+    const provider = createProvider();
+    let clearStateCalls = 0;
+    (provider as any).clearState = () => {
+      clearStateCalls++;
+    };
+    (provider as any).webviewView = { visible: false };
+
+    provider.requestFreshStart();
+
+    assert.strictEqual(clearStateCalls, 0);
+    assert.strictEqual((provider as any).pendingReset, true);
+  });
+
+  it('clears state and resets the pending flag once WEBVIEW_READY fires with a pending reset', async () => {
+    const provider = createProvider();
+    let clearStateCalls = 0;
+    (provider as any).clearState = () => {
+      clearStateCalls++;
+    };
+    (provider as any).webviewView = undefined;
+
+    provider.requestFreshStart();
+    assert.strictEqual((provider as any).pendingReset, true);
+
+    await (provider as any).handleWebViewReady();
+
+    assert.strictEqual(clearStateCalls, 1);
+    assert.strictEqual((provider as any).pendingReset, false);
+  });
+
+  it('does not clear state on a normal WEBVIEW_READY when no reset was requested', async () => {
+    const provider = createProvider();
+    let clearStateCalls = 0;
+    (provider as any).clearState = () => {
+      clearStateCalls++;
+    };
+
+    await (provider as any).handleWebViewReady();
+
+    assert.strictEqual(clearStateCalls, 0);
+    assert.strictEqual((provider as any).pendingReset, false);
+  });
+});
+
 describe('PrCloneWebViewProvider default target branch resolution', () => {
   async function runFetchPR(options: {
     defaultTargetBranch: string;

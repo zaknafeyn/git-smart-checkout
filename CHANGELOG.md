@@ -1,3 +1,30 @@
+## [0.13.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.0...v0.13.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **auto-stash:** re-resolve positional stash selector before pop/drop/apply ([#135](https://github.com/zaknafeyn/git-smart-checkout/issues/135)) ([7a52fae](https://github.com/zaknafeyn/git-smart-checkout/commit/7a52fae7348fdb3905b46e44c8ba1fdd0e75cf3a))
+* **autostash:** use fully-qualified ref for stash conflict preview on remote branches ([#130](https://github.com/zaknafeyn/git-smart-checkout/issues/130)) ([3d990e5](https://github.com/zaknafeyn/git-smart-checkout/commit/3d990e50db9c377957b53bae91586a9239c5f502))
+* **checkout:** don't report success when the user cancels at the conflict-preview dialog ([#125](https://github.com/zaknafeyn/git-smart-checkout/issues/125)) ([71d78c3](https://github.com/zaknafeyn/git-smart-checkout/commit/71d78c3e57eb00334e81455b71a135c7ba460978)), closes [#51](https://github.com/zaknafeyn/git-smart-checkout/issues/51)
+* **checkout:** force fetchFromUrl refspec so re-checkout survives fork force-push ([#139](https://github.com/zaknafeyn/git-smart-checkout/issues/139)) ([4d69d60](https://github.com/zaknafeyn/git-smart-checkout/commit/4d69d60be5937e1432b8e5a4014be43f645178ed))
+* **checkout:** make post-checkout pull configurable and safe by default ([#133](https://github.com/zaknafeyn/git-smart-checkout/issues/133)) ([9151435](https://github.com/zaknafeyn/git-smart-checkout/commit/91514357776d15691ddd8a090546592f732366e4))
+* **checkout:** skip stash-mode prompt when the working tree is clean ([2d126a9](https://github.com/zaknafeyn/git-smart-checkout/commit/2d126a970f522a915e50a5ba9f0edafb2c6e16c8))
+* **checkout:** treat picker/input dismissal as cancellation, not an error ([#136](https://github.com/zaknafeyn/git-smart-checkout/issues/136)) ([70d48f8](https://github.com/zaknafeyn/git-smart-checkout/commit/70d48f82a9b6c8c0ae292220d00e46a7fd05f1ac))
+* **config:** correct useInPlaceCherryPick and defaultWorktreeDirectory setting descriptions ([#137](https://github.com/zaknafeyn/git-smart-checkout/issues/137)) ([3c491b4](https://github.com/zaknafeyn/git-smart-checkout/commit/3c491b41fdcc74000a9ae9f73f3db50f7d444389))
+* **config:** scope stash mode updates to the workspace when one is open ([90e2f94](https://github.com/zaknafeyn/git-smart-checkout/commit/90e2f94536037d4f687dc0e206990cd030697faa))
+* **docs:** add architecture and React development guidelines ([fae7bc1](https://github.com/zaknafeyn/git-smart-checkout/commit/fae7bc1991e32348cfcd906a31d81c42df0b2d0b))
+* **pr-clone:** copy reviewers and team reviewers when cloning a PR ([f23d897](https://github.com/zaknafeyn/git-smart-checkout/commit/f23d897ae58751a0b845aeda7dfa9873caa9c104)), closes [#28](https://github.com/zaknafeyn/git-smart-checkout/issues/28)
+* **pr-clone:** fetch PR head via pull/<n>/head so fork PRs clone correctly ([#124](https://github.com/zaknafeyn/git-smart-checkout/issues/124)) ([a00037c](https://github.com/zaknafeyn/git-smart-checkout/commit/a00037ce79f7f93795063a7b96107119795130cf))
+* **pr-clone:** guard Cancel PR clone command with no active clone ([2fb1338](https://github.com/zaknafeyn/git-smart-checkout/commit/2fb1338d277319d35d543ee8c689454bb56a5117))
+* **pr-clone:** persist and recover interrupted in-place clone state ([#143](https://github.com/zaknafeyn/git-smart-checkout/issues/143)) ([c5754b4](https://github.com/zaknafeyn/git-smart-checkout/commit/c5754b43f9c8892effd3dfd495fdace757d204c4))
+* **pr-clone:** replace 250ms setTimeout webview reset with WEBVIEW_READY handshake ([#144](https://github.com/zaknafeyn/git-smart-checkout/issues/144)) ([36fc01c](https://github.com/zaknafeyn/git-smart-checkout/commit/36fc01c00b10aced940f6c2b9b3325fc87e31b01))
+* **pr-clone:** resolve default target branch from PR base, not head ([d8bb22f](https://github.com/zaknafeyn/git-smart-checkout/commit/d8bb22fb99aacaab0a76c2e95d511a6ebaa9fedd))
+* **pr-clone:** surface fetch-PR error detail via Show details button ([#134](https://github.com/zaknafeyn/git-smart-checkout/issues/134)) ([429e6ea](https://github.com/zaknafeyn/git-smart-checkout/commit/429e6eae80dfa8da795f63c58e69de3e7bf98716))
+* **pull-with-stash:** avoid stashing when branch has no upstream; restore stash on clean pull failure ([24ead09](https://github.com/zaknafeyn/git-smart-checkout/commit/24ead0933372389e3310c778037f7f627aac3aac))
+* **templates:** resolve branch/tag template tokens against the selected repo, not workspace folder 0 ([#138](https://github.com/zaknafeyn/git-smart-checkout/issues/138)) ([3c3d4b4](https://github.com/zaknafeyn/git-smart-checkout/commit/3c3d4b496efc7044951458e856f242deed8306e8))
+* **test:** stub ConfigurationManager.get() in remote-branch conflict preview tests ([5342a75](https://github.com/zaknafeyn/git-smart-checkout/commit/5342a754ed05b351611ef5115e5f5147d5b87b38)), closes [#133](https://github.com/zaknafeyn/git-smart-checkout/issues/133)
+* **webview:** replace no-op alert() with inline validation errors ([#126](https://github.com/zaknafeyn/git-smart-checkout/issues/126)) ([063dd93](https://github.com/zaknafeyn/git-smart-checkout/commit/063dd93cf50f3d91aa534bd22d363f149f48f61b))
+
 # [0.13.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.12.0...v0.13.0) (2026-06-18)
 
 
