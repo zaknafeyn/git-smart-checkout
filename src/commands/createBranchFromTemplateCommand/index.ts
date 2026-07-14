@@ -65,7 +65,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     if (branchTemplateNeedsJira(template)) {
       if (!isJiraConfigured(cfg.jira)) {
         await this.showErrorMessage(
-          'Branch template requires Jira. Set git-smart-checkout.jira.domain and jira.username, then run "GSC: Set Jira token".'
+          'Branch template requires Jira. Set git-smart-checkout.jira.domain and jira.username, then run "GSC: Set Jira Token...".'
         );
         return;
       }

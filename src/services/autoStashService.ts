@@ -312,7 +312,7 @@ export class AutoStashService {
         await git.createStash(stashMessage);
       }
     } catch (e) {
-      handleErrorMessage(e);
+      handleErrorMessage(e, undefined, undefined, undefined, this.logService);
     }
 
     try {
@@ -334,7 +334,13 @@ export class AutoStashService {
         await git.popStash(message);
       }
     } catch (e) {
-      handleErrorMessage(e, 'No stash found', 'No stash to pop on the new branch.', 'Failed to pop the stash on the new branch.');
+      handleErrorMessage(
+        e,
+        'No stash found',
+        'No stash to pop on the new branch.',
+        'Failed to pop the stash on the new branch.',
+        this.logService
+      );
     }
 
     return 'completed';
@@ -375,7 +381,7 @@ export class AutoStashService {
         await git.createStash(stashMessage);
       }
     } catch (e) {
-      handleErrorMessage(e);
+      handleErrorMessage(e, undefined, undefined, undefined, this.logService);
     }
 
     try {

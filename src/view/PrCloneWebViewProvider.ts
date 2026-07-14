@@ -523,7 +523,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
   }
 
   private async handleShowConfirmationDialog(message: string, details: string, data: any) {
-    const confirmAction = 'Proceed';
+    const isDiscardConfirmation = data?.action === 'discardChanges';
+    const confirmAction = isDiscardConfirmation ? 'Discard' : 'Proceed';
 
     const selectedAction = await window.showInformationMessage(
       message,
@@ -531,9 +532,20 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       confirmAction
     );
 
-    if (selectedAction === confirmAction) {
-      await this.handleClonePR(data);
+    if (selectedAction !== confirmAction) {
+      return;
     }
+
+    if (isDiscardConfirmation) {
+      // The user confirmed discarding their edited description (triggered by
+      // pressing Escape) — reset the form the same way the Cancel button does,
+      // without going through the clone flow.
+      await this.handleHideCommitsWebview();
+      this.webviewView?.webview.postMessage({ command: WebviewCommand.CLEAR_STATE });
+      return;
+    }
+
+    await this.handleClonePR(data);
   }
 
   private handleWebviewLog(level: 'info' | 'warn' | 'error' | 'debug', message: string) {

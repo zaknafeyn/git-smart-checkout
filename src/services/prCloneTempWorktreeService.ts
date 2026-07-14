@@ -74,7 +74,7 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
             // Step 2: Fetch the target branch and the PR's commits (works for forks too)
             progress.report({ message: `Fetching PR #${data.prData.number} commits...` });
-            await this.fetchAllBranches(data.prData.number);
+            await this.fetchAllBranches(data.targetBranch, data.prData.number);
 
             throwIfCancellationRequested(token);
 
@@ -193,12 +193,16 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     return tempPath;
   }
 
-  private async fetchAllBranches(prNumber: number): Promise<void> {
+  private async fetchAllBranches(targetBranch: string, prNumber: number): Promise<void> {
     if (!this.tempGit) {
       throw new Error('Temporary git workspace not initialized');
     }
 
-    await this.tempGit.fetchAllRemoteBranchesAndTags();
+    // Fetch only the target branch here — force-fetching all tags as a side
+    // effect of cloning a PR can silently overwrite local tags that diverged
+    // from the remote. The PR head fetch below is sufficient to get the
+    // commits we need (works for forks too).
+    await this.tempGit.fetchSpecificBranch(targetBranch);
 
     try {
       await this.tempGit.fetchPullRequestHead(prNumber);
