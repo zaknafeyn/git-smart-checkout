@@ -835,6 +835,19 @@ export class GitExecutor {
     }
   }
 
+  async isMergeInProgress(): Promise<boolean> {
+    try {
+      await this.#execGitCommand(['rev-parse', '-q', '--verify', 'MERGE_HEAD']);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async resetMerge(): Promise<void> {
+    await this.#execGitCommand(['reset', '--merge']);
+  }
+
   async deleteLocalBranch(branchName: string) {
     const { stdout } = await this.#execGitCommand(['branch', '-D', branchName]);
     return stdout.trim();

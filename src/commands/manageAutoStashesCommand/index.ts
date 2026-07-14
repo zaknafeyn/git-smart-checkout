@@ -8,6 +8,7 @@ import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { LoggingService } from '../../logging/loggingService';
 import { BaseCommand } from '../command';
 import { AUTO_STASH_PREFIX } from '../checkoutToCommand/constants';
+import { offerConflictRescue } from '../../services/stashConflictRescue';
 
 const ACTION_APPLY = 'Apply';
 const ACTION_POP = 'Pop';
@@ -161,13 +162,27 @@ export class ManageAutoStashesCommand extends BaseCommand {
     switch (action) {
       case 'apply': {
         const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-        await git.applyStash(selector);
+        try {
+          await git.applyStash(selector);
+        } catch (error) {
+          const conflicts = await git.getConflictedFiles();
+          if (conflicts.length === 0) throw error;
+          await offerConflictRescue(git, conflicts, 'apply');
+          return;
+        }
         await vscode.window.showInformationMessage('Auto-stash applied.', 'OK');
         return;
       }
       case 'pop': {
         const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-        await git.popStashBySelector(selector);
+        try {
+          await git.popStashBySelector(selector);
+        } catch (error) {
+          const conflicts = await git.getConflictedFiles();
+          if (conflicts.length === 0) throw error;
+          await offerConflictRescue(git, conflicts, 'pop');
+          return;
+        }
         await vscode.window.showInformationMessage('Auto-stash popped.', 'OK');
         return;
       }

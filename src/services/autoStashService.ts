@@ -11,6 +11,7 @@ import { IGitRef } from "../common/git/types";
 import { handleErrorMessage } from "../utils/handleErrorMessage";
 import { AnalyticsEvent, capture, captureException } from "../analytics/analytics";
 import { VscodeGitProvider } from "../common/git/vscodeGitProvider";
+import { offerConflictRescue } from './stashConflictRescue';
 
 export type TPullWithStashStrategy = 'merge' | 'rebase';
 
@@ -405,7 +406,18 @@ export class AutoStashService {
         await git.popStash(stashMessage, apply);
       }
     } catch (e) {
-      handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
+      const conflicts = await git.getConflictedFiles();
+      if (conflicts.length > 0) {
+        await offerConflictRescue(git, conflicts, operation);
+        handleErrorMessage(
+          e,
+          'No stash found',
+          `No stash to ${operation} on the new branch.`,
+          `Failed to ${operation} the stash on the new branch.`
+        );
+      } else {
+        handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
+      }
     }
 
     return 'completed';
