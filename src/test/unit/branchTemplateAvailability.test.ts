@@ -12,6 +12,7 @@ function baseConfig(overrides: {
     mode: AUTO_STASH_MODE_MANUAL,
     useFastBranchList: true,
     recentBranchCount: 5,
+    githubEnterpriseBaseUrl: '',
     showStatusBar: true,
     defaultTargetBranch: 'main',
     defaultWorktreeDirectory: '',
