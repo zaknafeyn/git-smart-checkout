@@ -401,6 +401,12 @@
           "minimum": 0,
           "description": "Number of recently checked-out branches shown in the checkout picker. Set to 0 to disable."
         },
+        "git-smart-checkout.showWhatsNew": {
+          "type": "string",
+          "enum": ["minor", "always", "never"],
+          "default": "minor",
+          "description": "Control the What's New notification after extension updates."
+        },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",
           "default": "main",

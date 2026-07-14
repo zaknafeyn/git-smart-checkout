@@ -61,6 +61,7 @@ import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 import { UserCancelledError } from './utils/userCancelledError';
 import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
+import { UpdateNotificationService } from './services/updateNotificationService';
 import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -82,6 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
   const commandManager = new CommandManager();
 
   const configManager = new ConfigurationManager(context.secrets);
+  void new UpdateNotificationService().checkOnActivation(context, configManager.get().showWhatsNew);
 
   const updateTelemetryState = () =>
     setAnalyticsEnabled(vscode.env.isTelemetryEnabled && configManager.get().telemetry.enabled);
