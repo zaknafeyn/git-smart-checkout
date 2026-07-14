@@ -41,6 +41,7 @@ export interface JiraConfig {
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
+  recentBranchCount: number;
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;

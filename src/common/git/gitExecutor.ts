@@ -994,4 +994,30 @@ export class GitExecutor {
       return null;
     }
   }
+
+  async getRecentBranches(limit: number): Promise<string[]> {
+    if (limit <= 0) {
+      return [];
+    }
+    const { stdout } = await this.#execGitCommand(['reflog', '--format=%gs', '-n', '200']);
+    const current = await this.getCurrentBranch();
+    const stats = new Map<string, { count: number; first: number }>();
+    const lines = stdout.split('\n');
+    for (let index = 0; index < lines.length; index += 1) {
+      const match = lines[index].match(/^checkout: moving from (.+) to (.+)$/);
+      if (!match) {
+        continue;
+      }
+      const target = match[2].trim();
+      if (!target || target === current || target === 'HEAD' || target.includes('detached')) {
+        continue;
+      }
+      const previous = stats.get(target);
+      stats.set(target, { count: (previous?.count ?? 0) + 1, first: previous?.first ?? index });
+    }
+    return [...stats.entries()]
+      .sort((a, b) => b[1].count - a[1].count || a[1].first - b[1].first)
+      .slice(0, limit * 2)
+      .map(([name]) => name);
+  }
 }

@@ -181,11 +181,16 @@ export class CheckoutToCommand extends BaseCommand {
 
     const buildItems = () => {
       const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
+      const recentNames = recentBranchNames ?? [];
+      const recentRefs = recentNames
+        .map((name) => locals.find((ref) => ref.name === name))
+        .filter((ref): ref is IGitRef => Boolean(ref));
+      const recentSet = new Set(recentRefs.map((ref) => ref.name));
       const tags = branchList.filter((t) => t.isTag);
       // Preferred refs float to the top of each section, ordered by when they were starred.
       const preferredLocal = this.configManager.sortByPreferredOrder(
         repoId,
-        locals.filter((b) => this.configManager.isPreferred(repoId, b))
+        locals.filter((b) => !recentSet.has(b.name) && this.configManager.isPreferred(repoId, b))
       );
       const preferredRemote = this.configManager.sortByPreferredOrder(
         repoId,
@@ -195,12 +200,18 @@ export class CheckoutToCommand extends BaseCommand {
         repoId,
         tags.filter((t) => this.configManager.isPreferred(repoId, t))
       );
-      const nonPreferredLocal = locals.filter((b) => !this.configManager.isPreferred(repoId, b));
+      const nonPreferredLocal = locals.filter(
+        (b) => !recentSet.has(b.name) && !this.configManager.isPreferred(repoId, b)
+      );
       const nonPreferredRemote = remotes.filter((b) => !this.configManager.isPreferred(repoId, b));
       const otherTags = tags.filter((t) => !this.configManager.isPreferred(repoId, t));
 
       const items: (vscode.QuickPickItem & { ref?: IGitRef; type?: 'action' | 'ref' })[] = [];
       items.push(...quickPickActions.map((a) => ({ label: a.label, type: 'action' as const })));
+      if (recentRefs.length > 0) {
+        items.push({ label: 'Recent', kind: vscode.QuickPickItemKind.Separator });
+        items.push(...recentRefs.map(toItem));
+      }
       items.push({ label: 'Branches', kind: vscode.QuickPickItemKind.Separator });
       items.push(...preferredLocal.map(toItem), ...nonPreferredLocal.map(toItem));
       items.push({ label: 'Remote branches', kind: vscode.QuickPickItemKind.Separator });
@@ -209,6 +220,12 @@ export class CheckoutToCommand extends BaseCommand {
       items.push(...preferredTags.map(toItem), ...otherTags.map(toItem));
       return items;
     };
+
+    let recentBranchNames: string[] | undefined;
+    const recentBranchCount = this.configManager.get().recentBranchCount;
+    if (recentBranchCount > 0) {
+      recentBranchNames = await git.getRecentBranches(recentBranchCount);
+    }
 
     qp.onDidTriggerItemButton(async (e) => {
       const ref = (e.item as any).ref as IGitRef | undefined;

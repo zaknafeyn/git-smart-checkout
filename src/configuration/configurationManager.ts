@@ -95,6 +95,7 @@ export class ConfigurationManager {
     return {
       mode: vscodeConfig.get('mode', AUTO_STASH_MODE_MANUAL),
       useFastBranchList: vscodeConfig.get('useFastBranchList', true),
+      recentBranchCount: vscodeConfig.get('recentBranchCount', 5),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       defaultWorktreeDirectory: vscodeConfig.get('defaultWorktreeDirectory', ''),

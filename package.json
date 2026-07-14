@@ -344,6 +344,12 @@
           "default": true,
           "description": "Use VS Code's cached git model for branch pickers, preload details for the first visible refs, and cache ref details for 48 hours. Disable to always build lists with a full 'git for-each-ref' scan."
         },
+        "git-smart-checkout.recentBranchCount": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "description": "Number of recently checked-out branches shown in the checkout picker. Set to 0 to disable."
+        },
         "git-smart-checkout.defaultTargetBranch": {
           "type": "string",
           "default": "main",
