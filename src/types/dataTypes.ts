@@ -8,6 +8,8 @@ export interface GitHubPR {
   number: number;
   title: string;
   body: string;
+  /** PR author, as reported by the GitHub REST API. */
+  user?: GitHubUser;
   head: {
     ref: string;
     sha: string;

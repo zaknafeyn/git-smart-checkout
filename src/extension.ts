@@ -32,6 +32,7 @@ import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
 import { PRReviewInWorktreeCommand } from './commands/prReviewInWorktreeCommand';
+import { ReviewPrByNumberCommand } from './commands/reviewPrByNumberCommand';
 import {
   CopyStagedChangesToWorktreeCommand,
   CopyWipChangesToWorktreeCommand,
@@ -209,7 +210,14 @@ export function activate(context: vscode.ExtensionContext) {
     prReviewWorktreeStore
   );
   commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand);
-  commandManager.registerCommand(`${EXTENSION_NAME}.reviewPrByNumber`, prReviewInWorktreeCommand);
+
+  const reviewPrByNumberCommand = new ReviewPrByNumberCommand(
+    configManager,
+    logService,
+    vscodeGitProvider,
+    prReviewWorktreeStore
+  );
+  commandManager.registerCommand(`${EXTENSION_NAME}.reviewPrByNumber`, reviewPrByNumberCommand);
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
