@@ -209,6 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
     prReviewWorktreeStore
   );
   commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.reviewPrByNumber`, prReviewInWorktreeCommand);
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
