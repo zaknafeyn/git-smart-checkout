@@ -227,12 +227,41 @@
       },
       {
         "command": "git-smart-checkout.worktree.terminal",
-        "title": "Open Worktree Dev Terminal",
+        "title": "Open Dev Terminal",
+        "icon": "$(terminal)",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.copyWip",
+        "title": "Copy WIP Here",
+        "icon": "$(git-commit)",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.worktree.remove",
         "title": "Remove Worktree",
+        "icon": "$(trash)",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.addToWorkspace",
+        "title": "Add to Workspace",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.copyPath",
+        "title": "Copy Path",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.reveal",
+        "title": "Reveal in Finder/Explorer",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.refresh",
+        "title": "Refresh Worktrees",
+        "icon": "$(refresh)",
         "category": "GSC"
       },
       {
@@ -250,30 +279,65 @@
       "view/item/context": [
         {
           "command": "git-smart-checkout.worktree.open",
-          "when": "view == git-smart-checkout.worktrees && viewItem == worktree",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
           "group": "inline@1"
         },
         {
           "command": "git-smart-checkout.worktree.terminal",
-          "when": "view == git-smart-checkout.worktrees && viewItem =~ /^worktree/",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
           "group": "inline@2"
         },
         {
-          "command": "git-smart-checkout.worktree.remove",
-          "when": "view == git-smart-checkout.worktrees && viewItem == worktree",
+          "command": "git-smart-checkout.worktree.copyWip",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/ && viewItem =~ /\\blinked\\b/",
           "group": "inline@3"
+        },
+        {
+          "command": "git-smart-checkout.worktree.remove",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/ && viewItem =~ /\\blinked\\b/",
+          "group": "inline@4"
+        },
+        {
+          "command": "git-smart-checkout.worktree.addToWorkspace",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "git-smart-checkout.worktree.copyPath",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
+          "group": "7_modification@2"
+        },
+        {
+          "command": "git-smart-checkout.worktree.reveal",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
+          "group": "7_modification@3"
         }
       ],
       "view/title": [
         {
-          "command": "git-smart-checkout.moveToNewWorktree",
+          "command": "git-smart-checkout.worktree.refresh",
           "when": "view == git-smart-checkout.worktrees",
           "group": "navigation@1"
         },
         {
+          "command": "git-smart-checkout.moveToNewWorktree",
+          "when": "view == git-smart-checkout.worktrees",
+          "group": "navigation@2"
+        },
+        {
           "command": "git-smart-checkout.removeMultipleWorktrees",
           "when": "view == git-smart-checkout.worktrees && git-smart-checkout.hasMultipleRemovableWorktrees",
-          "group": "navigation@2"
+          "group": "navigation@3"
+        },
+        {
+          "command": "git-smart-checkout.prCancelCloneMenu",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
+          "group": "navigation"
+        },
+        {
+          "command": "git-smart-checkout.prConflictsResolvedMenu",
+          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
@@ -355,18 +419,6 @@
         },
         {
           "command": "git-smart-checkout.manageAutoStashes"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "git-smart-checkout.prCancelCloneMenu",
-          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
-          "group": "navigation"
-        },
-        {
-          "command": "git-smart-checkout.prConflictsResolvedMenu",
-          "when": "view == git-smart-checkout.prClone && git-smart-checkout.isCloning == true && git-smart-checkout.isConflict == true",
-          "group": "navigation"
         }
       ]
     },
