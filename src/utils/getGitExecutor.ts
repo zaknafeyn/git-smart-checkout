@@ -4,6 +4,7 @@ import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { getWorkspaceFoldersFormatted } from '../common/vscode';
 import { LoggingService } from '../logging/loggingService';
 import { execCommand } from './execCommand';
+import { UserCancelledError } from './userCancelledError';
 
 type RepositoryQuickPickItem = QuickPickItem & {
   path: string;
@@ -58,7 +59,7 @@ export const getGitExecutor = async (
   });
 
   if (!selectedOption) {
-    throw new Error('No repository selected');
+    throw new UserCancelledError('No repository selected');
   }
 
   const repositoryRoot = await resolveGitRepositoryRoot(
