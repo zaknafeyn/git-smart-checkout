@@ -41,6 +41,7 @@ import {
   MoveWipChangesFromWorktreeCommand,
 } from './commands/copyChangesFromWorktreeCommand';
 import { CreateBranchFromTemplateCommand } from './commands/createBranchFromTemplateCommand';
+import { PreviewTemplateCommand } from './commands/previewTemplateCommand';
 import { SetJiraTokenCommand } from './commands/setJiraTokenCommand';
 import { InitJiraCommand } from './commands/initJiraCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
@@ -218,6 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
     `${EXTENSION_NAME}.createBranchFromTemplate`,
     createBranchFromTemplateCommand
   );
+  commandManager.registerCommand(`${EXTENSION_NAME}.previewTemplate`, new PreviewTemplateCommand(configManager, logService));
 
   const setJiraTokenCommand = new SetJiraTokenCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.setJiraToken`, setJiraTokenCommand);

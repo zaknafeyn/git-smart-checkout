@@ -156,6 +156,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.previewTemplate",
+        "title": "Preview Branch/Tag Template...",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.initJira",
         "title": "Init Jira...",
         "category": "GSC"
