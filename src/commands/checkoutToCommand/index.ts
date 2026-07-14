@@ -162,18 +162,28 @@ export class CheckoutToCommand extends BaseCommand {
         .filter(Boolean)
         .join(' ');
 
+      const buttons: (vscode.QuickInputButton & { action?: string })[] = [{
+        iconPath: new vscode.ThemeIcon(
+          this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
+        ),
+        tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
+        action: 'star',
+      }];
+      const canPush = !ref.isTag && !ref.remote && (!ref.upstreamTrack || Boolean(ref.parsedUpstreamTrack?.[0]));
+      if (ref.isTag) {
+        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete tag', action: 'delete' });
+      } else if (ref.remote) {
+        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete remote branch', action: 'delete' });
+      } else if (ref.name !== currentBranch) {
+        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete branch', action: 'delete' });
+        buttons.push({ iconPath: new vscode.ThemeIcon('edit'), tooltip: 'Rename branch', action: 'rename' });
+        if (canPush) buttons.push({ iconPath: new vscode.ThemeIcon('cloud-upload'), tooltip: 'Publish branch', action: 'push' });
+      }
       return {
         label,
         description: getRefDescription(ref),
         detail: getRefDetails(ref),
-        buttons: [
-          {
-            iconPath: new vscode.ThemeIcon(
-              this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
-            ),
-            tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
-          },
-        ],
+        buttons,
         ref,
         type: 'ref',
       };
@@ -215,8 +225,40 @@ export class CheckoutToCommand extends BaseCommand {
       if (!ref) {
         return;
       }
-      await this.configManager.togglePreferred(repoId, ref, branchList);
-      qp.items = buildItems();
+      const action = (e.button as any).action ?? 'star';
+      qp.busy = true;
+      try {
+        if (action === 'star') {
+          await this.configManager.togglePreferred(repoId, ref, branchList);
+        } else if (action === 'rename') {
+          const name = await vscode.window.showInputBox({ value: ref.name, prompt: 'New branch name' });
+          if (!name) return;
+          if (!/^[A-Za-z0-9._/-]+$/.test(name) || name.includes('..')) {
+            await vscode.window.showErrorMessage('Invalid branch name.', 'OK');
+            return;
+          }
+          await git.renameBranch(ref.name, name);
+        } else if (action === 'push') {
+          await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Publishing ${ref.name}` }, () => git.pushSetUpstream(ref.name));
+        } else if (ref.isTag) {
+          const confirmed = await vscode.window.showWarningMessage(`Delete tag ${ref.name}?`, { modal: true }, 'Delete');
+          if (confirmed === 'Delete') await git.deleteTag(ref.name);
+        } else if (ref.remote) {
+          const confirmed = await vscode.window.showWarningMessage(`Delete remote branch ${ref.remote}/${ref.name}?`, { modal: true }, 'Delete');
+          if (confirmed === 'Delete') await git.deleteRemoteBranch(ref.remote, ref.name);
+        } else {
+          const merged = await git.getMergedBranches(this.configManager.get().defaultTargetBranch);
+          const force = !merged.includes(ref.name);
+          if (force) {
+            const confirmed = await vscode.window.showWarningMessage(`Branch ${ref.name} is not merged into ${this.configManager.get().defaultTargetBranch}. Delete anyway?`, { modal: true }, 'Delete');
+            if (confirmed !== 'Delete') return;
+          }
+          await git.deleteBranch(ref.name, force);
+        }
+      } finally {
+        qp.busy = false;
+        qp.items = buildItems();
+      }
     });
 
     // Promise that resolves when the user makes a selection (or dismisses).
