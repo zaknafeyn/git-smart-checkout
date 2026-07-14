@@ -840,6 +840,31 @@ export class GitExecutor {
     return stdout.trim();
   }
 
+  async deleteBranch(name: string, force = false): Promise<void> {
+    await this.#execGitCommand(['branch', force ? '-D' : '-d', name]);
+  }
+
+  async deleteRemoteBranch(remote: string, name: string): Promise<void> {
+    await this.#execGitCommand(['push', remote, '--delete', name]);
+  }
+
+  async renameBranch(oldName: string, newName: string): Promise<void> {
+    await this.#execGitCommand(['branch', '-m', oldName, newName]);
+  }
+
+  async deleteTag(name: string): Promise<void> {
+    await this.#execGitCommand(['tag', '-d', name]);
+  }
+
+  async pushSetUpstream(branch: string): Promise<void> {
+    await this.#execGitCommand(['push', '-u', 'origin', branch]);
+  }
+
+  async getMergedBranches(base: string): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand(['branch', '--merged', base]);
+    return stdout.split('\n').map((line) => line.replace(/^\s*[*+]\s*/, '').trim()).filter(Boolean);
+  }
+
   async worktreeList(muteError = false) {
     try {
       const { stdout } = await this.#execGitCommand(['worktree', 'list', '--porcelain']);
