@@ -45,7 +45,7 @@ import { SetJiraTokenCommand } from './commands/setJiraTokenCommand';
 import { InitJiraCommand } from './commands/initJiraCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
 import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplateAvailability';
-import { setContextCanCreateBranchFromTemplate } from './utils/setContext';
+import { setContextCanCreateBranchFromTemplate, setContextHasRepository } from './utils/setContext';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { OpenWorktreeDevTerminalCommand } from './commands/openWorktreeDevTerminalCommand';
 import { ManageAutoStashesCommand } from './commands/manageAutoStashesCommand';
@@ -60,6 +60,8 @@ import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAn
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 import { UserCancelledError } from './utils/userCancelledError';
+import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
+import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -113,6 +115,10 @@ export function activate(context: vscode.ExtensionContext) {
   const logService = new LoggingService(configManager);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
+  const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.remove`, new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider));
   const statusBarManager = new StatusBarManager(
     configManager,
     logService,
@@ -151,6 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Set initial context to hide PR Clone view and commits view
   setContextShowPRClone(false);
   setContextShowPRCommits(false);
+  void refreshRepositoryContext(logService);
 
   // Register commands
   const switchModeCommand = new SwitchModeCommand(statusBarManager, logService);
@@ -393,10 +400,13 @@ export function activate(context: vscode.ExtensionContext) {
   const windowStateListener = vscode.window.onDidChangeWindowState((state) => {
     if (state.focused) {
       void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+      setTimeout(() => worktreeTreeDataProvider.refresh(), 2000);
     }
   });
   const workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+    void refreshRepositoryContext(logService);
+    worktreeTreeDataProvider.refresh();
   });
 
   // Listen for configuration changes
@@ -431,13 +441,28 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       `${EXTENSION_NAME}.prCommits`,
       prCommitsWebViewProvider
-    )
+    ),
+    vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.worktrees`, worktreeTreeDataProvider),
+    worktreeTreeDataProvider
   );
 
   // Show status bar
   statusBarManager.show();
 
   return { commandManager };
+}
+
+async function refreshRepositoryContext(logService: LoggingService): Promise<void> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const hasRepository = (await Promise.all(folders.map(async (folder) => {
+    try {
+      await resolveGitRepositoryRoot(folder.uri.fsPath, logService);
+      return true;
+    } catch {
+      return false;
+    }
+  }))).some(Boolean);
+  await setContextHasRepository(hasRepository);
 }
 
 /**
