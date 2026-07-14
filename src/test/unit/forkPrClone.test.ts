@@ -161,16 +161,46 @@ describe('PrCloneTempWorktreeService fork-PR fetch handling', () => {
     );
 
     (service as any).tempGit = {
-      fetchAllRemoteBranchesAndTags: async () => {},
+      fetchSpecificBranch: async () => {},
       fetchPullRequestHead: async () => {
         throw new Error('couldn\'t find remote ref pull/71/head');
       },
     };
 
     await assert.rejects(
-      (service as any).fetchAllBranches(71),
+      (service as any).fetchAllBranches('main', 71),
       /Could not fetch the PR's commits from GitHub/
     );
+  });
+
+  it('does not force-fetch all tags when fetching a PR into the temp worktree', async () => {
+    const service = new PrCloneTempWorktreeService(
+      {} as GitExecutor,
+      {} as GitHubClient,
+      mockLogService
+    );
+
+    let calledFetchAllRemoteBranchesAndTags = false;
+    let fetchedBranch: string | undefined;
+
+    (service as any).tempGit = {
+      fetchAllRemoteBranchesAndTags: async () => {
+        calledFetchAllRemoteBranchesAndTags = true;
+      },
+      fetchSpecificBranch: async (branch: string) => {
+        fetchedBranch = branch;
+      },
+      fetchPullRequestHead: async () => {},
+    };
+
+    await (service as any).fetchAllBranches('main', 71);
+
+    assert.strictEqual(
+      calledFetchAllRemoteBranchesAndTags,
+      false,
+      'should not force-fetch all tags as part of the PR clone flow'
+    );
+    assert.strictEqual(fetchedBranch, 'main');
   });
 
   it('rejects cherry-picking when a selected commit is missing locally', async () => {

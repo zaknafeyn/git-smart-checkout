@@ -31,12 +31,35 @@ interface QuickActionItem extends QuickPickItem {
   visible?: boolean;
 }
 
+interface ModeQuickPickItem extends QuickPickItem {
+  mode: TAutoStashModeConfig;
+}
+
 export function getStatusBarBackgroundColor(
   mode: TAutoStashModeConfig
 ): ThemeColor | undefined {
   return mode === AUTO_STASH_MODE_MANUAL
     ? undefined
     : new ThemeColor('statusBarItem.warningBackground');
+}
+
+/**
+ * Builds the Mode QuickPick item list. Each item carries the actual `mode`
+ * value so the selection handler can read it directly instead of re-parsing
+ * the display label. Pure (no VS Code interaction) so it can be unit-tested.
+ */
+export function buildModeQuickPickItems(
+  currentMode: TAutoStashModeConfig
+): ModeQuickPickItem[] {
+  return AUTO_STASH_MODES.map((mode) => {
+    const modeDetails = AUTO_STASH_MODES_DETAILS[mode];
+    return {
+      label: `${modeDetails.icon} ${modeDetails.label}`,
+      description: modeDetails.description,
+      detail: currentMode === mode ? 'Currently active' : undefined,
+      mode,
+    };
+  });
 }
 
 /**
@@ -60,7 +83,11 @@ export function buildQuickActionItems(
     { label: 'Checkout', kind: QuickPickItemKind.Separator },
     { label: '$(arrow-swap) Checkout to…', commandId: command('checkoutTo') },
     { label: '$(history) Checkout previous branch', commandId: command('checkoutPrevious') },
-    { label: '$(git-pull-request) Checkout by PR number…', commandId: command('checkoutByPR') },
+    {
+      label: '$(git-pull-request) Checkout by PR number…',
+      commandId: command('checkoutByPR'),
+      visible: state.isGitHubRepo,
+    },
     { label: '$(git-branch) Create branch from template…', commandId: command('createBranchFromTemplate') },
     { label: '$(tag) Create tag from template…', commandId: command('createTagFromTemplate') },
     { label: 'Update branch', kind: QuickPickItemKind.Separator },
@@ -112,7 +139,11 @@ export function buildQuickActionItems(
       visible: state.hasPRReviewWorktree,
     },
     { label: 'GitHub', kind: QuickPickItemKind.Separator },
-    { label: '$(repo-clone) Clone pull request…', commandId: command('clonePullRequest') },
+    {
+      label: '$(repo-clone) Clone pull request…',
+      commandId: command('clonePullRequest'),
+      visible: state.isGitHubRepo,
+    },
     { label: 'Settings', kind: QuickPickItemKind.Separator },
     { label: '$(settings-gear) Open settings', commandId: command('openSettings') },
   ];
@@ -188,14 +219,7 @@ export class StatusBarManager implements Disposable {
     const config = this.configManager.get();
     const currentMode = config.mode;
 
-    const items: QuickPickItem[] = AUTO_STASH_MODES.map((mode) => {
-      const modeDetails = AUTO_STASH_MODES_DETAILS[mode];
-      return {
-        label: `${modeDetails.icon} ${modeDetails.label}`,
-        description: modeDetails.description,
-        detail: currentMode === mode ? 'Currently active' : undefined,
-      } as QuickPickItem;
-    });
+    const items: ModeQuickPickItem[] = buildModeQuickPickItems(currentMode);
 
     const selection = await window.showQuickPick(items, {
       title: 'Select Auto Stash Checkout Mode',
@@ -208,13 +232,9 @@ export class StatusBarManager implements Disposable {
 
     this.loggingService.info(`Auto Stash Checkout Mode: ${selection?.label}`);
 
-    const [_, ...rest] = selection.label.split(' ');
-    const newModeLabel = rest.join(' ');
-    const newMode = AUTO_STASH_MODES.find(
-      (mode) => AUTO_STASH_MODES_DETAILS[mode].label === newModeLabel
-    );
+    const newMode = selection.mode;
 
-    this.loggingService.info(`New mode: ${newMode}, newModeLabel: ${newModeLabel}`);
+    this.loggingService.info(`New mode: ${newMode}`);
 
     if (newMode && newMode !== currentMode) {
       // const modeDetails = AUTO_STASH_MODES_DETAILS[newMode];

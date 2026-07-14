@@ -54,7 +54,7 @@ const features: Feature[] = [
         magic. Think of it as <kbd>Ctrl + Z</kbd> for branch switching.
       </>
     ),
-    command: 'GSC: Checkout previous branch (With Stash)',
+    command: 'GSC: Checkout Previous Branch (With Stash)',
     color: 'purple',
   },
   {
@@ -71,7 +71,7 @@ const features: Feature[] = [
     title: 'GitHub PR Clone',
     description:
       'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR. The description preview renders full GitHub-Flavored Markdown and can pre-fill from the repo PR template.',
-    command: 'GSC: Clone pull request...',
+    command: 'GSC: Clone Pull Request...',
     tag: 'Beta',
     color: 'orange',
   },
@@ -80,7 +80,7 @@ const features: Feature[] = [
     title: 'Checkout by PR Number',
     description:
       "Check out any GitHub pull request's branch by its PR number or URL, with the same auto-stash handling as a regular checkout. No more copying branch names by hand.",
-    command: 'GSC: Checkout by PR number... (With Stash)',
+    command: 'GSC: Checkout by PR Number... (With Stash)',
     color: 'orange',
   },
   {
@@ -88,7 +88,7 @@ const features: Feature[] = [
     title: 'PR Review in Worktree',
     description:
       'Open a GitHub PR in an isolated linked worktree, track its review metadata, and remove the review worktree later with dirty-state stash handling.',
-    command: 'GSC: PR Review in Worktree',
+    command: 'GSC: PR Review in Worktree...',
     color: 'purple',
   },
   {
@@ -120,7 +120,7 @@ const features: Feature[] = [
     title: 'Worktree Workflows',
     description:
       'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove several worktrees at once with a single confirmation.',
-    command: 'GSC: Move to new worktree',
+    command: 'GSC: Move to New Worktree...',
     color: 'green',
   },
   {
@@ -135,7 +135,7 @@ const features: Feature[] = [
     title: 'Auto-Stash Manager',
     description:
       'Inspect, recover, or remove the stashes Git Smart Checkout creates — see branch, age, file count and a diff preview, then Apply, Pop, or Drop each one with a single click.',
-    command: 'GSC: Manage auto-stashes...',
+    command: 'GSC: Manage Auto-Stashes...',
     tag: 'New',
     color: 'green',
   },
@@ -144,7 +144,7 @@ const features: Feature[] = [
     title: 'Status Bar Integration',
     description:
       "See your current stash mode at a glance, then click the status bar item for a quick-actions menu — checkout, pull/rebase, worktree commands, clone PR, and settings, each gated to your repo's state.",
-    command: 'GSC: Quick Actions',
+    command: 'GSC: Quick Actions...',
     color: 'purple',
   },
 ];

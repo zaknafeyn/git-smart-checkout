@@ -19,21 +19,20 @@ const EXPECTED_ACTIONS = [
   'switchMode',
   'checkoutTo',
   'checkoutPrevious',
-  'checkoutByPR',
   'pullWithStash',
   'pullRebaseWithStash',
   'rebaseWithStash',
   'moveToNewWorktree',
   'prReviewInWorktree',
   'openWorktreeDevTerminal',
-  'clonePullRequest',
   'openSettings',
 ];
 
-// Actions gated on repository state (worktrees / pending changes). They are
-// absent from the menu when their precondition is not met — which is the case
-// in the clean, worktree-free e2e host. Their per-state visibility is covered
-// by the quickActions unit tests.
+// Actions gated on repository state (worktrees / pending changes / GitHub
+// remote). They are absent from the menu when their precondition is not met —
+// which is the case in the clean, worktree-free, remote-less e2e host (its
+// test repos have no "origin" remote, so isGitHubRepo is false). Their
+// per-state visibility is covered by the quickActions unit tests.
 const CONDITIONAL_ACTIONS = [
   'copyStagedChangesToWorktree',
   'copyWipChangesToWorktree',
@@ -42,6 +41,8 @@ const CONDITIONAL_ACTIONS = [
   'removeWorktree',
   'removeMultipleWorktrees',
   'removePRReviewInWorktree',
+  'checkoutByPR',
+  'clonePullRequest',
 ];
 
 function delay(ms = 0): Promise<void> {

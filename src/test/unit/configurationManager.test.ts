@@ -1,7 +1,11 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-import { ConfigurationManager, ModeConfig } from '../../configuration/configurationManager';
+import {
+  ConfigurationManager,
+  ModeConfig,
+  shouldShowJiraEmailMigrationNotice,
+} from '../../configuration/configurationManager';
 import { EXTENSION_NAME } from '../../const';
 import { JIRA_TOKEN_SECRET_KEY } from '../../configuration/jiraTokenStore';
 import { FakeSecretStorage } from './helpers/fakeSecretStorage';
@@ -68,6 +72,36 @@ describe('ConfigurationManager', () => {
     manager.reload();
 
     assert.strictEqual(manager.get().jira.username, 'current@example.com');
+  });
+
+  describe('deprecated jira.email migration notice', () => {
+    it('flags a repo still relying on the deprecated jira.email setting', async () => {
+      await config.update('jira.username', '', vscode.ConfigurationTarget.Global);
+      await config.update('jira.email', 'legacy@example.com', vscode.ConfigurationTarget.Global);
+
+      const manager = new ConfigurationManager(new FakeSecretStorage());
+      assert.strictEqual(manager.isUsingDeprecatedJiraEmailSetting(), true);
+    });
+
+    it('does not flag when jira.username is already set', async () => {
+      await config.update('jira.username', 'current@example.com', vscode.ConfigurationTarget.Global);
+      await config.update('jira.email', 'legacy@example.com', vscode.ConfigurationTarget.Global);
+
+      const manager = new ConfigurationManager(new FakeSecretStorage());
+      assert.strictEqual(manager.isUsingDeprecatedJiraEmailSetting(), false);
+    });
+
+    it('does not flag when neither setting is configured', async () => {
+      const manager = new ConfigurationManager(new FakeSecretStorage());
+      assert.strictEqual(manager.isUsingDeprecatedJiraEmailSetting(), false);
+    });
+
+    it('only recommends showing the notice once', () => {
+      assert.strictEqual(shouldShowJiraEmailMigrationNotice(true, false), true);
+      assert.strictEqual(shouldShowJiraEmailMigrationNotice(true, true), false);
+      assert.strictEqual(shouldShowJiraEmailMigrationNotice(false, false), false);
+      assert.strictEqual(shouldShowJiraEmailMigrationNotice(false, true), false);
+    });
   });
 
   describe('Jira token in Secret Storage', () => {

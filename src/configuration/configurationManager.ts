@@ -11,6 +11,21 @@ import {
   togglePreferredRef,
 } from './preferredRefs';
 
+/** globalState key tracking whether the one-time jira.email migration notice has been shown. */
+export const JIRA_EMAIL_MIGRATION_NOTICE_SHOWN_KEY = 'jira.emailMigrationNoticeShown';
+
+/**
+ * Whether the one-time "please migrate to jira.username" notice should be
+ * shown: the user is still relying on the deprecated `jira.email` setting and
+ * hasn't already been notified.
+ */
+export function shouldShowJiraEmailMigrationNotice(
+  isUsingDeprecatedJiraEmail: boolean,
+  noticeAlreadyShown: boolean
+): boolean {
+  return isUsingDeprecatedJiraEmail && !noticeAlreadyShown;
+}
+
 /** Minimal slice of `vscode.WorkspaceConfiguration` needed to update the stash mode. */
 export interface ModeConfig {
   update(section: 'mode', value: ExtensionConfig['mode'], target: ConfigurationTarget): Thenable<void>;
@@ -112,6 +127,18 @@ export class ConfigurationManager {
       token: this.jiraToken,
       projectKeys: vscodeConfig.get<string[]>('jira.projectKeys', []),
     };
+  }
+
+  /**
+   * True when the user still relies on the deprecated `jira.email` setting
+   * (i.e. the replacement `jira.username` is unset) — used to decide whether
+   * to nudge them toward migrating, once per install.
+   */
+  public isUsingDeprecatedJiraEmailSetting(): boolean {
+    const vscodeConfig = workspace.getConfiguration(EXTENSION_NAME);
+    const username = vscodeConfig.get<string>('jira.username', '').trim();
+    const email = vscodeConfig.get<string>('jira.email', '').trim();
+    return username === '' && email !== '';
   }
 
   public get(): ExtensionConfig {

@@ -9,7 +9,11 @@ import { SwitchModeCommand } from './commands/switchModeCommand';
 import { StatusBarMenuCommand } from './commands/statusBarMenuCommand';
 import { OpenSettingsCommand } from './commands/openSettingsCommand';
 import { VscodeGitProvider } from './common/git/vscodeGitProvider';
-import { ConfigurationManager } from './configuration/configurationManager';
+import {
+  ConfigurationManager,
+  JIRA_EMAIL_MIGRATION_NOTICE_SHOWN_KEY,
+  shouldShowJiraEmailMigrationNotice,
+} from './configuration/configurationManager';
 import { EXTENSION_NAME } from './const';
 import { LoggingService } from './logging/loggingService';
 import { StatusBarManager } from './statusBar/statusBarManager';
@@ -55,6 +59,7 @@ import { RefDetailsCache } from './services/refDetailsCache';
 import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
+import { UserCancelledError } from './utils/userCancelledError';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -81,6 +86,29 @@ export function activate(context: vscode.ExtensionContext) {
 
   updateTelemetryState();
   capture(AnalyticsEvent.ExtensionActivated);
+
+  const jiraEmailMigrationNoticeShown = context.globalState.get<boolean>(
+    JIRA_EMAIL_MIGRATION_NOTICE_SHOWN_KEY,
+    false
+  );
+  if (
+    shouldShowJiraEmailMigrationNotice(
+      configManager.isUsingDeprecatedJiraEmailSetting(),
+      jiraEmailMigrationNoticeShown
+    )
+  ) {
+    context.globalState.update(JIRA_EMAIL_MIGRATION_NOTICE_SHOWN_KEY, true);
+    vscode.window
+      .showInformationMessage(
+        'Git Smart Checkout: the "jira.email" setting is deprecated. Please migrate to "jira.username".',
+        'Open Settings'
+      )
+      .then((selection) => {
+        if (selection === 'Open Settings') {
+          commands.executeCommand(`${EXTENSION_NAME}.openSettings`);
+        }
+      });
+  }
 
   const logService = new LoggingService(configManager);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
@@ -275,27 +303,36 @@ export function activate(context: vscode.ExtensionContext) {
   const clonePullRequestCommand = commands.registerCommand(
     `${EXTENSION_NAME}.clonePullRequest`,
     async () => {
-      capture(AnalyticsEvent.PrCloneOpened);
+      try {
+        capture(AnalyticsEvent.PrCloneOpened);
 
-      // get exact repository
-      const git = await getGitExecutor(logService);
+        // get exact repository
+        const git = await getGitExecutor(logService);
 
-      const repoInfo = await git.getRepoInfo();
-      if (!repoInfo) {
-        throw new Error('Could not determine GitHub repository information');
+        const repoInfo = await git.getRepoInfo();
+        if (!repoInfo) {
+          throw new Error('Could not determine GitHub repository information');
+        }
+
+        const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+
+        prCloneService.init(git, ghClient);
+
+        // Show the PR Clone view by setting the context
+        setContextShowPRClone(true);
+        // Show the Git Smart Checkout activity bar
+        commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
+        // Reset the webview to a fresh state: immediately if it's already
+        // visible, or as soon as it finishes mounting (WEBVIEW_READY handshake).
+        prCloneWebViewProvider.requestFreshStart();
+      } catch (error) {
+        if (error instanceof UserCancelledError) {
+          return;
+        }
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await showErrorMessageWithIssueAction(`Command failed: ${errorMessage}`, 'OK');
+        console.error(`Error executing command ${EXTENSION_NAME}.clonePullRequest:`, error);
       }
-
-      const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
-
-      prCloneService.init(git, ghClient);
-
-      // Show the PR Clone view by setting the context
-      setContextShowPRClone(true);
-      // Show the Git Smart Checkout activity bar
-      commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
-      // Reset the webview to a fresh state: immediately if it's already
-      // visible, or as soon as it finishes mounting (WEBVIEW_READY handshake).
-      prCloneWebViewProvider.requestFreshStart();
     }
   );
 

@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -8,11 +7,14 @@ import { IGitWorktree } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { LoggingService } from '../../logging/loggingService';
 import { BaseCommand } from '../command';
+import { normalizePathForComparison } from '../utils/worktreeRemoval';
+import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 
-const ACTION_ADD_TO_WORKSPACE = 'Add to Workspace';
-const ACTION_OPEN_FOLDER = 'Open in Current Window';
-const ACTION_OPEN_IN_NEW_WINDOW = 'Open in New Window';
 const ACTION_OK = 'OK';
+
+function isSamePath(left: string, right: string): boolean {
+  return normalizePathForComparison(left) === normalizePathForComparison(right);
+}
 
 type CopyMode = 'staged' | 'wip';
 type WorktreeQuickPickItem = vscode.QuickPickItem & {
@@ -71,7 +73,12 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
         untracked_file_count: result.untrackedFileCount,
       });
 
-      await this.showCompletionActions(worktree.path, result.hadChanges);
+      await showWorktreeCompletionActions(
+        worktree.path,
+        result.hadChanges
+          ? `Changes copied to ${worktree.path}`
+          : `No changes to copy. Worktree selected: ${worktree.path}`
+      );
     } catch (error) {
       captureException(error);
       const message = error instanceof Error ? error.message : String(error);
@@ -85,7 +92,7 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
       (worktree) =>
         !worktree.bare &&
         !worktree.prunable &&
-        !this.isSamePath(worktree.path, git.repositoryPath)
+        !isSamePath(worktree.path, git.repositoryPath)
     );
 
     if (selectableWorktrees.length === 0) {
@@ -200,68 +207,6 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
 
   private getShortHead(worktree: IGitWorktree): string {
     return worktree.head?.slice(0, 7) ?? 'unknown';
-  }
-
-  private async showCompletionActions(worktreePath: string, hadChanges: boolean): Promise<void> {
-    const action = await vscode.window.showInformationMessage(
-      hadChanges ? `Changes copied to ${worktreePath}` : `No changes to copy. Worktree selected: ${worktreePath}`,
-      ...this.getCompletionActions(worktreePath)
-    );
-
-    switch (action) {
-      case ACTION_ADD_TO_WORKSPACE:
-        this.addToWorkspace(worktreePath);
-        break;
-      case ACTION_OPEN_FOLDER:
-        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(worktreePath), false);
-        break;
-      case ACTION_OPEN_IN_NEW_WINDOW:
-        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(worktreePath), true);
-        break;
-    }
-  }
-
-  private addToWorkspace(worktreePath: string): void {
-    const folders = vscode.workspace.workspaceFolders ?? [];
-    vscode.workspace.updateWorkspaceFolders(folders.length, null, {
-      uri: vscode.Uri.file(worktreePath),
-      name: path.basename(worktreePath),
-    });
-  }
-
-  private getCompletionActions(worktreePath: string): string[] {
-    const actions = [ACTION_OPEN_FOLDER, ACTION_OPEN_IN_NEW_WINDOW];
-
-    if (!this.isWorktreeInWorkspace(worktreePath)) {
-      actions.unshift(ACTION_ADD_TO_WORKSPACE);
-    }
-
-    return actions;
-  }
-
-  private isWorktreeInWorkspace(worktreePath: string): boolean {
-    return (vscode.workspace.workspaceFolders ?? []).some((folder) =>
-      this.isSamePath(folder.uri.fsPath, worktreePath)
-    );
-  }
-
-  private isSamePath(left: string, right: string): boolean {
-    return this.normalizePathForComparison(left) === this.normalizePathForComparison(right);
-  }
-
-  private normalizePathForComparison(targetPath: string): string {
-    try {
-      return fs.realpathSync.native(targetPath);
-    } catch {
-      try {
-        return path.join(
-          fs.realpathSync.native(path.dirname(targetPath)),
-          path.basename(targetPath)
-        );
-      } catch {
-        return path.resolve(targetPath);
-      }
-    }
   }
 }
 

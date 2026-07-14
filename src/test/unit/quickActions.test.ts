@@ -3,10 +3,16 @@ import * as assert from 'assert';
 import { QuickPickItemKind } from 'vscode';
 import { EXTENSION_NAME } from '../../const';
 import {
+  buildModeQuickPickItems,
   buildQuickActionItems,
   filterVisibleQuickActions,
 } from '../../statusBar/statusBarManager';
 import { WorktreeQuickActionsState } from '../../statusBar/quickActionsState';
+import {
+  AUTO_STASH_MODE_BRANCH,
+  AUTO_STASH_MODE_MANUAL,
+  AUTO_STASH_MODES,
+} from '../../configuration/extensionConfig';
 
 const commandId = (name: string) => `${EXTENSION_NAME}.${name}`;
 
@@ -17,6 +23,7 @@ const ALL_TRUE_STATE: WorktreeQuickActionsState = {
   canCopyStagedToWorktree: true,
   canCopyWipToWorktree: true,
   hasPRReviewWorktree: true,
+  isGitHubRepo: true,
 };
 
 const ALL_FALSE_STATE: WorktreeQuickActionsState = {
@@ -26,6 +33,7 @@ const ALL_FALSE_STATE: WorktreeQuickActionsState = {
   canCopyStagedToWorktree: false,
   canCopyWipToWorktree: false,
   hasPRReviewWorktree: false,
+  isGitHubRepo: false,
 };
 
 const CONDITIONAL_COMMANDS = [
@@ -36,13 +44,14 @@ const CONDITIONAL_COMMANDS = [
   'removeWorktree',
   'removeMultipleWorktrees',
   'removePRReviewInWorktree',
+  'checkoutByPR',
+  'clonePullRequest',
 ];
 
 const ALWAYS_VISIBLE_COMMANDS = [
   'switchMode',
   'checkoutTo',
   'checkoutPrevious',
-  'checkoutByPR',
   'createBranchFromTemplate',
   'createTagFromTemplate',
   'pullWithStash',
@@ -51,7 +60,6 @@ const ALWAYS_VISIBLE_COMMANDS = [
   'moveToNewWorktree',
   'prReviewInWorktree',
   'openWorktreeDevTerminal',
-  'clonePullRequest',
   'openSettings',
 ];
 
@@ -172,5 +180,45 @@ describe('filterVisibleQuickActions', () => {
     const wipIds = visibleCommandIds(wipOnly);
     assert.ok(wipIds.includes(commandId('copyWipChangesToWorktree')));
     assert.ok(!wipIds.includes(commandId('copyStagedChangesToWorktree')));
+  });
+
+  it('hides GitHub-only actions and their separator for a non-GitHub repo', () => {
+    const ids = visibleCommandIds(ALL_FALSE_STATE);
+
+    assert.ok(!ids.includes(commandId('checkoutByPR')));
+    assert.ok(!ids.includes(commandId('clonePullRequest')));
+    assert.ok(!separatorLabels(ALL_FALSE_STATE).includes('GitHub'));
+  });
+
+  it('shows GitHub-only actions for a GitHub repo', () => {
+    const state: WorktreeQuickActionsState = { ...ALL_FALSE_STATE, isGitHubRepo: true };
+    const ids = visibleCommandIds(state);
+
+    assert.ok(ids.includes(commandId('checkoutByPR')));
+    assert.ok(ids.includes(commandId('clonePullRequest')));
+    assert.ok(separatorLabels(state).includes('GitHub'));
+  });
+});
+
+describe('buildModeQuickPickItems', () => {
+  it('tags each item with its actual mode value instead of relying on the label text', () => {
+    const items = buildModeQuickPickItems(AUTO_STASH_MODE_MANUAL);
+
+    assert.strictEqual(items.length, AUTO_STASH_MODES.length);
+    for (const mode of AUTO_STASH_MODES) {
+      const item = items.find((i) => i.mode === mode);
+      assert.ok(item, `expected an item for mode ${mode}`);
+      assert.ok(item!.label.length > 0);
+    }
+  });
+
+  it('marks only the current mode as "Currently active"', () => {
+    const items = buildModeQuickPickItems(AUTO_STASH_MODE_BRANCH);
+
+    const active = items.find((item) => item.detail === 'Currently active');
+    assert.strictEqual(active?.mode, AUTO_STASH_MODE_BRANCH);
+
+    const inactive = items.filter((item) => item.mode !== AUTO_STASH_MODE_BRANCH);
+    assert.ok(inactive.every((item) => item.detail === undefined));
   });
 });

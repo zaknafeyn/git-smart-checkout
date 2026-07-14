@@ -73,12 +73,12 @@
       },
       {
         "command": "git-smart-checkout.checkoutPrevious",
-        "title": "Checkout previous branch (With Stash)",
+        "title": "Checkout Previous Branch (With Stash)",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyBranchName",
-        "title": "Copy current branch name to clipboard",
+        "title": "Copy Current Branch Name to Clipboard",
         "category": "GSC"
       },
       {
@@ -93,12 +93,12 @@
       },
       {
         "command": "git-smart-checkout.switchMode",
-        "title": "Switch Mode",
+        "title": "Switch Mode...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.showStatusBarMenu",
-        "title": "Quick Actions",
+        "title": "Quick Actions...",
         "category": "GSC"
       },
       {
@@ -108,7 +108,7 @@
       },
       {
         "command": "git-smart-checkout.clonePullRequest",
-        "title": "Clone pull request...",
+        "title": "Clone Pull Request...",
         "category": "GSC",
         "icon": {
           "light": "resources/light/clone.svg",
@@ -117,7 +117,7 @@
       },
       {
         "command": "git-smart-checkout.prCancelCloneMenu",
-        "title": "Cancel PR clone",
+        "title": "Cancel PR Clone",
         "category": "GSC",
         "icon": {
           "light": "resources/light/revert.svg",
@@ -126,7 +126,7 @@
       },
       {
         "command": "git-smart-checkout.prConflictsResolvedMenu",
-        "title": "Conflicts resolved",
+        "title": "Conflicts Resolved",
         "category": "GSC",
         "icon": {
           "light": "resources/light/forward.svg",
@@ -150,52 +150,52 @@
       },
       {
         "command": "git-smart-checkout.initJira",
-        "title": "Init Jira",
+        "title": "Init Jira...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.setJiraToken",
-        "title": "Set Jira token",
+        "title": "Set Jira Token...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.checkoutByPR",
-        "title": "Checkout by PR number... (With Stash)",
+        "title": "Checkout by PR Number... (With Stash)",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.prReviewInWorktree",
-        "title": "PR Review in Worktree",
+        "title": "PR Review in Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.removePRReviewInWorktree",
-        "title": "Remove PR review in Worktree",
+        "title": "Remove PR Review in Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.moveToNewWorktree",
-        "title": "Move to new worktree",
+        "title": "Move to New Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyStagedChangesToWorktree",
-        "title": "Copy staged changes to worktree...",
+        "title": "Copy Staged Changes to Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyWipChangesToWorktree",
-        "title": "Copy WIP changes to worktree...",
+        "title": "Copy WIP Changes to Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.copyWipChangesFromWorktree",
-        "title": "Copy WIP from Worktree",
+        "title": "Copy WIP from Worktree...",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.moveWipChangesFromWorktree",
-        "title": "Move WIP from Worktree",
+        "title": "Move WIP from Worktree...",
         "category": "GSC"
       },
       {
@@ -215,7 +215,7 @@
       },
       {
         "command": "git-smart-checkout.manageAutoStashes",
-        "title": "Manage auto-stashes...",
+        "title": "Manage Auto-Stashes...",
         "category": "GSC"
       }
     ],

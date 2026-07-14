@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/Button';
 import { DropDownAction, DropDownButton } from '@/components/DropDownButton';
@@ -66,6 +66,7 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   const [isPreview, setIsPreview] = useState(false);
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
   const [validationError, setValidationError] = useState<string | undefined>();
+  const initialDescriptionRef = useRef(description);
 
   const logger = useLogger(false);
   const sendMessage = useSendMessage();
@@ -101,17 +102,17 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isCloning) {
-        handleCancel();
+        handleEscapeCancel();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isCloning]);
+  }, [isCloning, description]);
 
   const handleTargetBranchClick = () => {
     if (isCloning) return; // Prevent action during cloning
-    
+
     sendMessage(WebviewCommand.SELECT_TARGET_BRANCH, { branches });
   };
 
@@ -121,6 +122,23 @@ export const PrCloneForm: React.FC<PrCloneFormProps> = ({
     sendMessage(WebviewCommand.HIDE_COMMITS_WEBVIEW);
 
     onStartOver();
+  };
+
+  const handleEscapeCancel = () => {
+    if (isCloning) return; // Prevent cancel during cloning
+
+    if (description !== initialDescriptionRef.current) {
+      // Description was edited — confirm before discarding it, mirroring the
+      // confirmation flow used by handleSubmit rather than resetting silently.
+      sendMessage(WebviewCommand.SHOW_CONFIRMATION_DIALOG, {
+        message: 'Discard changes to the PR description?',
+        details: 'You have unsaved edits to the description. This will discard them and return to the start.',
+        data: { action: 'discardChanges' },
+      });
+      return;
+    }
+
+    handleCancel();
   };
 
   const handleSubmit = (isDraft: boolean = false) => {

@@ -25,6 +25,17 @@ export function supportsMergeTreeWriteTree(output: string): boolean {
   return major > 2 || (major === 2 && minor >= 38);
 }
 
+// `git stash show --include-untracked` requires Git >= 2.32; older Git errors
+// out on the flag entirely.
+export function supportsStashShowIncludeUntracked(output: string): boolean {
+  const version = parseGitVersion(output);
+  if (!version) {
+    return false;
+  }
+  const [major, minor] = version;
+  return major > 2 || (major === 2 && minor >= 32);
+}
+
 type StashConflictPreviewError = ExecException & {
   stdout?: string;
   stderr?: string;
@@ -219,6 +230,7 @@ export class GitExecutor {
   #vscodeGitProvider: VscodeGitProvider | undefined;
   #mergeTreeSupport?: Promise<boolean>;
   #mergeTreeFallbackLogged = false;
+  #stashShowIncludeUntrackedSupport?: Promise<boolean>;
 
   constructor(repositoryPath: string, logService: LoggingService, vscodeGitProvider?: VscodeGitProvider) {
     this.#repositoryPath = repositoryPath;
@@ -579,16 +591,26 @@ export class GitExecutor {
   }
 
   async getStashPatch(selector: string): Promise<string> {
-    const { stdout } = await this.#execGitCommand([
-      'stash',
-      'show',
-      '--patch',
-      '--binary',
-      '--include-untracked',
-      '--format=',
-      selector,
-    ]);
-    return stdout;
+    const includeUntrackedSupported = await this.#supportsStashShowIncludeUntracked();
+
+    const args = ['stash', 'show', '--patch', '--binary'];
+    if (includeUntrackedSupported) {
+      args.push('--include-untracked');
+    }
+    args.push('--format=', selector);
+
+    const { stdout } = await this.#execGitCommand(args);
+
+    return includeUntrackedSupported
+      ? stdout
+      : `${stdout}\n(untracked files not shown: Git 2.32 or newer is required)`;
+  }
+
+  async #supportsStashShowIncludeUntracked(): Promise<boolean> {
+    this.#stashShowIncludeUntrackedSupport ??= this.#execGitCommand(['--version'])
+      .then(({ stdout }) => supportsStashShowIncludeUntracked(stdout))
+      .catch(() => false);
+    return this.#stashShowIncludeUntrackedSupport;
   }
 
   async isWorkdirHasChanges() {

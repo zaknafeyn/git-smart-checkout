@@ -25,6 +25,8 @@ export interface WorktreeQuickActionsState {
   canCopyWipToWorktree: boolean;
   /** At least one tracked PR-review worktree still exists on disk. */
   hasPRReviewWorktree: boolean;
+  /** The repository's remote resolves to a GitHub repository. */
+  isGitHubRepo: boolean;
 }
 
 const EMPTY_STATE: WorktreeQuickActionsState = {
@@ -34,6 +36,7 @@ const EMPTY_STATE: WorktreeQuickActionsState = {
   canCopyStagedToWorktree: false,
   canCopyWipToWorktree: false,
   hasPRReviewWorktree: false,
+  isGitHubRepo: false,
 };
 
 function isSamePath(left: string, right: string): boolean {
@@ -86,6 +89,7 @@ async function gatherForFolder(
     canCopyStagedToWorktree: hasStagedChanges && hasOtherWorktree,
     canCopyWipToWorktree: hasWipChanges && hasOtherWorktree,
     hasPRReviewWorktree,
+    isGitHubRepo: repoInfo !== null,
   };
 }
 
@@ -115,6 +119,7 @@ export async function gatherWorktreeQuickActionsState(
         state.canCopyStagedToWorktree ||= folderState.canCopyStagedToWorktree;
         state.canCopyWipToWorktree ||= folderState.canCopyWipToWorktree;
         state.hasPRReviewWorktree ||= folderState.hasPRReviewWorktree;
+        state.isGitHubRepo ||= folderState.isGitHubRepo;
       } catch (error) {
         logService.warn(
           `[Quick Actions] Failed to gather worktree state for ${folder.path}: ${
