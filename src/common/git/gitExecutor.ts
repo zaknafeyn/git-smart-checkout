@@ -878,6 +878,18 @@ export class GitExecutor {
     return stdout.split('\n').map((line) => line.replace(/^\s*[*+]\s*/, '').trim()).filter(Boolean);
   }
 
+  async getDefaultBranch(): Promise<string> {
+    try {
+      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+      return stdout.trim().replace(/^origin\//, '');
+    } catch {
+      const refs = await this.getAllRefListExtended();
+      if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'main')) return 'main';
+      if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'master')) return 'master';
+      throw new Error('Could not determine the default branch.');
+    }
+  }
+
   async worktreeList(muteError = false) {
     try {
       const { stdout } = await this.#execGitCommand(['worktree', 'list', '--porcelain']);
