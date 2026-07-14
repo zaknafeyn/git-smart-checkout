@@ -126,15 +126,7 @@ describe('getFetchPRErrorNotification', () => {
 });
 
 describe('PrCloneWebViewProvider fetch error handling', () => {
-  it('shows fetch failures as floating notifications with expandable details', async () => {
-    const messages: unknown[] = [];
-    const showErrorCalls: unknown[][] = [];
-    const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
-    (vscode.window as any).showErrorMessage = async (...args: unknown[]) => {
-      showErrorCalls.push(args);
-      return 'OK';
-    };
-
+  function createFetchingGhClient() {
     const ghClient = new GitHubClient('owner', 'repo');
     ghClient.fetchPullRequest = async () => {
       throw new GitHubApiError({
@@ -146,10 +138,33 @@ describe('PrCloneWebViewProvider fetch error handling', () => {
         responseBody: '{"message":"Not Found","status":"404"}',
       });
     };
+    return ghClient;
+  }
+
+  it('shows fetch failures as floating notifications with a "Show details" button', async () => {
+    const messages: unknown[] = [];
+    const showErrorCalls: unknown[][] = [];
+    const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
+    (vscode.window as any).showErrorMessage = async (...args: unknown[]) => {
+      showErrorCalls.push(args);
+      return 'OK';
+    };
+
+    const errorLogs: unknown[] = [];
+    let showCalled = false;
+    const logService = {
+      ...mockLogService,
+      error: (message: unknown) => errorLogs.push(message),
+      show: () => {
+        showCalled = true;
+      },
+    } as unknown as typeof mockLogService;
+
+    const ghClient = createFetchingGhClient();
 
     const provider = new PrCloneWebViewProvider(
       {} as vscode.ExtensionContext,
-      mockLogService,
+      logService,
       {} as ConfigurationManager,
       createPrCloneService(ghClient)
     );
@@ -173,12 +188,62 @@ describe('PrCloneWebViewProvider fetch error handling', () => {
       ]);
       assert.strictEqual(showErrorCalls.length, 1);
       assert.strictEqual(showErrorCalls[0][0], 'PR #404 does not exist.');
-      assert.deepStrictEqual(showErrorCalls[0][2], 'OK');
+      assert.deepStrictEqual(showErrorCalls[0].slice(1), ['Show details', 'OK']);
 
-      const options = showErrorCalls[0][1] as { modal?: boolean; detail?: string };
-      assert.strictEqual(options.modal, undefined);
-      assert.match(options.detail ?? '', /^Exact error:\nGitHub API error: 404 Not Found/m);
-      assert.match(options.detail ?? '', /"message":"Not Found"/);
+      // Clicking 'OK' (as mocked above) must not reveal the detail via the log output channel.
+      // The handler always logs a short summary of the failure; it must not also log
+      // (or reveal) the full diagnostic detail unless the user asked for it.
+      assert.strictEqual(errorLogs.length, 1);
+      assert.match(errorLogs[0] as string, /^Failed to fetch PR:/);
+      assert.strictEqual(showCalled, false);
+    } finally {
+      (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+    }
+  });
+
+  it('logs and reveals the detail via LoggingService when the user clicks "Show details"', async () => {
+    const messages: unknown[] = [];
+    const originalShowErrorMessage = vscode.window.showErrorMessage.bind(vscode.window);
+    (vscode.window as any).showErrorMessage = async () => 'Show details';
+
+    const errorLogs: unknown[] = [];
+    let showCalled = false;
+    const logService = {
+      ...mockLogService,
+      error: (message: unknown) => errorLogs.push(message),
+      show: () => {
+        showCalled = true;
+      },
+    } as unknown as typeof mockLogService;
+
+    const ghClient = createFetchingGhClient();
+
+    const provider = new PrCloneWebViewProvider(
+      {} as vscode.ExtensionContext,
+      logService,
+      {} as ConfigurationManager,
+      createPrCloneService(ghClient)
+    );
+    (provider as any).webviewView = {
+      webview: {
+        postMessage: async (message: unknown) => {
+          messages.push(message);
+          return true;
+        },
+      },
+    };
+
+    try {
+      await (provider as any).handleFetchPR('404');
+
+      // The handler logs a short summary of the failure unconditionally, then logs
+      // the full diagnostic detail (and reveals the output channel) only when the
+      // user explicitly clicks 'Show details'.
+      assert.strictEqual(errorLogs.length, 2);
+      assert.match(errorLogs[0] as string, /^Failed to fetch PR:/);
+      assert.match(errorLogs[1] as string, /^Exact error:\nGitHub API error: 404 Not Found/m);
+      assert.match(errorLogs[1] as string, /"message":"Not Found"/);
+      assert.strictEqual(showCalled, true);
     } finally {
       (vscode.window as any).showErrorMessage = originalShowErrorMessage;
     }

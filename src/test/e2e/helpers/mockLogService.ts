@@ -5,5 +5,6 @@ export const mockLogService = {
   warn: () => {},
   info: () => {},
   debug: () => {},
+  show: () => {},
   dispose: () => {},
 } as unknown as LoggingService;

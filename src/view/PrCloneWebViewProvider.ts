@@ -294,11 +294,11 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
         error
       );
       await postFetchPRError(this.webviewView?.webview, error, notification.message);
-      await window.showErrorMessage(
-        notification.message,
-        { detail: notification.detail },
-        'OK'
-      );
+      const choice = await window.showErrorMessage(notification.message, 'Show details', 'OK');
+      if (choice === 'Show details') {
+        this.loggingService.error(notification.detail);
+        this.loggingService.show();
+      }
     }
   }
 
