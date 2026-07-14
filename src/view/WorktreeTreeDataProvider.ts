@@ -31,9 +31,9 @@ export class WorktreeTreeItem extends vscode.TreeItem {
       isPrReview ? 'git-pull-request' : worktree.path === repositoryPath ? 'repo' : 'folder-library'
     );
     this.command = {
-      command: 'vscode.openFolder',
+      command: 'git-smart-checkout.worktree.open',
       title: 'Open Worktree',
-      arguments: [vscode.Uri.file(worktree.path), true],
+      arguments: [worktree.path, repositoryPath],
     };
   }
 }

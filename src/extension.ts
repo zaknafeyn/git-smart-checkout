@@ -61,6 +61,7 @@ import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 import { UserCancelledError } from './utils/userCancelledError';
 import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
+import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -115,6 +116,9 @@ export function activate(context: vscode.ExtensionContext) {
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.remove`, new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider));
   const statusBarManager = new StatusBarManager(
     configManager,
     logService,

@@ -221,12 +221,56 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.worktree.open",
+        "title": "Open Worktree in New Window",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.terminal",
+        "title": "Open Worktree Dev Terminal",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.worktree.remove",
+        "title": "Remove Worktree",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.manageAutoStashes",
         "title": "Manage Auto-Stashes...",
         "category": "GSC"
       }
     ],
     "menus": {
+      "view/item/context": [
+        {
+          "command": "git-smart-checkout.worktree.open",
+          "when": "view == git-smart-checkout.worktrees && viewItem == worktree",
+          "group": "inline@1"
+        },
+        {
+          "command": "git-smart-checkout.worktree.terminal",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /^worktree/",
+          "group": "inline@2"
+        },
+        {
+          "command": "git-smart-checkout.worktree.remove",
+          "when": "view == git-smart-checkout.worktrees && viewItem == worktree",
+          "group": "inline@3"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "git-smart-checkout.moveToNewWorktree",
+          "when": "view == git-smart-checkout.worktrees",
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-smart-checkout.removeMultipleWorktrees",
+          "when": "view == git-smart-checkout.worktrees && git-smart-checkout.hasMultipleRemovableWorktrees",
+          "group": "navigation@2"
+        }
+      ],
       "commandPalette": [
         {
           "command": "git-smart-checkout.prCancelCloneMenu",
