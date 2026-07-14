@@ -51,8 +51,6 @@ import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAn
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 
-const EXTENSION_LOADING_TIMEOUT = 250;
-
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
     const id = randomUUID();
@@ -278,11 +276,9 @@ export function activate(context: vscode.ExtensionContext) {
       setContextShowPRClone(true);
       // Show the Git Smart Checkout activity bar
       commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
-      // TODO: change this to clear state at the moment of the first mount of App.tsx
-      setTimeout(() => {
-        // Wait until app fully initialized and clear webview state to start fresh
-        prCloneWebViewProvider.clearState();
-      }, EXTENSION_LOADING_TIMEOUT);
+      // Reset the webview to a fresh state: immediately if it's already
+      // visible, or as soon as it finishes mounting (WEBVIEW_READY handshake).
+      prCloneWebViewProvider.requestFreshStart();
     }
   );
 
