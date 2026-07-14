@@ -18,7 +18,12 @@ import { PrCommitsWebViewProvider } from './view/PrCommitsWebViewProvider';
 import { commands } from 'vscode';
 import { setContextShowPRClone, setContextShowPRCommits } from './utils/setContext';
 import { PrCloneService } from './services/prCloneService';
-import { getGitExecutor } from './utils/getGitExecutor';
+import {
+  IPersistedCloneOperation,
+  PR_CLONE_IN_PLACE_STATE_KEY,
+} from './services/prCloneInPlaceService';
+import { getGitExecutor, resolveGitRepositoryRoot } from './utils/getGitExecutor';
+import { GitExecutor } from './common/git/gitExecutor';
 import { GitHubClient } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
@@ -104,6 +109,18 @@ export function activate(context: vscode.ExtensionContext) {
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
+
+  // Check for a PR clone that was left mid-cherry-pick if the window closed/crashed while
+  // paused on conflicts, before unconditionally resetting the PR-clone contexts below. This
+  // check is async (spawns git) and cannot block synchronous activation; if it finds a
+  // resumable operation it re-sets the contexts, which simply lands a moment after the
+  // unconditional reset below (no repository/persisted state is at risk in the interim).
+  void checkForInterruptedPrClone(
+    context,
+    logService,
+    vscodeGitProvider,
+    prCloneService
+  );
 
   // Set initial context to hide PR Clone view and commits view
   setContextShowPRClone(false);
@@ -388,6 +405,99 @@ export function activate(context: vscode.ExtensionContext) {
   statusBarManager.show();
 
   return { commandManager };
+}
+
+/**
+ * On activation, check whether an in-place PR clone was left mid-cherry-pick by a window
+ * close/crash/reload while paused on conflicts (issue: "No recovery path if VS Code closes
+ * mid in-place clone"). If so, offer the user a Resume/Abort-and-restore choice instead of
+ * silently stranding the repo on the `<feature>_clone` branch with the original work stashed.
+ */
+/**
+ * Resolve a `GitExecutor` for the repository a persisted clone record belongs to, by matching
+ * it against the currently-open workspace folders. Exported separately so tests can stub the
+ * resolution without needing a real multi-root workspace.
+ */
+export async function resolveGitExecutorForRepoPath(
+  repoPath: string,
+  logService: LoggingService,
+  vscodeGitProvider: VscodeGitProvider | undefined
+): Promise<GitExecutor | undefined> {
+  const wsFolders = vscode.workspace.workspaceFolders ?? [];
+  for (const folder of wsFolders) {
+    try {
+      const repoRoot = await resolveGitRepositoryRoot(folder.uri.fsPath, logService);
+      if (repoRoot === repoPath) {
+        return new GitExecutor(repoRoot, logService, vscodeGitProvider);
+      }
+    } catch {
+      // Folder isn't a git repository (or isn't resolvable yet); keep looking.
+    }
+  }
+
+  return undefined;
+}
+
+export async function checkForInterruptedPrClone(
+  context: vscode.ExtensionContext,
+  logService: LoggingService,
+  vscodeGitProvider: VscodeGitProvider | undefined,
+  prCloneService: PrCloneService,
+  resolveGitForRecord: (
+    record: IPersistedCloneOperation
+  ) => Promise<GitExecutor | undefined> = (record) =>
+    resolveGitExecutorForRepoPath(record.repoPath, logService, vscodeGitProvider)
+): Promise<void> {
+  const record = context.workspaceState.get<IPersistedCloneOperation>(
+    PR_CLONE_IN_PLACE_STATE_KEY
+  );
+  if (!record) {
+    return;
+  }
+
+  const matchedGit = await resolveGitForRecord(record);
+
+  if (!matchedGit) {
+    // The repo this record belongs to isn't open in this workspace right now; leave the
+    // record in place in case it's opened in a future activation.
+    return;
+  }
+
+  const cherryPickInProgress = await matchedGit.isCherryPickInProgress();
+  if (!cherryPickInProgress) {
+    // The user must have resolved (or aborted) this manually via the git CLI before
+    // reopening. There's nothing to recover, so just clear the stale record silently.
+    await context.workspaceState.update(PR_CLONE_IN_PLACE_STATE_KEY, undefined);
+    return;
+  }
+
+  const choice = await vscode.window.showWarningMessage(
+    `A PR clone of #${record.prNumber} was interrupted. Resume or abort and restore your original state?`,
+    'Resume',
+    'Abort and restore'
+  );
+
+  if (choice !== 'Resume' && choice !== 'Abort and restore') {
+    return;
+  }
+
+  const repoInfo = await matchedGit.getRepoInfo();
+  if (!repoInfo) {
+    logService.warn(
+      'Could not determine GitHub repository information while recovering an interrupted PR clone.'
+    );
+    return;
+  }
+
+  const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+  prCloneService.init(matchedGit, ghClient);
+
+  if (choice === 'Resume') {
+    await prCloneService.InPlaceService.resumeOperation(record);
+    await commands.executeCommand(`workbench.view.extension.${EXTENSION_NAME}`);
+  } else {
+    await prCloneService.InPlaceService.abortFromPersistedState(record);
+  }
 }
 
 export async function deactivate() {

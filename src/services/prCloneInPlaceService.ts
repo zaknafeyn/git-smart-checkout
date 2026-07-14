@@ -1,4 +1,4 @@
-import { commands, env, Progress, Uri, window } from 'vscode';
+import { commands, env, Memento, Progress, Uri, window } from 'vscode';
 
 import { GitExecutor } from '../common/git/gitExecutor';
 import { GitHubClient } from '../common/api/ghClient';
@@ -25,12 +25,41 @@ interface IServiceStore {
   originalPrData?: PrCloneData;
 }
 
+/** Key used to persist an in-progress in-place clone operation so it can survive a window reload/crash. */
+export const PR_CLONE_IN_PLACE_STATE_KEY = 'gitSmartCheckout.prCloneInPlaceOperation';
+
+/**
+ * Snapshot of an in-place PR clone operation, persisted to `workspaceState` so it can be
+ * recovered on the next activation if VS Code closes/crashes while paused on a cherry-pick
+ * conflict (see issue: "No recovery path if VS Code closes mid in-place clone").
+ */
+export interface IPersistedCloneOperation {
+  repoPath: string;
+  originalBranch: string;
+  createdBranchName: string;
+  stashMessage?: string;
+  /** Shas that still need to land, including the one that may currently be mid-conflict. */
+  remainingShas: string[];
+  prNumber: number;
+  ts: number;
+  targetBranch: string;
+  description: string;
+  isDraft: boolean;
+  prData: GitHubPR;
+}
+
 export class PrCloneInPlaceService extends PrCloneServiceBase {
   private updateProgress?: Progress<{ message?: string; increment?: number }>;
   private commitGenerator: AsyncGenerator<CommitGeneratorItem, void, unknown> | undefined;
   private serviceStore: IServiceStore = {};
+  private remainingShas: string[] = [];
 
-  constructor(git: GitExecutor, ghClient: GitHubClient, loggingService: LoggingService) {
+  constructor(
+    git: GitExecutor,
+    ghClient: GitHubClient,
+    loggingService: LoggingService,
+    private workspaceState?: Memento
+  ) {
     super(git, ghClient, loggingService);
   }
 
@@ -122,6 +151,10 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
           await commands.executeCommand('workbench.view.scm');
           return;
         } else {
+          // Commit landed successfully; shrink the persisted remaining-commits list so a
+          // reload/crash recovery resumes from the right place instead of re-applying it.
+          this.remainingShas = this.remainingShas.filter((sha) => sha !== nextCommit.value.sha);
+          this.persistState();
           await this.cherryPickNext();
         }
       } catch (error) {
@@ -303,6 +336,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // create commits generator
       this.commitGenerator = new CommitsGenerator(data.selectedCommits)[Symbol.asyncIterator]();
+      this.remainingShas = [...data.selectedCommits];
+      this.persistState();
 
       // start cherry picking
       await this.cherryPickNext();
@@ -343,9 +378,100 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
   private resetOperationState(): void {
     this.serviceStore = {};
     this.commitGenerator = undefined;
+    this.remainingShas = [];
     this.updateProgress = undefined;
     this.finishProgress = undefined;
     this.cancelProgress = undefined;
+    this.clearPersistedState();
+  }
+
+  /**
+   * Persist the current operation (start of clone, and after every commit successfully lands)
+   * so it can be recovered on the next activation if the window closes/crashes mid-operation.
+   */
+  private persistState(): void {
+    if (!this.workspaceState) {
+      return;
+    }
+
+    const { originalBranch, createdBranchName, stashMessage, originalPrData } = this.serviceStore;
+    if (!originalBranch || !createdBranchName || !originalPrData) {
+      return;
+    }
+
+    const record: IPersistedCloneOperation = {
+      repoPath: this.git.repositoryPath,
+      originalBranch,
+      createdBranchName,
+      stashMessage,
+      remainingShas: [...this.remainingShas],
+      prNumber: originalPrData.prData.number,
+      ts: Date.now(),
+      targetBranch: originalPrData.targetBranch,
+      description: originalPrData.description,
+      isDraft: originalPrData.isDraft,
+      prData: originalPrData.prData,
+    };
+
+    void this.workspaceState.update(PR_CLONE_IN_PLACE_STATE_KEY, record);
+  }
+
+  private clearPersistedState(): void {
+    if (!this.workspaceState) {
+      return;
+    }
+
+    void this.workspaceState.update(PR_CLONE_IN_PLACE_STATE_KEY, undefined);
+  }
+
+  private restoreServiceStoreFromRecord(record: IPersistedCloneOperation): void {
+    this.serviceStore = {
+      originalBranch: record.originalBranch,
+      createdBranchName: record.createdBranchName,
+      stashMessage: record.stashMessage,
+      originalPrData: {
+        prData: record.prData,
+        targetBranch: record.targetBranch,
+        featureBranch: record.createdBranchName,
+        description: record.description,
+        selectedCommits: record.remainingShas,
+        isDraft: record.isDraft,
+      },
+    };
+    this.remainingShas = [...record.remainingShas];
+  }
+
+  /**
+   * Rebuild in-memory state from a persisted record (found on activation) and re-set the
+   * contexts so the UI picks back up at the paused conflict, without touching the repository.
+   */
+  async resumeOperation(record: IPersistedCloneOperation): Promise<void> {
+    this.restoreServiceStoreFromRecord(record);
+
+    this.commitGenerator = new CommitsGenerator(record.remainingShas)[Symbol.asyncIterator]();
+    if (record.remainingShas.length > 0) {
+      // The head of remainingShas is the commit that was mid-cherry-pick (still conflicted in
+      // git) when the window closed. Advance the generator past it so that the next
+      // "Conflicts resolved" click resumes with the following commit, matching the position
+      // cherryPickNext would have been in right before the interruption.
+      await this.commitGenerator.next();
+    }
+
+    this.persistState();
+
+    await setContextIsCloning(true);
+    await setContextIsCherryPickConflict(true);
+    await setContextShowPRClone(true);
+    await setContextShowPRCommits(true);
+  }
+
+  /**
+   * Rebuild just enough in-memory state from a persisted record to run the existing
+   * abort/cleanup path, restoring the pre-clone repository state (original branch + stash).
+   */
+  async abortFromPersistedState(record: IPersistedCloneOperation): Promise<void> {
+    this.restoreServiceStoreFromRecord(record);
+    await this.abortClonePR();
   }
 
   private async createGitHubPR(
