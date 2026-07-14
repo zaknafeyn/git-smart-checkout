@@ -2,6 +2,7 @@ import * as assert from 'assert';
 
 import { GitHubClient } from '../../common/api/ghClient';
 import { GitExecutor } from '../../common/git/gitExecutor';
+import { PrCloneInPlaceService } from '../../services/prCloneInPlaceService';
 import { PrCloneTempWorktreeService } from '../../services/prCloneTempWorktreeService';
 import { GitHubCommit, GitHubLabel, GitHubPR } from '../../types/dataTypes';
 import { mockLogService } from '../e2e/helpers/mockLogService';
@@ -41,6 +42,14 @@ function createPullRequest(number = 42): GitHubPR {
         avatar_url: 'https://github.com/octocat.png',
       },
     ],
+    requested_reviewers: [
+      {
+        id: 3,
+        login: 'reviewer-one',
+        avatar_url: 'https://github.com/reviewer-one.png',
+      },
+    ],
+    requested_teams: [{ slug: 'core-team' }],
   };
 }
 
@@ -141,10 +150,140 @@ describe('GitHubClient.createPullRequest', () => {
     assert.match(warnings[0].message, /Failed to copy labels to PR #42/);
     assert.match(warnings[1].message, /Failed to copy assignees to PR #42/);
   });
+
+  it('copies reviewers and team reviewers through the requested_reviewers API', async () => {
+    const client = new GitHubClient('owner', 'repo');
+    const newPr = createPullRequest();
+    const requests: RequestCall[] = [];
+
+    (client as any).makeRequest = async (
+      endpoint: string,
+      method?: string,
+      body?: unknown
+    ) => {
+      requests.push({ endpoint, method, body });
+      return newPr;
+    };
+
+    const result = await client.createPullRequest(
+      'Cloned PR',
+      'Description',
+      'feature/cloned',
+      'main',
+      true,
+      [],
+      [],
+      ['reviewer-one'],
+      ['core-team']
+    );
+
+    assert.strictEqual(result, newPr);
+    const reviewerRequest = requests.find((request) =>
+      request.endpoint.endsWith('/requested_reviewers')
+    );
+    assert.deepStrictEqual(reviewerRequest, {
+      endpoint: '/repos/owner/repo/pulls/42/requested_reviewers',
+      method: 'POST',
+      body: { reviewers: ['reviewer-one'], team_reviewers: ['core-team'] },
+    });
+  });
+
+  it('does not call the requested_reviewers API when no reviewers are provided', async () => {
+    const client = new GitHubClient('owner', 'repo');
+    const newPr = createPullRequest();
+    const requests: RequestCall[] = [];
+
+    (client as any).makeRequest = async (
+      endpoint: string,
+      method?: string,
+      body?: unknown
+    ) => {
+      requests.push({ endpoint, method, body });
+      return newPr;
+    };
+
+    await client.createPullRequest(
+      'Cloned PR',
+      'Description',
+      'feature/cloned',
+      'main',
+      true,
+      [],
+      []
+    );
+
+    assert.ok(
+      !requests.some((request) => request.endpoint.endsWith('/requested_reviewers')),
+      'should not call the requested_reviewers endpoint'
+    );
+  });
+
+  it('warns on a reviewer-copy failure and still returns the created PR', async () => {
+    const newPr = createPullRequest();
+    const warnings: Array<{ message: string; error: unknown }> = [];
+    const client = new GitHubClient('owner', 'repo', (message, error) => {
+      warnings.push({ message, error });
+    });
+
+    (client as any).makeRequest = async (endpoint: string) => {
+      if (endpoint.endsWith('/requested_reviewers')) {
+        throw new Error('reviewers forbidden');
+      }
+      return newPr;
+    };
+
+    const result = await client.createPullRequest(
+      'Cloned PR',
+      'Description',
+      'feature/cloned',
+      'main',
+      false,
+      [],
+      [],
+      ['reviewer-one']
+    );
+
+    assert.strictEqual(result, newPr);
+    assert.strictEqual(warnings.length, 1);
+    assert.match(warnings[0].message, /Failed to copy reviewers to PR #42/);
+  });
+});
+
+describe('GitHubClient.getCurrentUserLogin', () => {
+  it('fetches and caches the authenticated user login', async () => {
+    const client = new GitHubClient('owner', 'repo');
+    let callCount = 0;
+    (client as any).makeRequest = async () => {
+      callCount++;
+      return { login: 'octocat' };
+    };
+
+    const first = await client.getCurrentUserLogin();
+    const second = await client.getCurrentUserLogin();
+
+    assert.strictEqual(first, 'octocat');
+    assert.strictEqual(second, 'octocat');
+    assert.strictEqual(callCount, 1, 'should only fetch the current user once (cached)');
+  });
+
+  it('returns undefined and warns when the current-user request fails', async () => {
+    const warnings: Array<{ message: string; error: unknown }> = [];
+    const client = new GitHubClient('owner', 'repo', (message, error) => {
+      warnings.push({ message, error });
+    });
+    (client as any).makeRequest = async () => {
+      throw new Error('unauthorized');
+    };
+
+    const result = await client.getCurrentUserLogin();
+
+    assert.strictEqual(result, undefined);
+    assert.strictEqual(warnings.length, 1);
+  });
 });
 
 describe('PrCloneTempWorktreeService metadata parity', () => {
-  it('passes original labels and assignees when creating the cloned PR', async () => {
+  it('passes original labels, assignees, and reviewers when creating the cloned PR', async () => {
     const calls: unknown[][] = [];
     const newPr = createPullRequest(84);
     const ghClient = {
@@ -152,6 +291,7 @@ describe('PrCloneTempWorktreeService metadata parity', () => {
         calls.push(args);
         return newPr;
       },
+      getCurrentUserLogin: async () => 'someone-else',
     } as unknown as GitHubClient;
     const service = new PrCloneTempWorktreeService(
       {} as GitExecutor,
@@ -177,8 +317,100 @@ describe('PrCloneTempWorktreeService metadata parity', () => {
         true,
         ['bug'],
         ['octocat'],
+        ['reviewer-one'],
+        ['core-team'],
       ],
     ]);
+  });
+
+  it('excludes the authenticated user from the requested reviewers (self-review is rejected by GitHub)', async () => {
+    const calls: unknown[][] = [];
+    const newPr = createPullRequest(84);
+    const ghClient = {
+      createPullRequest: async (...args: unknown[]) => {
+        calls.push(args);
+        return newPr;
+      },
+      getCurrentUserLogin: async () => 'reviewer-one',
+    } as unknown as GitHubClient;
+    const service = new PrCloneTempWorktreeService(
+      {} as GitExecutor,
+      ghClient,
+      mockLogService
+    );
+
+    await (service as any).createGitHubPR(
+      createPullRequest(),
+      'feature/cloned',
+      'release',
+      'Description',
+      true
+    );
+
+    const reviewers = calls[0][7] as string[];
+    assert.deepStrictEqual(reviewers, []);
+  });
+});
+
+describe('PrCloneInPlaceService metadata parity', () => {
+  it('passes original labels, assignees, and reviewers when creating the cloned PR', async () => {
+    const calls: unknown[][] = [];
+    const newPr = createPullRequest(84);
+    const ghClient = {
+      createPullRequest: async (...args: unknown[]) => {
+        calls.push(args);
+        return newPr;
+      },
+      getCurrentUserLogin: async () => 'someone-else',
+    } as unknown as GitHubClient;
+    const service = new PrCloneInPlaceService({} as GitExecutor, ghClient, mockLogService);
+
+    const result = await (service as any).createGitHubPR(
+      createPullRequest(),
+      'feature/cloned',
+      'release',
+      'Description',
+      true
+    );
+
+    assert.strictEqual(result, newPr);
+    assert.deepStrictEqual(calls, [
+      [
+        'Original PR',
+        'Description',
+        'feature/cloned',
+        'release',
+        true,
+        ['bug'],
+        ['octocat'],
+        ['reviewer-one'],
+        ['core-team'],
+      ],
+    ]);
+  });
+
+  it('excludes the authenticated user from the requested reviewers (self-review is rejected by GitHub)', async () => {
+    const calls: unknown[][] = [];
+    const newPr = createPullRequest(84);
+    const ghClient = {
+      createPullRequest: async (...args: unknown[]) => {
+        calls.push(args);
+        return newPr;
+      },
+      getCurrentUserLogin: async () => 'reviewer-one',
+    } as unknown as GitHubClient;
+    const service = new PrCloneInPlaceService({} as GitExecutor, ghClient, mockLogService);
+
+    await (service as any).createGitHubPR(
+      createPullRequest(),
+      'feature/cloned',
+      'release',
+      'Description',
+      true
+    );
+
+    const reviewers = calls[0][7] as string[];
+    assert.deepStrictEqual(reviewers, []);
   });
 });
 
