@@ -226,7 +226,7 @@ describe('Multi-repository workspace operations', () => {
   });
 
   describe('repo picker cancelled', () => {
-    it('surfaces an error and leaves both repositories unchanged', async () => {
+    it('is treated as a plain cancellation (no error) and leaves both repositories unchanged', async () => {
       const repoA = createTestRepo();
       const repoB = createTestRepo();
       const errors = stubErrorMessages();
@@ -242,9 +242,12 @@ describe('Multi-repository workspace operations', () => {
           await vscode.commands.executeCommand(commandId('checkoutTo'));
           await delay();
 
-          assert.ok(
-            errors.messages.some((m) => m.includes('No repository selected')),
-            'should report that no repository was selected'
+          // Dismissing the repository picker is a user cancellation, not an
+          // error — no notification should be shown.
+          assert.strictEqual(
+            errors.messages.length,
+            0,
+            `should not show an error notification, got: ${JSON.stringify(errors.messages)}`
           );
           assert.strictEqual(await repoA.git.getCurrentBranch(), repoA.mainBranch);
           assert.strictEqual(await repoB.git.getCurrentBranch(), repoB.mainBranch);
