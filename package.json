@@ -239,6 +239,11 @@
         "command": "git-smart-checkout.manageAutoStashes",
         "title": "Manage Auto-Stashes...",
         "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.cleanupBranches",
+        "title": "Delete Merged Branches...",
+        "category": "GSC"
       }
     ],
     "menus": {
