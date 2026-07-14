@@ -10,6 +10,7 @@ import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { RefDetailsCache } from '../../services/refDetailsCache';
 import { getRepoId } from '../../utils/getRepoId';
+import { UserCancelledError } from '../../utils/userCancelledError';
 import { BaseCommand } from '../command';
 import { attachLazyEnrichment } from '../utils/enrichOnActive';
 import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
@@ -60,6 +61,10 @@ export class CheckoutToCommand extends BaseCommand {
       // label (which broke tags, whose label is "$(tag) v1.2.3").
       const newBranch = selectedRef ?? (await this.getTargetBranch(git, selection, branchList));
 
+      if (!newBranch) {
+        return;
+      }
+
       if (!isNewBranch) {
         const conflictWorktree = await findWorktreeForBranch(git, newBranch.name);
         if (conflictWorktree) {
@@ -94,6 +99,10 @@ export class CheckoutToCommand extends BaseCommand {
         );
       }
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        // User dismissed a picker (e.g. the multi-root repository picker) — not an error.
+        return;
+      }
       if (error instanceof Error) {
         const message = error.message;
         message && (await vscode.window.showErrorMessage(message, 'OK'));
@@ -309,7 +318,7 @@ export class CheckoutToCommand extends BaseCommand {
     git: GitExecutor,
     selection: string,
     branchList: IGitRef[]
-  ): Promise<IGitRef> {
+  ): Promise<IGitRef | undefined> {
     switch (selection) {
       case LABEL_CREATE_NEW_BRANCH:
         return await this.createNewBranch(git);
@@ -320,14 +329,15 @@ export class CheckoutToCommand extends BaseCommand {
     }
   }
 
-  async createNewBranch(git: GitExecutor): Promise<IGitRef> {
-    const newBranchName = await vscode.window.showInputBox({
+  async createNewBranch(git: GitExecutor): Promise<IGitRef | undefined> {
+    const newBranchName = await this.showInputBox({
       placeHolder: 'Branch name',
       prompt: 'Please provide a new branch name',
     });
 
     if (!newBranchName) {
-      throw new Error('New branch name is not provided.');
+      // User pressed Escape / dismissed the input box — not an error.
+      return undefined;
     }
 
     try {
@@ -342,21 +352,26 @@ export class CheckoutToCommand extends BaseCommand {
     }
   }
 
-  async createNewBranchFrom(git: GitExecutor, branchList: IGitRef[]) {
+  async createNewBranchFrom(
+    git: GitExecutor,
+    branchList: IGitRef[]
+  ): Promise<IGitRef | undefined> {
     const repoId = await getRepoId(git);
     const baseRef = await this.pickBaseRef(branchList, repoId);
 
     if (!baseRef) {
-      throw new Error('Base branch name is not provided.');
+      // User dismissed the base-ref picker — not an error.
+      return undefined;
     }
 
-    const newBranchName = await vscode.window.showInputBox({
+    const newBranchName = await this.showInputBox({
       placeHolder: 'Branch name',
       prompt: 'Please provide a new branch name',
     });
 
     if (!newBranchName) {
-      throw new Error('New branch name is not provided.');
+      // User pressed Escape / dismissed the input box — not an error.
+      return undefined;
     }
 
     try {
@@ -387,7 +402,7 @@ export class CheckoutToCommand extends BaseCommand {
    * refs are grouped (local / remote / tags), preferred refs float to the top
    * of each group, and the inline star button toggles a ref's preferred state.
    */
-  private async pickBaseRef(
+  protected async pickBaseRef(
     branchList: IGitRef[],
     repoId: string
   ): Promise<IGitRef | undefined> {

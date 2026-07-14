@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { showErrorMessageWithIssueAction } from '../utils/errorIssueNotification';
+import { UserCancelledError } from '../utils/userCancelledError';
 import { ICommand } from './command';
 
 export class CommandManager {
@@ -24,6 +25,9 @@ export class CommandManager {
         try {
           await command.execute(...args);
         } catch (error) {
+          if (error instanceof UserCancelledError) {
+            return;
+          }
           const errorMessage = error instanceof Error ? error.message : String(error);
           await showErrorMessageWithIssueAction(`Command failed: ${errorMessage}`, 'OK');
           console.error(`Error executing command ${commandId}:`, error);
