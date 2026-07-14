@@ -396,11 +396,13 @@ export function activate(context: vscode.ExtensionContext) {
   const windowStateListener = vscode.window.onDidChangeWindowState((state) => {
     if (state.focused) {
       void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
+      setTimeout(() => worktreeTreeDataProvider.refresh(), 2000);
     }
   });
   const workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
     void refreshRepositoryContext(logService);
+    worktreeTreeDataProvider.refresh();
   });
 
   // Listen for configuration changes

@@ -38,10 +38,22 @@ export class WorktreeTreeItem extends vscode.TreeItem {
   }
 }
 
-export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<WorktreeTreeItem> {
-  private readonly changeEmitter = new vscode.EventEmitter<WorktreeTreeItem | undefined>();
+export class WorktreeRepositoryTreeItem extends vscode.TreeItem {
+  constructor(public readonly repositoryPath: string, public readonly children: WorktreeTreeItem[]) {
+    super(path.basename(repositoryPath) || repositoryPath, vscode.TreeItemCollapsibleState.Expanded);
+    this.description = repositoryPath;
+    this.contextValue = 'worktree.repository';
+    this.iconPath = new vscode.ThemeIcon('repo');
+  }
+}
+
+type WorktreeNode = WorktreeTreeItem | WorktreeRepositoryTreeItem;
+
+export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<WorktreeNode> {
+  private readonly changeEmitter = new vscode.EventEmitter<WorktreeNode | undefined>();
   readonly onDidChangeTreeData = this.changeEmitter.event;
   private items: WorktreeTreeItem[] = [];
+  private repositories: WorktreeRepositoryTreeItem[] = [];
 
   constructor(
     private readonly logService: LoggingService,
@@ -49,17 +61,24 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
     private readonly vscodeGitProvider?: VscodeGitProvider
   ) {}
 
-  getTreeItem(item: WorktreeTreeItem): vscode.TreeItem {
+  getTreeItem(item: WorktreeNode): vscode.TreeItem {
     return item;
   }
 
-  async getChildren(): Promise<WorktreeTreeItem[]> {
+  async getChildren(element?: WorktreeRepositoryTreeItem): Promise<WorktreeNode[]> {
     await this.load();
+    if (element) {
+      return element.children;
+    }
+    if (this.repositories.length > 1) {
+      return this.repositories;
+    }
     return this.items;
   }
 
   refresh(): void {
     this.items = [];
+    this.repositories = [];
     this.changeEmitter.fire(undefined);
   }
 
@@ -73,6 +92,7 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
     }
     const folders = vscode.workspace.workspaceFolders ?? [];
     const loaded: WorktreeTreeItem[] = [];
+    const grouped = new Map<string, WorktreeTreeItem[]>();
     for (const folder of folders) {
       try {
         const repositoryPath = await resolveGitRepositoryRoot(folder.uri.fsPath, this.logService);
@@ -88,12 +108,19 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
           const ref = branch ? refs.find((item) => !item.remote && item.name === branch) : undefined;
           const dirty = await new GitExecutor(worktree.path, this.logService, this.vscodeGitProvider).isWorkdirHasChanges();
           const isPrReview = reviews.some((review) => path.resolve(review.worktreePath) === path.resolve(worktree.path));
-          loaded.push(new WorktreeTreeItem(worktree, repositoryPath, dirty, ref?.parsedUpstreamTrack, isPrReview));
+          const item = new WorktreeTreeItem(worktree, repositoryPath, dirty, ref?.parsedUpstreamTrack, isPrReview);
+          loaded.push(item);
+          const repoItems = grouped.get(repositoryPath) ?? [];
+          repoItems.push(item);
+          grouped.set(repositoryPath, repoItems);
         }
       } catch (error) {
         this.logService.warn(`Failed to load worktrees for ${folder.uri.fsPath}: ${error}`);
       }
     }
     this.items = loaded;
+    this.repositories = [...grouped.entries()].map(
+      ([repositoryPath, children]) => new WorktreeRepositoryTreeItem(repositoryPath, children)
+    );
   }
 }
