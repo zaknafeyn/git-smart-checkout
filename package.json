@@ -352,7 +352,7 @@
         "git-smart-checkout.defaultWorktreeDirectory": {
           "type": "string",
           "default": "",
-          "description": "Directory where PR clone temporary worktrees are created. Leave empty to create them one level up from the current repository."
+          "description": "Base directory where 'Move to new worktree' and 'PR Review in Worktree' create worktrees. Supports ~ expansion. Leave empty to use the repository's parent directory."
         },
         "git-smart-checkout.prBranchPrefix": {
           "type": "string",
@@ -367,7 +367,7 @@
         "git-smart-checkout.useInPlaceCherryPick": {
           "type": "boolean",
           "default": true,
-          "description": "Use in-place cherry-pick instead of temporary worktree for PR cloning (this method doesn't allow to solve conflicts, so use when completely sure that there will be no conflicts during cherry pick"
+          "markdownDescription": "PR clone strategy. **Enabled (default):** cherry-pick in the current working tree — your changes are auto-stashed, and merge conflicts can be resolved interactively. **Disabled:** cherry-pick in a temporary worktree — your working tree is never touched, but the clone fails if any commit conflicts."
         },
         "git-smart-checkout.pullAfterCheckout": {
           "type": "string",
