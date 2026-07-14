@@ -72,6 +72,9 @@ export class CheckoutByPRCommand extends BaseCommand {
       const headRef = pr.head.ref;
       const isFork = pr.head.repo?.full_name !== pr.base.repo?.full_name;
 
+      const currentBranch = await git.getCurrentBranch();
+      const isAlreadyOnPrBranch = isFork && currentBranch === headRef;
+
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -82,14 +85,19 @@ export class CheckoutByPRCommand extends BaseCommand {
           progress.report({ message: `Fetching PR #${prNumber} branch "${headRef}"...` });
 
           if (isFork && pr.head.repo?.clone_url) {
-            await git.fetchFromUrl(pr.head.repo.clone_url, headRef);
+            // Git refuses to force-update the branch that is currently checked
+            // out, so fetch to FETCH_HEAD instead and let the user know.
+            await git.fetchFromUrl(pr.head.repo.clone_url, headRef, isAlreadyOnPrBranch);
           } else {
             await git.fetchSpecificBranch(headRef, 'origin');
           }
         }
       );
 
-      const currentBranch = await git.getCurrentBranch();
+      if (isAlreadyOnPrBranch) {
+        await this.showInformationMessage('You are already on the PR branch; pull skipped.', 'OK');
+        return;
+      }
 
       const isDirty = await git.isWorkdirHasChanges();
       const autoStashMode = isDirty

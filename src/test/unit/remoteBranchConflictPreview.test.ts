@@ -53,7 +53,10 @@ describe('AutoStashService conflict preview ref resolution', () => {
     };
 
     try {
-      const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+      const configManager = {
+        get: () => ({ pullAfterCheckout: 'off' }),
+      } as unknown as ConfigurationManager;
+      const service = new AutoStashService(configManager, mockLogService);
       const outcome = await service.checkoutAndStashChanges(
         git,
         'main',
@@ -78,7 +81,10 @@ describe('AutoStashService conflict preview ref resolution', () => {
       }) as unknown as GitExecutor['getStashConflictPreview'],
     });
 
-    const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+    const configManager = {
+      get: () => ({ pullAfterCheckout: 'off' }),
+    } as unknown as ConfigurationManager;
+    const service = new AutoStashService(configManager, mockLogService);
     const outcome = await service.checkoutAndStashChanges(
       git,
       'main',

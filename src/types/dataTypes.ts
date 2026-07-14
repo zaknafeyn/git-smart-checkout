@@ -25,6 +25,8 @@ export interface GitHubPR {
   html_url: string;
   labels: GitHubLabel[];
   assignees: GitHubUser[];
+  requested_reviewers?: GitHubUser[];
+  requested_teams?: Array<{ slug: string }>;
   /** Total number of commits on the PR (as reported by GitHub). */
   commits?: number;
 }
