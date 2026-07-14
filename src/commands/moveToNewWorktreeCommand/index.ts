@@ -24,6 +24,7 @@ import { attachLazyEnrichment } from '../utils/enrichOnActive';
 import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
+import { WorktreeSetupService } from '../../services/worktreeSetupService';
 
 type WorktreeBranchItem = vscode.QuickPickItem & { ref?: IGitRef };
 
@@ -33,7 +34,7 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     logService: LoggingService,
     private autoStashService: AutoStashService,
     private vscodeGitProvider?: VscodeGitProvider,
-    private refDetailsCache?: RefDetailsCache
+  private refDetailsCache?: RefDetailsCache
   ) {
     super(logService);
   }
@@ -100,7 +101,11 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
         target_is_remote: Boolean(targetBranch.remote),
       });
 
-      await showWorktreeCompletionActions(worktreePath, `Worktree created at ${worktreePath}`);
+      const copied = await new WorktreeSetupService(this.configManager, this.logService).runSetup(
+        git.repositoryPath,
+        worktreePath
+      );
+      await showWorktreeCompletionActions(worktreePath, `Worktree created at ${worktreePath}${copied ? ` (Copied ${copied} local file(s))` : ''}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       message && (await vscode.window.showErrorMessage(message, 'OK'));
