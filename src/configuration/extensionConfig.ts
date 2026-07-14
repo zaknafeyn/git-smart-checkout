@@ -45,6 +45,7 @@ export interface ExtensionConfig {
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;
+  prClone: { checkoutAfterClone: 'ask' | 'always' | 'never' };
   prBranchPrefix: string;
   useInPlaceCherryPick: boolean;
   pullAfterCheckout: TPullAfterCheckout;

@@ -99,6 +99,7 @@ export class ConfigurationManager {
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       defaultWorktreeDirectory: vscodeConfig.get('defaultWorktreeDirectory', ''),
+      prClone: { checkoutAfterClone: vscodeConfig.get('prClone.checkoutAfterClone', 'ask') },
       prBranchPrefix: vscodeConfig.get('prBranchPrefix', ''),
       useInPlaceCherryPick: vscodeConfig.get('useInPlaceCherryPick', true),
       pullAfterCheckout: vscodeConfig.get('pullAfterCheckout', PULL_AFTER_CHECKOUT_FF_ONLY),
