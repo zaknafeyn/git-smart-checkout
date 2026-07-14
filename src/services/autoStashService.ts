@@ -409,7 +409,12 @@ export class AutoStashService {
       const conflicts = await git.getConflictedFiles();
       if (conflicts.length > 0) {
         await offerConflictRescue(git, conflicts, operation);
-        throw e;
+        handleErrorMessage(
+          e,
+          'No stash found',
+          `No stash to ${operation} on the new branch.`,
+          `Failed to ${operation} the stash on the new branch.`
+        );
       } else {
         handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
       }
