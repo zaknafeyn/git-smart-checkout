@@ -468,6 +468,23 @@
           "default": "",
           "description": "Base directory where 'Move to new worktree' and 'PR Review in Worktree' create worktrees. Supports ~ expansion. Leave empty to use the repository's parent directory."
         },
+        "git-smart-checkout.worktreeSetup.copyFiles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Glob patterns for untracked or ignored local files to copy into new worktrees. Workspace values should be treated like tasks."
+        },
+        "git-smart-checkout.worktreeSetup.command": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Shell command to run in new worktrees after creation. Runs with shell privileges; workspace values should be treated like tasks."
+        },
+        "git-smart-checkout.worktreeSetup.applyToPrCloneWorktrees": {
+          "type": "boolean",
+          "default": false,
+          "description": "Apply worktree setup to short-lived PR clone worktrees."
+        },
         "git-smart-checkout.prBranchPrefix": {
           "type": "string",
           "default": "",
