@@ -38,7 +38,7 @@ export function getWorktreeCompletionActions(worktreePath: string): string[] {
   return actions;
 }
 
-function addToWorkspace(worktreePath: string): void {
+export function addToWorkspace(worktreePath: string): void {
   const folders = vscode.workspace.workspaceFolders ?? [];
   vscode.workspace.updateWorkspaceFolders(folders.length, null, {
     uri: vscode.Uri.file(worktreePath),

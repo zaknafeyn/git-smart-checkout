@@ -119,7 +119,23 @@ export function activate(context: vscode.ExtensionContext) {
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
-  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.remove`, new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider));
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.worktree.copyWip`,
+    new WorktreeTreeActionCommand('copyWip', logService, vscodeGitProvider),
+    { mutatesWorktrees: true }
+  );
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.worktree.remove`,
+    new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider),
+    { mutatesWorktrees: true }
+  );
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.addToWorkspace`, new WorktreeTreeActionCommand('addToWorkspace', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.copyPath`, new WorktreeTreeActionCommand('copyPath', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.reveal`, new WorktreeTreeActionCommand('reveal', logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.worktree.refresh`, {
+    execute: async () => worktreeTreeDataProvider.refresh(),
+  });
+  commandManager.setOnCommandCompleted(() => worktreeTreeDataProvider.refreshDebounced());
   const statusBarManager = new StatusBarManager(
     configManager,
     logService,
@@ -209,7 +225,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscodeGitProvider,
     prReviewWorktreeStore
   );
-  commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand, {
+    mutatesWorktrees: true,
+  });
 
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
@@ -256,15 +274,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscodeGitProvider,
     refDetailsCache
   );
-  commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand, {
+    mutatesWorktrees: true,
+  });
 
   const removeWorktreeCommand = new RemoveWorktreeCommand(logService, vscodeGitProvider);
-  commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.removeWorktree`, removeWorktreeCommand, {
+    mutatesWorktrees: true,
+  });
 
   const removeMultipleWorktreesCommand = new RemoveMultipleWorktreesCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.removeMultipleWorktrees`,
-    removeMultipleWorktreesCommand
+    removeMultipleWorktreesCommand,
+    { mutatesWorktrees: true }
   );
 
   const openWorktreeDevTerminalCommand = new OpenWorktreeDevTerminalCommand(logService, vscodeGitProvider);
@@ -281,31 +304,36 @@ export function activate(context: vscode.ExtensionContext) {
   );
   commandManager.registerCommand(
     `${EXTENSION_NAME}.removePRReviewInWorktree`,
-    removePRReviewInWorktreeCommand
+    removePRReviewInWorktreeCommand,
+    { mutatesWorktrees: true }
   );
 
   const copyStagedChangesToWorktreeCommand = new CopyStagedChangesToWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.copyStagedChangesToWorktree`,
-    copyStagedChangesToWorktreeCommand
+    copyStagedChangesToWorktreeCommand,
+    { mutatesWorktrees: true }
   );
 
   const copyWipChangesToWorktreeCommand = new CopyWipChangesToWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.copyWipChangesToWorktree`,
-    copyWipChangesToWorktreeCommand
+    copyWipChangesToWorktreeCommand,
+    { mutatesWorktrees: true }
   );
 
   const copyWipChangesFromWorktreeCommand = new CopyWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.copyWipChangesFromWorktree`,
-    copyWipChangesFromWorktreeCommand
+    copyWipChangesFromWorktreeCommand,
+    { mutatesWorktrees: true }
   );
 
   const moveWipChangesFromWorktreeCommand = new MoveWipChangesFromWorktreeCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.moveWipChangesFromWorktree`,
-    moveWipChangesFromWorktreeCommand
+    moveWipChangesFromWorktreeCommand,
+    { mutatesWorktrees: true }
   );
 
   // Register clone pull request command
@@ -402,13 +430,21 @@ export function activate(context: vscode.ExtensionContext) {
   const windowStateListener = vscode.window.onDidChangeWindowState((state) => {
     if (state.focused) {
       void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
-      setTimeout(() => worktreeTreeDataProvider.refresh(), 2000);
+      // Debounced: rapid focus toggling (e.g. alt-tabbing) collapses into a
+      // single reload rather than one per focus event.
+      worktreeTreeDataProvider.refreshDebounced();
     }
   });
   const workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
     void refreshRepositoryContext(logService);
     worktreeTreeDataProvider.refresh();
+  });
+  // Keep the tree in sync with checkouts/commits/stash operations performed
+  // outside this extension (VS Code's built-in Source Control view, terminal
+  // git commands, etc.) by listening to vscode.git repository state changes.
+  const gitStateListener = vscodeGitProvider?.onDidChangeAnyRepositoryState(() => {
+    worktreeTreeDataProvider.refreshDebounced();
   });
 
   // Listen for configuration changes
@@ -428,6 +464,7 @@ export function activate(context: vscode.ExtensionContext) {
     configChangeListener,
     windowStateListener,
     workspaceFoldersListener,
+    ...(gitStateListener ? [gitStateListener] : []),
     telemetryChangeListener,
     statusBarManager,
     logService,

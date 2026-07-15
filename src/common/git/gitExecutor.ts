@@ -614,8 +614,15 @@ export class GitExecutor {
   }
 
   async isWorkdirHasChanges() {
+    const dirtyFileCount = await this.getDirtyFileCount();
+    return dirtyFileCount !== 0;
+  }
+
+  /** Number of changed/untracked files reported by `git status --porcelain`. */
+  async getDirtyFileCount(): Promise<number> {
     const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
-    return stdout.trim().length !== 0;
+    const trimmed = stdout.trim();
+    return trimmed.length === 0 ? 0 : trimmed.split('\n').length;
   }
 
   /**

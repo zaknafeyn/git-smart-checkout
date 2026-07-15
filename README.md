@@ -39,6 +39,7 @@ All commands are grouped under the `GSC:` prefix in the Command Palette.
 | Copy staged or WIP changes between existing worktrees | `GSC: Copy Staged Changes to Worktree...`, `GSC: Copy WIP Changes to Worktree...`, `GSC: Copy WIP from Worktree...`, `GSC: Move WIP from Worktree...` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Open a terminal in a selected worktree's directory | `GSC: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Remove several Git worktrees at once with a single confirmation | `GSC: Remove Multiple Worktrees...` | [Remove multiple worktrees](docs/remove-multiple-worktrees.md) |
+| Browse all worktrees for the open repositories in a dedicated "Worktrees" view (activity bar), with dirty/ahead-behind/PR-review status and inline Open/Terminal/Copy WIP/Remove actions | *(tree view — right-click an item for Add to Workspace, Copy Path, Reveal in Finder/Explorer)* | — |
 | Create a new PR from selected commits in another GitHub PR | `GSC: Clone Pull Request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `GSC: Create Tag from Template...` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `GSC: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
