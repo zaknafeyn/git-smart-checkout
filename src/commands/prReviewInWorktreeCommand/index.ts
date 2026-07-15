@@ -19,6 +19,7 @@ import {
 } from '../utils/parsePRInput';
 import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
+import { resolveGitHubRemoteInteractive } from '../../utils/remoteSelection';
 
 export class PRReviewInWorktreeCommand extends BaseCommand {
   constructor(
@@ -95,9 +96,17 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         },
         async (progress) => {
           progress.report({ message: `Fetching PR #${prNumber} branch "${headRef}"...` });
-          await this.fetchPRBranch(git, headRef, isFork ? pr.head.repo?.clone_url : undefined);
+          const remoteName = isFork
+            ? undefined
+            : await resolveGitHubRemoteInteractive(git, {
+                branch: headRef,
+                defaultRemote: this.configManager.get().defaultRemote,
+                purpose: 'fetch',
+                githubRepo: pr.base.repo?.full_name,
+              });
+          await this.fetchPRBranch(git, headRef, isFork ? pr.head.repo?.clone_url : undefined, remoteName);
 
-          return await this.resolveFetchedBranch(git, headRef);
+          return await this.resolveFetchedBranch(git, headRef, remoteName);
         }
       );
 
@@ -141,17 +150,18 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
   private async fetchPRBranch(
     git: GitExecutor,
     headRef: string,
-    forkCloneUrl?: string
+    forkCloneUrl?: string,
+    remoteName = 'origin'
   ): Promise<void> {
     if (forkCloneUrl) {
       await git.fetchFromUrl(forkCloneUrl, headRef);
       return;
     }
 
-    await git.fetchSpecificBranch(headRef, 'origin');
+    await git.fetchSpecificBranch(headRef, remoteName);
   }
 
-  private async resolveFetchedBranch(git: GitExecutor, headRef: string): Promise<IGitRef> {
+  private async resolveFetchedBranch(git: GitExecutor, headRef: string, remoteName = 'origin'): Promise<IGitRef> {
     const refs = await git.getAllRefListExtended();
     const localBranch = refs.find((ref) => !ref.isTag && !ref.remote && ref.name === headRef);
 
@@ -159,12 +169,12 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
       return localBranch;
     }
 
-    const originBranch = refs.find(
-      (ref) => !ref.isTag && ref.remote === 'origin' && ref.name === headRef
+    const remoteBranch = refs.find(
+      (ref) => !ref.isTag && ref.remote === remoteName && ref.name === headRef
     );
 
-    if (originBranch) {
-      return originBranch;
+    if (remoteBranch) {
+      return remoteBranch;
     }
 
     throw new Error(`Could not find fetched PR branch "${headRef}".`);

@@ -967,8 +967,8 @@ export class GitExecutor {
     }
   }
 
-  async pushBranchToGitHub(branchName: string): Promise<void> {
-    await this.#execGitCommand(['push', '-u', 'origin', branchName]);
+  async pushBranchToGitHub(branchName: string, remoteName = 'origin'): Promise<void> {
+    await this.#execGitCommand(['push', '-u', remoteName, branchName]);
   }
 
   async tagExists(tagName: string): Promise<boolean> {

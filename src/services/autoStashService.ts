@@ -256,11 +256,16 @@ export class AutoStashService {
   ): Promise<CheckoutOutcome> {
     const nextBranchName = nextBranch.name;
     const previewRef = nextBranch.remote ? nextBranch.fullName : nextBranch.name;
+    // `nextBranch.remote` reflects the remote the ref actually came from (e.g.
+    // 'upstream' for a fork-setup branch that only exists there); passing it
+    // through keeps checkout from assuming 'origin' when the branch lives on
+    // a different remote.
+    const remoteName = nextBranch.remote;
     const isWorkdirHasChanges = await git.isWorkdirHasChanges();
     let outcome: CheckoutOutcome = 'completed';
     switch (autoStashMode) {
       case AUTO_STASH_CURRENT_BRANCH:
-        outcome = await this.doAutoStashCurrentBranch(git, currentBranch, nextBranchName, isWorkdirHasChanges);
+        outcome = await this.doAutoStashCurrentBranch(git, currentBranch, nextBranchName, isWorkdirHasChanges, remoteName);
         break;
       case AUTO_STASH_AND_POP_IN_NEW_BRANCH:
         outcome = await this.doAutoStashAndPopInNewBranch(
@@ -269,7 +274,8 @@ export class AutoStashService {
           nextBranchName,
           isWorkdirHasChanges,
           false,
-          previewRef
+          previewRef,
+          remoteName
         );
         break;
       case AUTO_STASH_AND_APPLY_IN_NEW_BRANCH:
@@ -279,13 +285,14 @@ export class AutoStashService {
           nextBranchName,
           isWorkdirHasChanges,
           true,
-          previewRef
+          previewRef,
+          remoteName
         );
         break;
       case AUTO_STASH_IGNORE:
       default:
         try {
-          await git.checkout(nextBranchName);
+          await git.checkout(nextBranchName, remoteName);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           throw new Error(`Failed to checkout the selected branch: ${msg}`);
@@ -305,7 +312,8 @@ export class AutoStashService {
     git: GitExecutor,
     currentBranch: string,
     nextBranch: string,
-    isWorkdirHasChanges: boolean
+    isWorkdirHasChanges: boolean,
+    remoteName?: string
   ): Promise<CheckoutOutcome> {
     try {
       if (isWorkdirHasChanges) {
@@ -317,7 +325,7 @@ export class AutoStashService {
     }
 
     try {
-      await git.checkout(nextBranch);
+      await git.checkout(nextBranch, remoteName);
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
@@ -364,7 +372,8 @@ export class AutoStashService {
     nextBranch: string,
     isWorkdirHasChanges: boolean,
     apply: boolean = false,
-    previewRef: string = nextBranch
+    previewRef: string = nextBranch,
+    remoteName?: string
   ): Promise<CheckoutOutcome> {
     const stashMessage = getStashMessage(currentBranch, true);
     const operation = apply ? 'apply' : 'pop';
@@ -386,7 +395,7 @@ export class AutoStashService {
     }
 
     try {
-      await git.checkout(nextBranch);
+      await git.checkout(nextBranch, remoteName);
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
