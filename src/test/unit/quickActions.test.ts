@@ -54,6 +54,7 @@ const ALWAYS_VISIBLE_COMMANDS = [
   'checkoutPrevious',
   'createBranchFromTemplate',
   'createTagFromTemplate',
+  'cleanupBranches',
   'pullWithStash',
   'pullRebaseWithStash',
   'rebaseWithStash',
@@ -138,6 +139,7 @@ describe('filterVisibleQuickActions', () => {
     // Sections that still have items keep their separators.
     assert.ok(separators.includes('Worktree'));
     assert.ok(separators.includes('Checkout'));
+    assert.ok(separators.includes('Branches'));
   });
 
   it('keeps a section separator when at least one item remains', () => {

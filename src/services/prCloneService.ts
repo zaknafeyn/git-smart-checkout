@@ -9,6 +9,7 @@ import { ConfigurationManager } from '../configuration/configurationManager';
 import { PrCloneInPlaceService } from './prCloneInPlaceService';
 import { setContextIsCloning } from '../utils/setContext';
 import { PrCloneTempWorktreeService } from './prCloneTempWorktreeService';
+import { WorktreeSetupService } from './worktreeSetupService';
 
 export interface PrCloneData {
   prData: GitHubPR;
@@ -34,11 +35,19 @@ export class PrCloneService {
 
   private _isInited = false;
 
+  private readonly worktreeSetupService: WorktreeSetupService;
+
   constructor(
     private context: ExtensionContext,
     private loggingService: LoggingService,
     private configurationManager: ConfigurationManager
-  ) {}
+  ) {
+    this.worktreeSetupService = new WorktreeSetupService(
+      this.configurationManager,
+      this.loggingService,
+      this.context.workspaceState
+    );
+  }
 
   //#region properties
 
@@ -103,7 +112,8 @@ export class PrCloneService {
       git,
       ghClient,
       this.loggingService,
-      this.configurationManager
+      this.configurationManager,
+      this.worktreeSetupService
     );
     this._inPlaceService = new PrCloneInPlaceService(
       git,
