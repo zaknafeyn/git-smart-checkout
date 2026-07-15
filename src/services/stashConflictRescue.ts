@@ -9,7 +9,10 @@ export async function offerConflictRescue(
   files: string[],
   operation: StashOperation
 ): Promise<void> {
-  const canUndo = !(await git.isMergeInProgress());
+  // A conflicted pop/apply does not itself start a merge/cherry-pick operation tracked by
+  // MERGE_HEAD/CHERRY_PICK_HEAD, but `git reset --merge` is only safe to offer when no other
+  // merge-like operation (e.g. an in-progress rebase/cherry-pick/merge) is layered on top of it.
+  const canUndo = !(await git.isMergeInProgress()) && !(await git.isCherryPickInProgress());
   const message = `Stash restored with conflicts: ${files.length} file(s) need resolution. ${
     operation === 'pop' ? 'The stash was preserved because pop conflicted.' : 'The stash is preserved because apply never removes it.'
   }`;
@@ -19,9 +22,13 @@ export async function offerConflictRescue(
     await vscode.commands.executeCommand('workbench.view.scm');
     const uri = vscode.Uri.file(path.resolve(git.repositoryPath, files[0]));
     try {
-      await vscode.commands.executeCommand('vscode.openWith', uri, 'workbench.editors.textFileEditor');
+      await vscode.commands.executeCommand('git.openMergeEditor', uri);
     } catch {
-      await vscode.commands.executeCommand('vscode.open', uri);
+      try {
+        await vscode.commands.executeCommand('vscode.openWith', uri, 'mergeEditor.input');
+      } catch {
+        await vscode.commands.executeCommand('vscode.open', uri);
+      }
     }
   } else if (choice === 'Open files') {
     await Promise.all(files.map((file) => vscode.commands.executeCommand(
