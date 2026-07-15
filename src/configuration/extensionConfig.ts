@@ -43,9 +43,15 @@ export interface ExtensionConfig {
   useFastBranchList: boolean;
   recentBranchCount: number;
   githubEnterpriseBaseUrl: string;
+  showWhatsNew: 'minor' | 'always' | 'never';
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;
+  worktreeSetup: {
+    copyFiles: string[];
+    command: string;
+    applyToPrCloneWorktrees: boolean;
+  };
   prBranchPrefix: string;
   useInPlaceCherryPick: boolean;
   pullAfterCheckout: TPullAfterCheckout;

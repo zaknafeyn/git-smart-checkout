@@ -25,6 +25,10 @@ export const setContextCanCreateBranchFromTemplate = async (value: boolean) => {
   await setContextKey(`${EXTENSION_NAME}.canCreateBranchFromTemplate`, value);
 };
 
+export const setContextCanPreviewTemplate = async (value: boolean) => {
+  await setContextKey(`${EXTENSION_NAME}.canPreviewTemplate`, value);
+};
+
 export const setContextHasMultipleRemovableWorktrees = async (value: boolean) => {
   await setContextKey(`${EXTENSION_NAME}.hasMultipleRemovableWorktrees`, value);
 };

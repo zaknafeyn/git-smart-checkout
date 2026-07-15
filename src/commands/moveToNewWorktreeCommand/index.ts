@@ -22,8 +22,9 @@ import { RefDetailsCache } from '../../services/refDetailsCache';
 import { BaseCommand } from '../command';
 import { attachLazyEnrichment } from '../utils/enrichOnActive';
 import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
-import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
+import { completeWorktreeCreation } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
+import { WorktreeSetupService } from '../../services/worktreeSetupService';
 
 type WorktreeBranchItem = vscode.QuickPickItem & { ref?: IGitRef };
 
@@ -33,7 +34,8 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
     logService: LoggingService,
     private autoStashService: AutoStashService,
     private vscodeGitProvider?: VscodeGitProvider,
-    private refDetailsCache?: RefDetailsCache
+    private refDetailsCache?: RefDetailsCache,
+    private worktreeSetupService?: WorktreeSetupService
   ) {
     super(logService);
   }
@@ -100,11 +102,31 @@ export class MoveToNewWorktreeCommand extends BaseCommand {
         target_is_remote: Boolean(targetBranch.remote),
       });
 
-      await showWorktreeCompletionActions(worktreePath, `Worktree created at ${worktreePath}`);
+      await completeWorktreeCreation({
+        worktreeSetupService: this.getWorktreeSetupService(),
+        sourceRoot: git.repositoryPath,
+        worktreePath,
+        baseMessage: `Worktree created at ${worktreePath}`,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       message && (await vscode.window.showErrorMessage(message, 'OK'));
     }
+  }
+
+  /** Falls back to an in-memory (non-persisted) consent store when no shared instance was injected. */
+  private getWorktreeSetupService(): WorktreeSetupService {
+    if (!this.worktreeSetupService) {
+      const memory = new Map<string, unknown>();
+      this.worktreeSetupService = new WorktreeSetupService(this.configManager, this.logService, {
+        get: <T>(key: string, defaultValue?: T) => (memory.has(key) ? (memory.get(key) as T) : defaultValue) as T,
+        update: async (key: string, value: unknown) => {
+          memory.set(key, value);
+        },
+      });
+    }
+
+    return this.worktreeSetupService;
   }
 
   private async selectTargetBranch(

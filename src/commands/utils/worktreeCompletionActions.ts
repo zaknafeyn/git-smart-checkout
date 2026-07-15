@@ -2,9 +2,29 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import { WorktreeSetupService } from '../../services/worktreeSetupService';
+
 export const ACTION_ADD_TO_WORKSPACE = 'Add to Workspace';
 export const ACTION_OPEN_FOLDER = 'Open in Current Window';
 export const ACTION_OPEN_IN_NEW_WINDOW = 'Open in New Window';
+
+/**
+ * Shared completion point for every worktree-creation flow: runs the
+ * configured local-file copy / setup command against the freshly created
+ * worktree (best-effort — never blocks or fails the creation itself), then
+ * shows the standard completion toast with the copied-file count appended.
+ */
+export async function completeWorktreeCreation(params: {
+  worktreeSetupService: WorktreeSetupService;
+  sourceRoot: string;
+  worktreePath: string;
+  baseMessage: string;
+}): Promise<void> {
+  const { worktreeSetupService, sourceRoot, worktreePath, baseMessage } = params;
+  const { copiedFiles } = await worktreeSetupService.runSetup(sourceRoot, worktreePath);
+  const message = copiedFiles > 0 ? `${baseMessage} (Copied ${copiedFiles} local file(s))` : baseMessage;
+  await showWorktreeCompletionActions(worktreePath, message);
+}
 
 export async function showWorktreeCompletionActions(
   worktreePath: string,
@@ -38,7 +58,7 @@ export function getWorktreeCompletionActions(worktreePath: string): string[] {
   return actions;
 }
 
-function addToWorkspace(worktreePath: string): void {
+export function addToWorkspace(worktreePath: string): void {
   const folders = vscode.workspace.workspaceFolders ?? [];
   vscode.workspace.updateWorkspaceFolders(folders.length, null, {
     uri: vscode.Uri.file(worktreePath),

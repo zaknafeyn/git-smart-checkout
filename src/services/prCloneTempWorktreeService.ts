@@ -6,11 +6,13 @@ import { CancellationToken, env, ProgressLocation, Uri, window } from 'vscode';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { GitHubClient } from '../common/api/ghClient';
 import { EXTENSION_NAME } from '../const';
+import { ConfigurationManager } from '../configuration/configurationManager';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
 import { PrCloneData } from './prCloneService';
 import { setContextShowPRClone, setContextShowPRCommits } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
+import { WorktreeSetupService } from './worktreeSetupService';
 
 const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
 
@@ -48,7 +50,13 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
   private tempWorkspacePath?: string;
   private tempGit?: GitExecutor;
 
-  constructor(git: GitExecutor, ghClient: GitHubClient, loggingService: LoggingService) {
+  constructor(
+    git: GitExecutor,
+    ghClient: GitHubClient,
+    loggingService: LoggingService,
+    private readonly configManager?: ConfigurationManager,
+    private readonly worktreeSetupService?: WorktreeSetupService
+  ) {
     super(git, ghClient, loggingService);
   }
 
@@ -69,6 +77,13 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
             // Step 1: Create temporary worktree
             progress.report({ message: 'Creating temporary worktree...' });
             tempPath = await this.createTempWorktree(data.targetBranch);
+
+            throwIfCancellationRequested(token);
+
+            // Optional: apply worktree setup (local file copy / setup command) to
+            // the temp worktree too, but only when explicitly opted in — this is a
+            // short-lived worktree, so setup runs best-effort and never blocks cloning.
+            await this.maybeRunWorktreeSetup(tempPath);
 
             throwIfCancellationRequested(token);
 
@@ -175,6 +190,22 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     }
     for (const action of this.cleanUpActionEnd) {
       await action();
+    }
+  }
+
+  private async maybeRunWorktreeSetup(tempPath: string): Promise<void> {
+    if (!this.configManager || !this.worktreeSetupService) {
+      return;
+    }
+
+    if (!this.configManager.get().worktreeSetup.applyToPrCloneWorktrees) {
+      return;
+    }
+
+    try {
+      await this.worktreeSetupService.runSetup(this.git.repositoryPath, tempPath);
+    } catch (error) {
+      this.loggingService.warn(`Worktree setup failed for PR clone temp worktree: ${error}`);
     }
   }
 

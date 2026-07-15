@@ -85,3 +85,78 @@ describe('CommandManager user-cancellation handling', () => {
     }
   });
 });
+
+describe('CommandManager mutatesWorktrees hook', () => {
+  it('invokes onCommandCompleted after a flagged command succeeds', async () => {
+    const manager = new CommandManager();
+    const commandId = 'gitSmartCheckout.test.mutatingCommand';
+    const command: ICommand = { execute: async () => undefined };
+    manager.registerCommand(commandId, command, { mutatesWorktrees: true });
+
+    const completed: string[] = [];
+    manager.setOnCommandCompleted((id) => completed.push(id));
+
+    const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+    try {
+      manager.registerAll(context);
+      await vscode.commands.executeCommand(commandId);
+      assert.deepStrictEqual(completed, [commandId]);
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it('does not invoke onCommandCompleted for a non-flagged command', async () => {
+    const manager = new CommandManager();
+    const commandId = 'gitSmartCheckout.test.nonMutatingCommand';
+    const command: ICommand = { execute: async () => undefined };
+    manager.registerCommand(commandId, command);
+
+    const completed: string[] = [];
+    manager.setOnCommandCompleted((id) => completed.push(id));
+
+    const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+    try {
+      manager.registerAll(context);
+      await vscode.commands.executeCommand(commandId);
+      assert.deepStrictEqual(completed, []);
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it('does not invoke onCommandCompleted when a flagged command throws', async () => {
+    const manager = new CommandManager();
+    const commandId = 'gitSmartCheckout.test.mutatingCommandFails';
+    const command: ICommand = {
+      execute: async () => {
+        throw new Error('boom');
+      },
+    };
+    manager.registerCommand(commandId, command, { mutatesWorktrees: true });
+
+    const completed: string[] = [];
+    manager.setOnCommandCompleted((id) => completed.push(id));
+
+    const originalShow = errorIssueNotification.showErrorMessageWithIssueAction;
+    (
+      errorIssueNotification as unknown as {
+        showErrorMessageWithIssueAction: typeof originalShow;
+      }
+    ).showErrorMessageWithIssueAction = async () => undefined;
+
+    const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+    try {
+      manager.registerAll(context);
+      await vscode.commands.executeCommand(commandId);
+      assert.deepStrictEqual(completed, []);
+    } finally {
+      (
+        errorIssueNotification as unknown as {
+          showErrorMessageWithIssueAction: typeof originalShow;
+        }
+      ).showErrorMessageWithIssueAction = originalShow;
+      manager.dispose();
+    }
+  });
+});
