@@ -2,6 +2,7 @@ import * as assert from 'assert';
 
 import {
   resolveTagTemplate,
+  resolveTagTemplateWithTrace,
   isSafeWorkspacePath,
   readJsonDotPath,
   extractFirstRegexMatch,
@@ -473,6 +474,138 @@ describe('tagTemplateService', () => {
         // Bare name is available, so no suffix is appended.
         assert.strictEqual(result.tag, '3.1.0-custom');
       });
+    });
+  });
+
+  describe('resolveTagTemplateWithTrace', () => {
+    // The template preview command relies on resolveTagTemplateWithTrace being
+    // the SAME resolution logic resolveTagTemplate uses in production (single
+    // source of truth), not a parallel reimplementation. These tests assert
+    // equivalence for every success-path fixture above, plus the extra
+    // per-token-independence behavior the preview needs.
+
+    it('produces the same .tag as resolveTagTemplate for a fully successful template', async () => {
+      const makeFixtureCtx = () =>
+        makeCtx({
+          getCurrentBranch: async () => 'feature/FEAT-123-login',
+          tagExists: async (name) => name === 'mobile-v12.3.4-FEAT-123',
+          readFile: async () => JSON.stringify({ version: '12.3.4' }),
+          realpath: async (p) => p,
+        });
+      const template = 'mobile-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}{r:1:-}';
+
+      const viaResolve = await resolveTagTemplate(template, makeFixtureCtx());
+      const viaTrace = await resolveTagTemplateWithTrace(template, makeFixtureCtx());
+
+      assert.strictEqual(viaTrace.tag, viaResolve.tag);
+      assert.strictEqual(viaTrace.recurringValueUsed, viaResolve.recurringValueUsed);
+      assert.strictEqual(viaTrace.recurringAttempts, viaResolve.recurringAttempts);
+      assert.strictEqual(viaTrace.hadRecurringToken, viaResolve.hadRecurringToken);
+    });
+
+    it('produces the same .tag as resolveTagTemplate for a script + file + recurring template', async () => {
+      const makeFixtureCtx = () =>
+        makeCtx({
+          realpath: async (p) => p,
+          readFile: async () => JSON.stringify({ version: '3.1.0' }),
+          runScript: async () => ({ stdout: 'custom', stderr: '', exitCode: 0 }),
+          tagExists: async () => false,
+        });
+      const template = '{f:package.json:.version}-{s:stdout:./tag-suffix.sh}{r:1:-}';
+
+      const viaResolve = await resolveTagTemplate(template, makeFixtureCtx());
+      const viaTrace = await resolveTagTemplateWithTrace(template, makeFixtureCtx());
+
+      assert.strictEqual(viaTrace.tag, viaResolve.tag);
+      assert.strictEqual(viaTrace.tag, '3.1.0-custom');
+    });
+
+    it('records one trace entry per token with its resolved value', async () => {
+      const ctx = makeCtx({
+        getCurrentBranch: async () => 'feature/FEAT-99',
+        readFile: async () => JSON.stringify({ version: '3.0.0' }),
+        realpath: async (p) => p,
+      });
+      const result = await resolveTagTemplateWithTrace(
+        'v{f:package.json:.version}-{b:\\b[A-Z]+-\\d+\\b}',
+        ctx
+      );
+      assert.strictEqual(result.tag, 'v3.0.0-FEAT-99');
+      assert.deepStrictEqual(
+        result.tokens.map((t) => ({ raw: t.raw, value: t.value })),
+        [
+          { raw: '{f:package.json:.version}', value: '3.0.0' },
+          { raw: '{b:\\b[A-Z]+-\\d+\\b}', value: 'FEAT-99' },
+        ]
+      );
+    });
+
+    it('per-token independence: one good file token and one missing-file token both report, good one still resolved', async () => {
+      const ctx = makeCtx({
+        readFile: async (p: string) =>
+          p.endsWith('package.json') ? JSON.stringify({ version: '9.9.9' }) : '{}',
+        realpath: async (p: string) => {
+          if (p.endsWith('missing.json')) {
+            throw new Error('ENOENT');
+          }
+          return p;
+        },
+      });
+      const result = await resolveTagTemplateWithTrace(
+        'v{f:package.json:.version}-{f:missing.json:.version}',
+        ctx,
+        { abortOnScriptError: false }
+      );
+      assert.strictEqual(result.tag, 'v9.9.9-');
+      const [good, bad] = result.tokens;
+      assert.strictEqual(good.value, '9.9.9');
+      assert.strictEqual(good.error, undefined);
+      assert.strictEqual(bad.value, '');
+      assert.ok(bad.error?.includes('File not found'));
+    });
+
+    it('with abortOnScriptError: false, a failing script is captured as an error and later tokens still resolve', async () => {
+      const ctx = makeCtx({
+        realpath: async (p) => p,
+        runScript: async () => ({ stdout: '', stderr: 'boom', exitCode: 1 }),
+        tagExists: async () => false,
+      });
+      const result = await resolveTagTemplateWithTrace('v-{s:stdout:./fail.sh}-{r:1}', ctx, {
+        abortOnScriptError: false,
+      });
+      const scriptTrace = result.tokens.find((t) => t.raw === '{s:stdout:./fail.sh}');
+      assert.ok(scriptTrace?.error?.includes('exited with code 1'));
+      assert.strictEqual(scriptTrace?.value, '');
+      // Recurring token still resolves (bare name is free) — every token
+      // reports independently instead of the whole preview aborting.
+      assert.strictEqual(result.tag, 'v--');
+      assert.strictEqual(result.hadRecurringToken, true);
+    });
+
+    it('with abortOnScriptError: true (default), a failing script still throws — matching resolveTagTemplate', async () => {
+      const ctx = makeCtx({
+        realpath: async (p) => p,
+        runScript: async () => ({ stdout: '', stderr: 'boom', exitCode: 1 }),
+      });
+      await assert.rejects(
+        () => resolveTagTemplateWithTrace('v-{s:stdout:./fail.sh}', ctx),
+        (e: unknown) => e instanceof ScriptTokenError
+      );
+    });
+
+    it('multi-root: reads the file relative to ctx.workspaceRoot, not a hardcoded path', async () => {
+      const readCalls: string[] = [];
+      const ctxForRepoB = makeCtx({
+        workspaceRoot: '/repos/repo-b',
+        readFile: async (p) => {
+          readCalls.push(p);
+          return JSON.stringify({ version: '2.0.0-repoB' });
+        },
+        realpath: async (p) => p,
+      });
+      const result = await resolveTagTemplateWithTrace('v{f:package.json:.version}', ctxForRepoB);
+      assert.strictEqual(result.tag, 'v2.0.0-repoB');
+      assert.ok(readCalls[0].startsWith('/repos/repo-b'));
     });
   });
 });

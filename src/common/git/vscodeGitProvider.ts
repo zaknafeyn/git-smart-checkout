@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { LoggingService } from '../../logging/loggingService';
 
 import { IGitRef } from './types';
-import type { API, Commit, GitExtension, Ref } from './vscodeGitApi';
+import type { API, Commit, GitExtension, Ref, Repository } from './vscodeGitApi';
 
 // Numeric literals matching the RefType const enum in vscodeGitApi.d.ts.
 // We cannot import const enum values at runtime from a .d.ts file.
@@ -49,6 +49,27 @@ export class VscodeGitProvider {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Subscribes to state changes (HEAD, refs) across all currently-open
+   * repositories, plus repositories opened later. Used to keep UI (e.g. the
+   * Worktrees tree view) in sync with checkouts/commits/stashes performed
+   * outside the extension (built-in Source Control view, terminal `git`).
+   */
+  onDidChangeAnyRepositoryState(callback: () => void): vscode.Disposable {
+    const api = this.getApi();
+    if (!api) {
+      return new vscode.Disposable(() => undefined);
+    }
+
+    const disposables: vscode.Disposable[] = [];
+    const wireRepo = (repo: Repository) => disposables.push(repo.state.onDidChange(callback));
+
+    api.repositories.forEach(wireRepo);
+    disposables.push(api.onDidOpenRepository(wireRepo));
+
+    return vscode.Disposable.from(...disposables);
   }
 
   private findRepo(repoPath: string) {

@@ -634,8 +634,15 @@ export class GitExecutor {
   }
 
   async isWorkdirHasChanges() {
+    const dirtyFileCount = await this.getDirtyFileCount();
+    return dirtyFileCount !== 0;
+  }
+
+  /** Number of changed/untracked files reported by `git status --porcelain`. */
+  async getDirtyFileCount(): Promise<number> {
     const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
-    return stdout.trim().length !== 0;
+    const trimmed = stdout.trim();
+    return trimmed.length === 0 ? 0 : trimmed.split('\n').length;
   }
 
   /**
@@ -898,6 +905,18 @@ export class GitExecutor {
     return stdout.split('\n').map((line) => line.replace(/^\s*[*+]\s*/, '').trim()).filter(Boolean);
   }
 
+  async getDefaultBranch(): Promise<string> {
+    try {
+      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+      return stdout.trim().replace(/^origin\//, '');
+    } catch {
+      const refs = await this.getAllRefListExtended();
+      if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'main')) return 'main';
+      if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'master')) return 'master';
+      throw new Error('Could not determine the default branch.');
+    }
+  }
+
   async worktreeList(muteError = false) {
     try {
       const { stdout } = await this.#execGitCommand(['worktree', 'list', '--porcelain']);
@@ -1004,6 +1023,36 @@ export class GitExecutor {
   }
 
   /**
+   * Parse reflog subject lines (`%gs` output, newest first) into checkout
+   * `from`/`to` pairs. Shared by `getPreviousBranch` and `getRecentBranches`
+   * so both stay in sync on what counts as a valid checkout move.
+   *
+   * Skips non-checkout lines (commit, rebase, reset, ...) and moves that are
+   * self-referential, from `HEAD`, or from/to a detached-HEAD state. Malformed
+   * or unexpected lines (including branch names that happen to contain the
+   * literal " to ") never throw — they are simply excluded from the result.
+   */
+  #parseReflogCheckouts(lines: string[]): Array<{ from: string; to: string }> {
+    const moves: Array<{ from: string; to: string }> = [];
+    for (const line of lines) {
+      const checkoutMatch = line.match(/^checkout: moving from (.+) to (.+)$/);
+      if (!checkoutMatch) {
+        continue;
+      }
+      const from = checkoutMatch[1].trim();
+      const to = checkoutMatch[2].trim();
+      if (!from || !to || from === to) {
+        continue;
+      }
+      if (from === 'HEAD' || to === 'HEAD' || from.includes('detached') || to.includes('detached')) {
+        continue;
+      }
+      moves.push({ from, to });
+    }
+    return moves;
+  }
+
+  /**
    * Get the previous branch from git reflog
    * This implements the same logic as `git checkout -`
    */
@@ -1013,37 +1062,29 @@ export class GitExecutor {
       const { stdout } = await this.#execGitCommand(['reflog', '--format=%gs', `-n`, String(numOfLastCommands)]);
 
       const reflogEntries = stdout.trim().split('\n').filter(line => line.trim() !== '');
+      const moves = this.#parseReflogCheckouts(reflogEntries);
 
-      // Look for checkout operations to find the previous branch
-      for (const entry of reflogEntries) {
-        // Match patterns like "checkout: moving from branch1 to branch2"
-        const checkoutMatch = entry.match(/checkout: moving from (.+) to (.+)/);
-        if (checkoutMatch) {
-          const fromBranch = checkoutMatch[1];
-          const toBranch = checkoutMatch[2];
+      if (moves.length > 0) {
+        const fromBranch = moves[0].from;
 
-          // Skip if it's the same as current branch or if it's a detached HEAD
-          if (fromBranch !== 'HEAD' && fromBranch !== toBranch && !fromBranch.includes('detached')) {
-            // Try to resolve full ref info using existing ref listing
-            const allRefs = await this.getAllRefListExtended();
-            const matchByName = allRefs.find(ref => !ref.isTag && ref.name === fromBranch);
-            if (matchByName) {
-              return matchByName;
-            }
-
-            const matchByFullName = allRefs.find(ref => !ref.isTag && ref.fullName === fromBranch);
-            if (matchByFullName) {
-              return matchByFullName;
-            }
-
-            // As a fallback, return a minimal IGitRef with available data
-            return {
-              name: fromBranch,
-              fullName: fromBranch,
-              authorName: '',
-            } as IGitRef;
-          }
+        // Try to resolve full ref info using existing ref listing
+        const allRefs = await this.getAllRefListExtended();
+        const matchByName = allRefs.find(ref => !ref.isTag && ref.name === fromBranch);
+        if (matchByName) {
+          return matchByName;
         }
+
+        const matchByFullName = allRefs.find(ref => !ref.isTag && ref.fullName === fromBranch);
+        if (matchByFullName) {
+          return matchByFullName;
+        }
+
+        // As a fallback, return a minimal IGitRef with available data
+        return {
+          name: fromBranch,
+          fullName: fromBranch,
+          authorName: '',
+        } as IGitRef;
       }
 
       return null;
@@ -1059,20 +1100,18 @@ export class GitExecutor {
     }
     const { stdout } = await this.#execGitCommand(['reflog', '--format=%gs', '-n', '200']);
     const current = await this.getCurrentBranch();
-    const stats = new Map<string, { count: number; first: number }>();
     const lines = stdout.split('\n');
-    for (let index = 0; index < lines.length; index += 1) {
-      const match = lines[index].match(/^checkout: moving from (.+) to (.+)$/);
-      if (!match) {
-        continue;
+    const moves = this.#parseReflogCheckouts(lines);
+
+    const stats = new Map<string, { count: number; first: number }>();
+    moves.forEach(({ to }, index) => {
+      if (to === current) {
+        return;
       }
-      const target = match[2].trim();
-      if (!target || target === current || target === 'HEAD' || target.includes('detached')) {
-        continue;
-      }
-      const previous = stats.get(target);
-      stats.set(target, { count: (previous?.count ?? 0) + 1, first: previous?.first ?? index });
-    }
+      const previous = stats.get(to);
+      stats.set(to, { count: (previous?.count ?? 0) + 1, first: previous?.first ?? index });
+    });
+
     return [...stats.entries()]
       .sort((a, b) => b[1].count - a[1].count || a[1].first - b[1].first)
       .slice(0, limit * 2)
