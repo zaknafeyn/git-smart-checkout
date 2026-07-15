@@ -46,6 +46,11 @@ export interface ExtensionConfig {
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;
+  worktreeSetup: {
+    copyFiles: string[];
+    command: string;
+    applyToPrCloneWorktrees: boolean;
+  };
   prBranchPrefix: string;
   useInPlaceCherryPick: boolean;
   pullAfterCheckout: TPullAfterCheckout;

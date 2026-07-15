@@ -15,7 +15,7 @@ import { offerConflictRescue } from './stashConflictRescue';
 
 export type TPullWithStashStrategy = 'merge' | 'rebase';
 
-export type CheckoutOutcome = 'completed' | 'cancelled';
+export type CheckoutOutcome = 'completed' | 'cancelled' | 'rescued';
 
 export class AutoStashService {
 
@@ -299,10 +299,15 @@ export class AutoStashService {
       capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
 
       // A "stash-carrying" checkout is one where a stash was actually created and
-      // popped/applied onto the target branch (AUTO_STASH_IGNORE never stashes).
+      // cleanly popped/applied onto the target branch (AUTO_STASH_IGNORE never stashes;
+      // a 'rescued' outcome had a pop/apply conflict, so it doesn't count as clean).
       if (isWorkdirHasChanges && autoStashMode !== AUTO_STASH_IGNORE) {
         this.onStashCarryingCheckoutSuccess?.();
       }
+    } else if (outcome === 'rescued') {
+      // Checkout happened, but the stash pop/apply conflicted and a rescue notification
+      // was already shown in place of a generic error — tag instead of double-reporting success.
+      capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges, stashConflict: true });
     }
 
     return outcome;
@@ -342,6 +347,11 @@ export class AutoStashService {
         await git.popStash(message);
       }
     } catch (e) {
+      const conflicts = await git.getConflictedFiles();
+      if (conflicts.length > 0) {
+        await offerConflictRescue(git, conflicts, 'pop');
+        return 'rescued';
+      }
       handleErrorMessage(
         e,
         'No stash found',
@@ -415,16 +425,13 @@ export class AutoStashService {
     } catch (e) {
       const conflicts = await git.getConflictedFiles();
       if (conflicts.length > 0) {
+        // Replace the generic error with the rescue notification — checkout already
+        // happened and the stash was already applied/popped (with conflict markers left
+        // in the working tree), so surfacing a second generic failure would be misleading.
         await offerConflictRescue(git, conflicts, operation);
-        handleErrorMessage(
-          e,
-          'No stash found',
-          `No stash to ${operation} on the new branch.`,
-          `Failed to ${operation} the stash on the new branch.`
-        );
-      } else {
-        handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
+        return 'rescued';
       }
+      handleErrorMessage(e, 'No stash found', `No stash to ${operation} on the new branch.`, `Failed to ${operation} the stash on the new branch.`);
     }
 
     return 'completed';
