@@ -247,7 +247,7 @@ describe('UpdateNotificationService', () => {
       try {
         await new UpdateNotificationService().checkOnActivation(context, 'minor');
         assert.strictEqual(ui.openedUrls.length, 1);
-        assert.ok(ui.openedUrls[0].includes('marketplace.visualstudio.com'));
+        assert.strictEqual(new URL(ui.openedUrls[0]).hostname, 'marketplace.visualstudio.com');
         assert.strictEqual(context.globalState.get(FEEDBACK_STATE_KEY), 'never');
       } finally {
         ui.restore();

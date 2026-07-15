@@ -86,7 +86,7 @@ describe('What\'s new / feedback notifications — activation-level e2e', () => 
       try {
         await new UpdateNotificationService().checkOnActivation(context, 'minor');
         assert.strictEqual(info.messages.length, 1);
-        assert.match(info.messages[0], new RegExp(`updated to v${current.replace(/\./g, '\\.')}`));
+        assert.strictEqual(info.messages[0], `Git Smart Checkout updated to v${current}`);
         assert.strictEqual(context.globalState.get(LAST_SEEN_VERSION_KEY), current);
       } finally {
         info.restore();
