@@ -10,9 +10,14 @@ import {
   getWorktreeDetail,
   getWorktreeLabel,
   getWorktreeStashName,
+  normalizePathForComparison,
   removeWorkspaceFoldersForPath,
 } from '../utils/worktreeRemoval';
 import { BaseCommand } from '../command';
+
+function isSamePath(left: string, right: string): boolean {
+  return normalizePathForComparison(left) === normalizePathForComparison(right);
+}
 
 const ACTION_REMOVE_WORKTREE = 'Remove Worktree';
 const ACTION_STASH_AND_REMOVE = 'Stash Changes and Remove';
@@ -30,10 +35,10 @@ export class RemoveWorktreeCommand extends BaseCommand {
     super(logService);
   }
 
-  async execute(): Promise<void> {
+  async execute(preselectedWorktreePath?: string): Promise<void> {
     try {
       const git = await this.getGitExecutor(this.vscodeGitProvider);
-      const worktree = await this.selectWorktree(git);
+      const worktree = await this.selectWorktree(git, preselectedWorktreePath);
 
       if (!worktree) {
         return;
@@ -64,13 +69,25 @@ export class RemoveWorktreeCommand extends BaseCommand {
     }
   }
 
-  private async selectWorktree(git: GitExecutor): Promise<IGitWorktree | undefined> {
+  private async selectWorktree(
+    git: GitExecutor,
+    preselectedWorktreePath?: string
+  ): Promise<IGitWorktree | undefined> {
     const worktrees = await git.worktreeListDetailed();
     const removableWorktrees = getRemovableWorktrees(worktrees);
 
     if (removableWorktrees.length === 0) {
       await vscode.window.showInformationMessage('No removable Git worktrees found.', 'OK');
       return undefined;
+    }
+
+    if (preselectedWorktreePath) {
+      const preselected = removableWorktrees.find(
+        (worktree) => isSamePath(worktree.path, preselectedWorktreePath)
+      );
+      if (preselected) {
+        return preselected;
+      }
     }
 
     const items: WorktreeQuickPickItem[] = removableWorktrees.map((worktree) => ({

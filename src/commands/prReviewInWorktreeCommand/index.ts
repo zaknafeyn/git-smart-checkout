@@ -17,17 +17,34 @@ import {
   INVALID_PR_INPUT_MESSAGE,
   parsePRInput,
 } from '../utils/parsePRInput';
-import { showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
+import { completeWorktreeCreation, showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
+import { WorktreeSetupService } from '../../services/worktreeSetupService';
 
 export class PRReviewInWorktreeCommand extends BaseCommand {
   constructor(
     private configManager: ConfigurationManager,
     logService: LoggingService,
     private vscodeGitProvider?: VscodeGitProvider,
-    private prReviewWorktreeStore?: PRReviewWorktreeStore
+    private prReviewWorktreeStore?: PRReviewWorktreeStore,
+    private worktreeSetupService?: WorktreeSetupService
   ) {
     super(logService);
+  }
+
+  /** Falls back to an in-memory (non-persisted) consent store when no shared instance was injected. */
+  private getWorktreeSetupService(): WorktreeSetupService {
+    if (!this.worktreeSetupService) {
+      const memory = new Map<string, unknown>();
+      this.worktreeSetupService = new WorktreeSetupService(this.configManager, this.logService, {
+        get: <T>(key: string, defaultValue?: T) => (memory.has(key) ? (memory.get(key) as T) : defaultValue) as T,
+        update: async (key: string, value: unknown) => {
+          memory.set(key, value);
+        },
+      });
+    }
+
+    return this.worktreeSetupService;
   }
 
   protected createGitHubClient(owner: string, repo: string): GitHubClient {
@@ -126,10 +143,12 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         }
       );
 
-      await showWorktreeCompletionActions(
+      await completeWorktreeCreation({
+        worktreeSetupService: this.getWorktreeSetupService(),
+        sourceRoot: git.repositoryPath,
         worktreePath,
-        `PR #${prNumber} worktree created at ${worktreePath}`
-      );
+        baseMessage: `PR #${prNumber} worktree created at ${worktreePath}`,
+      });
 
       capture(AnalyticsEvent.PrReviewInWorktree, { is_fork: isFork, existing_worktree: false });
     } catch (error) {

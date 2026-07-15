@@ -1,6 +1,8 @@
 // Minimal type stubs for the VS Code built-in git extension public API.
 // Source: https://github.com/microsoft/vscode/blob/main/extensions/git/src/api/git.d.ts
 
+import type { Event } from 'vscode';
+
 export const enum RefType {
   Head = 0,
   RemoteHead = 1,
@@ -41,6 +43,7 @@ export interface Commit {
 export interface RepositoryState {
   readonly HEAD: Ref | undefined;
   readonly refs: Ref[];
+  readonly onDidChange: Event<void>;
 }
 
 export interface RefQuery {
@@ -62,6 +65,8 @@ export interface Repository {
 export interface API {
   readonly repositories: Repository[];
   getRepository(uri: { fsPath: string }): Repository | null;
+  readonly onDidOpenRepository: Event<Repository>;
+  readonly onDidCloseRepository: Event<Repository>;
 }
 
 export interface GitExtension {

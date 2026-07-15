@@ -16,6 +16,7 @@ function baseConfig(overrides: {
     showStatusBar: true,
     defaultTargetBranch: 'main',
     defaultWorktreeDirectory: '',
+    worktreeSetup: { copyFiles: [], command: '', applyToPrCloneWorktrees: false },
     prBranchPrefix: '',
     useInPlaceCherryPick: true,
     pullAfterCheckout: PULL_AFTER_CHECKOUT_FF_ONLY,
