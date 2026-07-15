@@ -83,7 +83,8 @@ export function activate(context: vscode.ExtensionContext) {
   const commandManager = new CommandManager();
 
   const configManager = new ConfigurationManager(context.secrets);
-  void new UpdateNotificationService().checkOnActivation(context, configManager.get().showWhatsNew);
+  const updateNotificationService = new UpdateNotificationService();
+  void updateNotificationService.checkOnActivation(context, configManager.get().showWhatsNew);
 
   const updateTelemetryState = () =>
     setAnalyticsEnabled(vscode.env.isTelemetryEnabled && configManager.get().telemetry.enabled);
@@ -139,7 +140,9 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     prCloneService
   );
-  const autoStashService = new AutoStashService(configManager, logService);
+  const autoStashService = new AutoStashService(configManager, logService, () =>
+    void updateNotificationService.recordStashCarryingCheckoutSuccess(context)
+  );
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
@@ -451,7 +454,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Show status bar
   statusBarManager.show();
 
-  return { commandManager };
+  // `context` and `updateNotificationService` are exposed alongside `commandManager` so
+  // e2e tests can exercise the exact activation-time notification logic (seeding
+  // globalState, invoking checkOnActivation) against the real extension context.
+  return { commandManager, context, updateNotificationService };
 }
 
 async function refreshRepositoryContext(logService: LoggingService): Promise<void> {

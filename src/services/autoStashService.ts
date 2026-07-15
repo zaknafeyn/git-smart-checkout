@@ -18,10 +18,11 @@ export type TPullWithStashStrategy = 'merge' | 'rebase';
 export type CheckoutOutcome = 'completed' | 'cancelled';
 
 export class AutoStashService {
-  
+
   constructor(
     private configManager: ConfigurationManager,
-    private logService: LoggingService
+    private logService: LoggingService,
+    private onStashCarryingCheckoutSuccess?: () => void
   ) { }
 
   async getAutoStashMode(): Promise<TAutoStashMode | undefined> {
@@ -296,6 +297,12 @@ export class AutoStashService {
 
     if (outcome === 'completed') {
       capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
+
+      // A "stash-carrying" checkout is one where a stash was actually created and
+      // popped/applied onto the target branch (AUTO_STASH_IGNORE never stashes).
+      if (isWorkdirHasChanges && autoStashMode !== AUTO_STASH_IGNORE) {
+        this.onStashCarryingCheckoutSuccess?.();
+      }
     }
 
     return outcome;
