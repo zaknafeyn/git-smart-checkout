@@ -181,6 +181,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.reviewPrByNumber",
+        "title": "Review PR by Number...",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.removePRReviewInWorktree",
         "title": "Remove PR Review in Worktree...",
         "category": "GSC"
@@ -397,6 +402,9 @@
         },
         {
           "command": "git-smart-checkout.prReviewInWorktree"
+        },
+        {
+          "command": "git-smart-checkout.reviewPrByNumber"
         },
         {
           "command": "git-smart-checkout.removePRReviewInWorktree"

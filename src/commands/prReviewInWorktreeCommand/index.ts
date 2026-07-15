@@ -1,22 +1,24 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 import { GitHubClient } from '../../common/api/ghClient';
 import { GitExecutor } from '../../common/git/gitExecutor';
-import { IGitRef, IGitWorktree } from '../../common/git/types';
+import { IGitRef } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import { PRReviewWorktreeStore } from '../../services/prReviewWorktreeStore';
-import { GitHubPR } from '../../types/dataTypes';
 import { BaseCommand } from '../command';
 import {
   getRepositoryMismatchMessage,
   INVALID_PR_INPUT_MESSAGE,
   parsePRInput,
 } from '../utils/parsePRInput';
+import {
+  ensureWorktreeParentDirectory,
+  findWorktreeForBranch,
+  recordPRReviewWorktree,
+} from '../utils/prReviewWorktree';
 import { completeWorktreeCreation, showWorktreeCompletionActions } from '../utils/worktreeCompletionActions';
 import { selectWorktreePath } from '../utils/worktreePath';
 import { WorktreeSetupService } from '../../services/worktreeSetupService';
@@ -92,10 +94,10 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
 
       const headRef = pr.head.ref;
       const isFork = pr.head.repo?.full_name !== pr.base.repo?.full_name;
-      const existingWorktree = await this.findWorktreeForBranch(git, headRef);
+      const existingWorktree = await findWorktreeForBranch(git, headRef);
 
       if (existingWorktree) {
-        await this.recordPRReviewWorktree(git, repoInfo, pr, existingWorktree.path);
+        await recordPRReviewWorktree(this.prReviewWorktreeStore, git, repoInfo, pr, existingWorktree.path);
         await showWorktreeCompletionActions(
           existingWorktree.path,
           `Branch "${headRef}" is already checked out at ${existingWorktree.path}`
@@ -137,9 +139,9 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
         },
         async (progress) => {
           progress.report({ message: 'Creating worktree...' });
-          fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
+          ensureWorktreeParentDirectory(worktreePath);
           await this.createWorktree(git, worktreePath, targetBranch);
-          await this.recordPRReviewWorktree(git, repoInfo, pr, worktreePath);
+          await recordPRReviewWorktree(this.prReviewWorktreeStore, git, repoInfo, pr, worktreePath);
         }
       );
 
@@ -202,38 +204,4 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
     await git.worktreeAddLocalBranch(worktreePath, targetBranch.name);
   }
 
-  private async recordPRReviewWorktree(
-    git: GitExecutor,
-    repoInfo: { owner: string; repo: string },
-    pr: GitHubPR,
-    worktreePath: string
-  ): Promise<void> {
-    await this.prReviewWorktreeStore?.upsert({
-      repoKey: PRReviewWorktreeStore.createRepoKey(repoInfo.owner, repoInfo.repo, git.repositoryPath),
-      repositoryPath: git.repositoryPath,
-      owner: repoInfo.owner,
-      repo: repoInfo.repo,
-      worktreePath,
-      branchName: pr.head.ref,
-      prNumber: pr.number,
-      prTitle: pr.title,
-      prUrl: pr.html_url,
-      headSha: pr.head.sha,
-    });
-  }
-
-  private async findWorktreeForBranch(
-    git: GitExecutor,
-    branchName: string
-  ): Promise<IGitWorktree | undefined> {
-    const expectedBranchRef = `refs/heads/${branchName}`;
-    const worktrees = await git.worktreeListDetailed(true);
-
-    return worktrees.find(
-      (worktree) =>
-        !worktree.bare &&
-        !worktree.prunable &&
-        worktree.branch === expectedBranchRef
-    );
-  }
 }

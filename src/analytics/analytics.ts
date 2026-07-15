@@ -20,6 +20,7 @@ export enum AnalyticsEvent {
   PrCloneConflictsResolved = 'pr_clone_conflicts_resolved',
   CheckoutByPR = 'checkout_by_pr',
   PrReviewInWorktree = 'pr_review_in_worktree',
+  ReviewPrByNumber = 'review_pr_by_number',
   PrReviewWorktreeRemoved = 'pr_review_worktree_removed',
   WorktreeRemoved = 'worktree_removed',
   MultipleWorktreesRemoved = 'multiple_worktrees_removed',
