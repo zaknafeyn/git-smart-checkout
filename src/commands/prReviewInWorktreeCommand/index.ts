@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
-import { GitHubClient } from '../../common/api/ghClient';
+import { GitHubClient, resolveGitHubHostConfig } from '../../common/api/ghClient';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { IGitRef } from '../../common/git/types';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
@@ -50,8 +50,9 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
     return this.worktreeSetupService;
   }
 
-  protected createGitHubClient(owner: string, repo: string): GitHubClient {
-    return new GitHubClient(owner, repo);
+  protected createGitHubClient(owner: string, repo: string, host: string): GitHubClient {
+    const hostConfig = resolveGitHubHostConfig(host, this.configManager.get().githubEnterpriseBaseUrl);
+    return new GitHubClient(owner, repo, undefined, hostConfig);
   }
 
   async execute(): Promise<void> {
@@ -72,9 +73,11 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
       }
 
       const git = await this.getGitExecutor(this.vscodeGitProvider);
-      const repoInfo = await git.getRepoInfo();
+      const repoInfo = await git.getRepoInfo(this.configManager.get().githubEnterpriseBaseUrl);
       if (!repoInfo) {
-        throw new Error('Could not determine GitHub repository information. Make sure the remote is a GitHub repository.');
+        throw new Error(
+          'Could not determine GitHub repository information. Make sure the remote is a GitHub repository, or configure git-smart-checkout.githubEnterpriseBaseUrl for a GitHub Enterprise remote.'
+        );
       }
 
       const repositoryMismatchMessage = getRepositoryMismatchMessage(parsedInput, repoInfo);
@@ -86,7 +89,7 @@ export class PRReviewInWorktreeCommand extends BaseCommand {
       const { prNumber } = parsedInput;
       let pr: Awaited<ReturnType<GitHubClient['fetchPullRequest']>>;
       try {
-        pr = await this.createGitHubClient(repoInfo.owner, repoInfo.repo).fetchPullRequest(prNumber);
+        pr = await this.createGitHubClient(repoInfo.owner, repoInfo.repo, repoInfo.host).fetchPullRequest(prNumber);
       } catch (e) {
         captureException(e);
         const msg = e instanceof Error ? e.message : String(e);

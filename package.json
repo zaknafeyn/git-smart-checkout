@@ -475,6 +475,11 @@
           "minimum": 0,
           "description": "Number of recently checked-out branches shown in the checkout picker. Set to 0 to disable."
         },
+        "git-smart-checkout.githubEnterpriseBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL for GitHub Enterprise, for example https://ghe.example.com."
+        },
         "git-smart-checkout.defaultRemote": {
           "type": "string",
           "default": "",

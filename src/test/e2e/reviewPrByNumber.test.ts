@@ -191,7 +191,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       const sut = new TestableReviewPrByNumberCommand(repo.git, makePR(7), store);
@@ -229,7 +229,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const worktreePath = getDefaultWorktreePath(repo, branchName);
     const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     // First invocation creates the worktree.
     {
@@ -292,7 +292,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const worktreePath = getDefaultWorktreePath(repo, branchName);
     const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     // First invocation creates the worktree at the original head.
     {
@@ -347,7 +347,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const worktreePath = getDefaultWorktreePath(repo, branchName);
     const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     {
       const restoreInput = stubInputBox('7');
@@ -402,7 +402,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const worktreePath = getDefaultWorktreePath(repo, branchName);
     const store = new PRReviewWorktreeStore(makeMemoryMemento(), mockLogService);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     {
       const restoreInput = stubInputBox('7');
@@ -462,7 +462,7 @@ describe('ReviewPrByNumberCommand (e2e)', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     const fetchSpecificBranchCalls: unknown[] = [];
     const fetchFromUrlCalls: unknown[] = [];

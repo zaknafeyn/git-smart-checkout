@@ -149,7 +149,7 @@ describe('Worktree setup hooks (copyFiles / command)', () => {
     const configManager = makeMockConfigManager({ copyFiles: ['.env*', '*.local'] });
     const worktreeSetupService = new WorktreeSetupService(configManager, mockLogService, makeMemento());
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     const restoreInput = stubInputBox('42', (options) => options.value);
     const info = stubInfoMessages();
@@ -187,7 +187,7 @@ describe('Worktree setup hooks (copyFiles / command)', () => {
     });
     const worktreeSetupService = new WorktreeSetupService(configManager, mockLogService, makeMemento());
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     const restoreInput = stubInputBox('42', (options) => options.value);
     const info = stubInfoMessages();
@@ -220,7 +220,7 @@ describe('Worktree setup hooks (copyFiles / command)', () => {
     const configManager = makeMockConfigManager({ command: 'node -e "process.exit(1)"' });
     const worktreeSetupService = new WorktreeSetupService(configManager, mockLogService, makeMemento());
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     const restoreInput = stubInputBox('42', (options) => options.value);
     const info = stubInfoMessages();
@@ -257,7 +257,7 @@ describe('Worktree setup hooks (copyFiles / command)', () => {
     const sharedMemento = makeMemento();
     const worktreeSetupService = new WorktreeSetupService(configManager, mockLogService, sharedMemento);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     // First worktree: user declines permanently via "Never".
     const worktreePath1 = getDefaultWorktreePath(repo, repo.prBranch);

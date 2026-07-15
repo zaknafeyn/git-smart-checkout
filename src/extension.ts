@@ -28,7 +28,7 @@ import {
 } from './services/prCloneInPlaceService';
 import { getGitExecutor, resolveGitRepositoryRoot } from './utils/getGitExecutor';
 import { GitExecutor } from './common/git/gitExecutor';
-import { GitHubClient } from './common/api/ghClient';
+import { GitHubClient, resolveGitHubHostConfig } from './common/api/ghClient';
 import { AutoStashService } from './services/autoStashService';
 import { CheckoutByPRCommand } from './commands/checkoutByPRCommand';
 import { PRReviewInWorktreeCommand } from './commands/prReviewInWorktreeCommand';
@@ -185,7 +185,9 @@ export function activate(context: vscode.ExtensionContext) {
     context,
     logService,
     vscodeGitProvider,
-    prCloneService
+    prCloneService,
+    undefined,
+    configManager.get().githubEnterpriseBaseUrl
   );
 
   // Set initial context to hide PR Clone view and commits view
@@ -385,12 +387,19 @@ export function activate(context: vscode.ExtensionContext) {
         // get exact repository
         const git = await getGitExecutor(logService);
 
-        const repoInfo = await git.getRepoInfo();
+        const repoInfo = await git.getRepoInfo(configManager.get().githubEnterpriseBaseUrl);
         if (!repoInfo) {
-          throw new Error('Could not determine GitHub repository information');
+          throw new Error(
+            'Could not determine GitHub repository information. Make sure the remote is a GitHub repository, or configure git-smart-checkout.githubEnterpriseBaseUrl for a GitHub Enterprise remote.'
+          );
         }
 
-        const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+        const ghClient = new GitHubClient(
+          repoInfo.owner,
+          repoInfo.repo,
+          undefined,
+          resolveGitHubHostConfig(repoInfo.host, configManager.get().githubEnterpriseBaseUrl)
+        );
 
         prCloneService.init(git, ghClient);
 
@@ -585,7 +594,8 @@ export async function checkForInterruptedPrClone(
   resolveGitForRecord: (
     record: IPersistedCloneOperation
   ) => Promise<GitExecutor | undefined> = (record) =>
-    resolveGitExecutorForRepoPath(record.repoPath, logService, vscodeGitProvider)
+    resolveGitExecutorForRepoPath(record.repoPath, logService, vscodeGitProvider),
+  githubEnterpriseBaseUrl = ''
 ): Promise<void> {
   const record = context.workspaceState.get<IPersistedCloneOperation>(
     PR_CLONE_IN_PLACE_STATE_KEY
@@ -620,7 +630,7 @@ export async function checkForInterruptedPrClone(
     return;
   }
 
-  const repoInfo = await matchedGit.getRepoInfo();
+  const repoInfo = await matchedGit.getRepoInfo(githubEnterpriseBaseUrl);
   if (!repoInfo) {
     logService.warn(
       'Could not determine GitHub repository information while recovering an interrupted PR clone.'
@@ -628,7 +638,12 @@ export async function checkForInterruptedPrClone(
     return;
   }
 
-  const ghClient = new GitHubClient(repoInfo.owner, repoInfo.repo);
+  const ghClient = new GitHubClient(
+    repoInfo.owner,
+    repoInfo.repo,
+    undefined,
+    resolveGitHubHostConfig(repoInfo.host ?? '', githubEnterpriseBaseUrl)
+  );
   prCloneService.init(matchedGit, ghClient);
 
   if (choice === 'Resume') {

@@ -149,7 +149,7 @@ describe('PRReviewInWorktreeCommand', () => {
         const restoreInfo = stubInfoMessages(infoMessages);
         const restoreError = stubErrorMessages([]);
 
-        repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+        repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
         try {
           const sut = new TestablePRReviewInWorktreeCommand(repo.git, (prNumber) => {
@@ -179,7 +179,7 @@ describe('PRReviewInWorktreeCommand', () => {
       const restoreInput = stubInputBox('https://github.com/other-org/other-repo/pull/57');
       const restoreErrors = stubErrorMessages(errors);
 
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
       try {
         const sut = new TestablePRReviewInWorktreeCommand(repo.git, (prNumber) => {
@@ -214,7 +214,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       const sut = new TestablePRReviewInWorktreeCommand(repo.git, makePR(repo.prBranch));
@@ -250,7 +250,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const restoreInfo = stubInfoMessages([]);
     const restoreError = stubErrorMessages([]);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       const sut = new TestablePRReviewInWorktreeCommand(
@@ -289,7 +289,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       const pr = makePR(repo.forkBranch, {
@@ -327,7 +327,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
     repo.exec(`git fetch origin ${repo.prBranch}:refs/remotes/origin/${repo.prBranch}`);
     repo.exec(`git worktree add --track -b ${repo.prBranch} "${worktreePath}" origin/${repo.prBranch}`);
 
@@ -361,7 +361,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const restoreInfo = stubInfoMessages([]);
     const restoreError = stubErrorMessages([]);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
     repo.exec(`git fetch origin ${repo.prBranch}:refs/remotes/origin/${repo.prBranch}`);
     repo.exec(`git worktree add --track -b ${repo.prBranch} "${worktreePath}" origin/${repo.prBranch}`);
 
@@ -399,7 +399,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const errors: string[] = [];
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       repo.makeChange('file1.txt', 'dirty review notes\n');
@@ -451,7 +451,7 @@ describe('PRReviewInWorktreeCommand', () => {
     const restoreInfo = stubInfoMessages([]);
     const restoreError = stubErrorMessages(errors);
 
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
 
     try {
       const sut = new TestablePRReviewInWorktreeCommand(repo.git, new Error('boom'));

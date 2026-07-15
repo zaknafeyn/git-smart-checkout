@@ -114,7 +114,7 @@ describe('Multi-remote resolution — checkout by PR', () => {
 
   beforeEach(() => {
     repo = createTwoRemoteTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
     clearRememberedRemotes();
   });
 

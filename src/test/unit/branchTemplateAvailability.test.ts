@@ -16,6 +16,7 @@ function baseConfig(overrides: {
     mode: AUTO_STASH_MODE_MANUAL,
     useFastBranchList: true,
     recentBranchCount: 5,
+    githubEnterpriseBaseUrl: '',
     defaultRemote: '',
     prClone: { checkoutAfterClone: 'ask' },
     showWhatsNew: 'minor',
