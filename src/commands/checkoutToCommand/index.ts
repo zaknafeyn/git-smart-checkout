@@ -192,9 +192,13 @@ export class CheckoutToCommand extends BaseCommand {
     const buildItems = () => {
       const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
       const recentNames = recentBranchNames ?? [];
+      // getRecentBranches over-fetches (limit * 2) so the list survives the
+      // existence filter below; re-cap to the configured count here so the
+      // Recent section never shows more than the user asked for.
       const recentRefs = recentNames
         .map((name) => locals.find((ref) => ref.name === name))
-        .filter((ref): ref is IGitRef => Boolean(ref));
+        .filter((ref): ref is IGitRef => Boolean(ref))
+        .slice(0, recentBranchCount);
       const recentSet = new Set(recentRefs.map((ref) => ref.name));
       const tags = branchList.filter((t) => t.isTag);
       // Preferred refs float to the top of each section, ordered by when they were starred.
