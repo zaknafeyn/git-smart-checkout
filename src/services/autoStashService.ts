@@ -22,7 +22,7 @@ export class AutoStashService {
   constructor(
     private configManager: ConfigurationManager,
     private logService: LoggingService,
-    private onStashCarryingCheckoutSuccess?: () => void
+    private onStashCarryingCheckoutSuccess?: () => void | Promise<void>
   ) { }
 
   async getAutoStashMode(): Promise<TAutoStashMode | undefined> {
@@ -309,7 +309,7 @@ export class AutoStashService {
       // cleanly popped/applied onto the target branch (AUTO_STASH_IGNORE never stashes;
       // a 'rescued' outcome had a pop/apply conflict, so it doesn't count as clean).
       if (isWorkdirHasChanges && autoStashMode !== AUTO_STASH_IGNORE) {
-        this.onStashCarryingCheckoutSuccess?.();
+        await this.onStashCarryingCheckoutSuccess?.();
       }
     } else if (outcome === 'rescued') {
       // Checkout happened, but the stash pop/apply conflicted and a rescue notification

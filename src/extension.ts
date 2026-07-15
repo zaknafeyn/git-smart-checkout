@@ -170,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
     prCloneService
   );
   const autoStashService = new AutoStashService(configManager, logService, () =>
-    void updateNotificationService.recordStashCarryingCheckoutSuccess(context)
+    updateNotificationService.recordStashCarryingCheckoutSuccess(context)
   );
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
