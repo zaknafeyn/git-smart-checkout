@@ -56,6 +56,7 @@ import { refreshRemoveMultipleWorktreesVisibility } from './commands/utils/workt
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
 import { RefDetailsCache } from './services/refDetailsCache';
+import { WorktreeSetupService } from './services/worktreeSetupService';
 import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAnalytics } from './analytics/analytics';
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
@@ -113,6 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   const logService = new LoggingService(configManager);
+  const worktreeSetupService = new WorktreeSetupService(configManager, logService, context.workspaceState);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
@@ -206,7 +208,8 @@ export function activate(context: vscode.ExtensionContext) {
     configManager,
     logService,
     vscodeGitProvider,
-    prReviewWorktreeStore
+    prReviewWorktreeStore,
+    worktreeSetupService
   );
   commandManager.registerCommand(`${EXTENSION_NAME}.prReviewInWorktree`, prReviewInWorktreeCommand);
 
@@ -253,7 +256,8 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     autoStashService,
     vscodeGitProvider,
-    refDetailsCache
+    refDetailsCache,
+    worktreeSetupService
   );
   commandManager.registerCommand(`${EXTENSION_NAME}.moveToNewWorktree`, moveToNewWorktreeCommand);
 
