@@ -314,6 +314,10 @@
           "when": "git-smart-checkout.canCreateBranchFromTemplate"
         },
         {
+          "command": "git-smart-checkout.previewTemplate",
+          "when": "git-smart-checkout.canPreviewTemplate"
+        },
+        {
           "command": "git-smart-checkout.initJira"
         },
         {

@@ -45,8 +45,16 @@ import { PreviewTemplateCommand } from './commands/previewTemplateCommand';
 import { SetJiraTokenCommand } from './commands/setJiraTokenCommand';
 import { InitJiraCommand } from './commands/initJiraCommand';
 import { CreateTagFromTemplateCommand } from './commands/createTagFromTemplateCommand';
-import { canShowCreateBranchFromTemplateCommand } from './services/branchTemplateAvailability';
-import { setContextCanCreateBranchFromTemplate, setContextHasRepository } from './utils/setContext';
+import {
+  canShowCreateBranchFromTemplateCommand,
+  canShowPreviewTemplateCommand,
+} from './services/branchTemplateAvailability';
+import { ScriptConsentStore } from './services/scriptConsentStore';
+import {
+  setContextCanCreateBranchFromTemplate,
+  setContextCanPreviewTemplate,
+  setContextHasRepository,
+} from './utils/setContext';
 import { MoveToNewWorktreeCommand } from './commands/moveToNewWorktreeCommand';
 import { OpenWorktreeDevTerminalCommand } from './commands/openWorktreeDevTerminalCommand';
 import { ManageAutoStashesCommand } from './commands/manageAutoStashesCommand';
@@ -219,13 +227,22 @@ export function activate(context: vscode.ExtensionContext) {
     `${EXTENSION_NAME}.createBranchFromTemplate`,
     createBranchFromTemplateCommand
   );
-  commandManager.registerCommand(`${EXTENSION_NAME}.previewTemplate`, new PreviewTemplateCommand(configManager, logService));
+  const scriptConsentStore = new ScriptConsentStore(context.workspaceState);
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.previewTemplate`,
+    new PreviewTemplateCommand(configManager, logService, scriptConsentStore)
+  );
 
   const setJiraTokenCommand = new SetJiraTokenCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.setJiraToken`, setJiraTokenCommand);
 
   const initJiraCommand = new InitJiraCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.initJira`, initJiraCommand);
+
+  const refreshPreviewTemplateCommandVisibility = () => {
+    const visible = canShowPreviewTemplateCommand(configManager.get(), logService);
+    void setContextCanPreviewTemplate(visible);
+  };
 
   const refreshBranchTemplateCommandVisibility = () => {
     logService.info('[Create Branch] Re-evaluating command visibility after configuration change');
@@ -235,9 +252,11 @@ export function activate(context: vscode.ExtensionContext) {
         return setContextCanCreateBranchFromTemplate(visible);
       }
     );
+    refreshPreviewTemplateCommandVisibility();
   };
 
   void setContextCanCreateBranchFromTemplate(false);
+  void setContextCanPreviewTemplate(false);
   refreshBranchTemplateCommandVisibility();
 
   // Migrate any legacy plaintext Jira token into Secret Storage, then load it

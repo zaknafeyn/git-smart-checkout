@@ -1,8 +1,10 @@
 import {
-  resolveTagTemplate,
+  resolveTagTemplateWithTrace,
+  ResolveTemplateOptions,
   ScriptTokenError,
   TagTemplateContext,
   TagTemplateLogger,
+  TemplateTokenTrace,
 } from './tagTemplateService';
 
 export type BranchTemplateLogger = TagTemplateLogger;
@@ -13,6 +15,14 @@ export interface BranchTemplateContext {
   branchExists: (branchName: string) => Promise<boolean>;
   jiraKey?: string;
   jiraTitle?: string;
+  /**
+   * Whether Jira is configured for this workspace. Defaults to true (assume
+   * configured) when omitted, matching the create-branch flow which already
+   * refuses to run before Jira is configured. The preview command sets this to
+   * false explicitly so unresolved Jira tokens render a "needs Jira setup"
+   * hint instead of a generic "no issue selected" warning.
+   */
+  jiraConfigured?: boolean;
   readFile?: TagTemplateContext['readFile'];
   realpath?: TagTemplateContext['realpath'];
   runScript?: TagTemplateContext['runScript'];
@@ -25,6 +35,10 @@ export interface ResolvedBranch {
   recurringAttempts: number;
   /** True when the template contained an {r} token (regardless of whether a number was appended). */
   hadRecurringToken: boolean;
+}
+
+export interface ResolvedBranchWithTrace extends ResolvedBranch {
+  tokens: TemplateTokenTrace[];
 }
 
 const JIRA_KEY_TOKEN = '{jira-key}';
@@ -118,18 +132,39 @@ function finalizeBranchCasing(branch: string, jiraKey?: string): string {
   return lower.split(lowerKey).join(upperKey);
 }
 
-export async function resolveBranchTemplate(
+// resolveBranchTemplateWithTrace is the ONLY place branch templates are actually
+// resolved. resolveBranchTemplate (used by the real create-branch flow) and the
+// template preview command both call it. Jira tokens are resolved here; {f:...},
+// {b:...}, {s:...} and {r:...} tokens are delegated to
+// resolveTagTemplateWithTrace — the exact same function the create-tag flow
+// uses — so the preview never runs a parallel resolution path.
+export async function resolveBranchTemplateWithTrace(
   template: string,
-  ctx: BranchTemplateContext
-): Promise<ResolvedBranch> {
+  ctx: BranchTemplateContext,
+  options: ResolveTemplateOptions = {}
+): Promise<ResolvedBranchWithTrace> {
   ctx.logger.info(`[Create Branch] Template: ${template}`);
 
+  const jiraConfigured = ctx.jiraConfigured !== false;
+  const trace: TemplateTokenTrace[] = [];
   let result = template;
 
   if (result.includes(JIRA_KEY_TOKEN)) {
     const key = (ctx.jiraKey ?? '').toUpperCase();
     if (!key) {
-      ctx.logger.warn('[Create Branch] Jira key token present but no Jira issue was selected.');
+      if (!jiraConfigured) {
+        ctx.logger.warn('[Create Branch] Jira key token present but Jira is not configured.');
+        trace.push({
+          raw: JIRA_KEY_TOKEN,
+          value: '',
+          error: 'needs Jira setup (run GSC: Init Jira)',
+        });
+      } else {
+        ctx.logger.warn('[Create Branch] Jira key token present but no Jira issue was selected.');
+        trace.push({ raw: JIRA_KEY_TOKEN, value: '', error: 'no Jira issue selected' });
+      }
+    } else {
+      trace.push({ raw: JIRA_KEY_TOKEN, value: key });
     }
     result = result.split(JIRA_KEY_TOKEN).join(key);
   }
@@ -141,7 +176,21 @@ export async function resolveBranchTemplate(
     const title = ctx.jiraTitle ?? '';
     const value = title ? formatJiraTitle(title, formatOpts) : '';
     if (!title) {
-      ctx.logger.warn('[Create Branch] Jira title token present but no Jira issue title available.');
+      if (!jiraConfigured) {
+        ctx.logger.warn('[Create Branch] Jira title token present but Jira is not configured.');
+        trace.push({
+          raw: token.full,
+          value: '',
+          error: 'needs Jira setup (run GSC: Init Jira)',
+        });
+      } else {
+        ctx.logger.warn(
+          '[Create Branch] Jira title token present but no Jira issue title available.'
+        );
+        trace.push({ raw: token.full, value: '', error: 'no Jira issue title available' });
+      }
+    } else {
+      trace.push({ raw: token.full, value });
     }
     result = result.replace(token.full, () => value);
   }
@@ -160,15 +209,7 @@ export async function resolveBranchTemplate(
     },
   };
 
-  let resolved;
-  try {
-    resolved = await resolveTagTemplate(result, tagCtx);
-  } catch (e) {
-    if (e instanceof ScriptTokenError) {
-      throw e;
-    }
-    throw e;
-  }
+  const resolved = await resolveTagTemplateWithTrace(result, tagCtx, options);
 
   const branch = finalizeBranchCasing(resolved.tag, ctx.jiraKey);
 
@@ -177,7 +218,17 @@ export async function resolveBranchTemplate(
     recurringValueUsed: resolved.recurringValueUsed,
     recurringAttempts: resolved.recurringAttempts,
     hadRecurringToken: resolved.hadRecurringToken,
+    tokens: [...trace, ...resolved.tokens],
   };
+}
+
+export async function resolveBranchTemplate(
+  template: string,
+  ctx: BranchTemplateContext
+): Promise<ResolvedBranch> {
+  const traced = await resolveBranchTemplateWithTrace(template, ctx, { abortOnScriptError: true });
+  const { tokens: _tokens, ...rest } = traced;
+  return rest;
 }
 
 export { ScriptTokenError };
