@@ -40,6 +40,32 @@ export interface ResolvedTag {
   hadRecurringToken: boolean;
 }
 
+/** A single token's resolution outcome, used by the template preview command. */
+export interface TemplateTokenTrace {
+  /** The raw token text as it appeared in the template, e.g. "{f:package.json:.version}". */
+  raw: string;
+  /** The resolved (substituted) value. Empty string when resolution failed. */
+  value?: string;
+  /** Human-readable error, set when the token failed to resolve. */
+  error?: string;
+}
+
+export interface ResolvedTagWithTrace extends ResolvedTag {
+  tokens: TemplateTokenTrace[];
+}
+
+export interface ResolveTemplateOptions {
+  /**
+   * When true (default), a script token ({s:...}) failure throws a ScriptTokenError
+   * immediately and no further tokens are resolved — this matches the production
+   * create-tag/create-branch flows, which must not proceed after a failed script.
+   * When false, the failure is recorded in the token trace (value becomes '') and
+   * resolution continues so every token can report independently — used by the
+   * "Preview branch/tag template" command.
+   */
+  abortOnScriptError?: boolean;
+}
+
 export class ScriptTokenError extends Error {
   constructor(
     message: string,
@@ -197,14 +223,20 @@ function defaultRunScript(absScriptPath: string, cwd: string): Promise<ScriptRun
 
 // ─── File token resolution ────────────────────────────────────────────────────
 
+interface FileTokenResult {
+  value: string;
+  error?: string;
+}
+
 async function resolveFileToken(
   filePath: string,
   jsonPath: string,
   ctx: TagTemplateContext
-): Promise<string> {
+): Promise<FileTokenResult> {
   if (!isSafeWorkspacePath(ctx.workspaceRoot, filePath)) {
-    ctx.logger.warn(`[Create Tag] Unsafe file path in template token: ${filePath}`);
-    return '';
+    const error = `Unsafe file path in template token: ${filePath}`;
+    ctx.logger.warn(`[Create Tag] ${error}`);
+    return { value: '', error };
   }
 
   const absPath = path.resolve(ctx.workspaceRoot, filePath);
@@ -214,13 +246,15 @@ async function resolveFileToken(
   try {
     realAbs = await realpathFn(absPath);
   } catch {
-    ctx.logger.warn(`[Create Tag] File not found: ${filePath}`);
-    return '';
+    const error = `File not found: ${filePath}`;
+    ctx.logger.warn(`[Create Tag] ${error}`);
+    return { value: '', error };
   }
 
   if (realAbs !== ctx.workspaceRoot && !realAbs.startsWith(ctx.workspaceRoot + path.sep)) {
-    ctx.logger.warn(`[Create Tag] Unsafe file path in template token: ${filePath}`);
-    return '';
+    const error = `Unsafe file path in template token: ${filePath}`;
+    ctx.logger.warn(`[Create Tag] ${error}`);
+    return { value: '', error };
   }
 
   ctx.logger.info(`[Create Tag] File token found: ${filePath}, path: ${jsonPath}`);
@@ -230,8 +264,9 @@ async function resolveFileToken(
   try {
     content = await reader(absPath);
   } catch {
-    ctx.logger.warn(`[Create Tag] Could not read file: ${filePath}`);
-    return '';
+    const error = `Could not read file: ${filePath}`;
+    ctx.logger.warn(`[Create Tag] ${error}`);
+    return { value: '', error };
   }
 
   const value = readJsonDotPath(content, jsonPath);
@@ -239,16 +274,15 @@ async function resolveFileToken(
     const isInvalidJson = readJsonDotPath(content, '.') === undefined && (() => {
       try { JSON.parse(content); return false; } catch { return true; }
     })();
-    if (isInvalidJson) {
-      ctx.logger.warn(`[Create Tag] Could not parse JSON file: ${filePath}`);
-    } else {
-      ctx.logger.warn(`[Create Tag] JSON path "${jsonPath}" was not found in ${filePath}.`);
-    }
-    return '';
+    const error = isInvalidJson
+      ? `Could not parse JSON file: ${filePath}`
+      : `JSON path "${jsonPath}" was not found in ${filePath}.`;
+    ctx.logger.warn(`[Create Tag] ${error}`);
+    return { value: '', error };
   }
 
   ctx.logger.info(`[Create Tag] File token resolved: ${value}`);
-  return value;
+  return { value };
 }
 
 // ─── Script token resolution ──────────────────────────────────────────────────
@@ -317,38 +351,63 @@ async function resolveScriptToken(
 }
 
 // ─── Main resolver ────────────────────────────────────────────────────────────
+//
+// resolveTagTemplateWithTrace is the ONLY place tokens are actually resolved.
+// resolveTagTemplate (used by the real create-tag/create-branch flows) and the
+// template preview command both call it — the preview command exercises the
+// exact same resolution logic as tag/branch creation, just with
+// `abortOnScriptError: false` so every token reports independently instead of
+// aborting the whole preview on the first script failure.
 
-export async function resolveTagTemplate(
+export async function resolveTagTemplateWithTrace(
   template: string,
-  ctx: TagTemplateContext
-): Promise<ResolvedTag> {
+  ctx: TagTemplateContext,
+  options: ResolveTemplateOptions = {}
+): Promise<ResolvedTagWithTrace> {
+  const abortOnScriptError = options.abortOnScriptError !== false;
   ctx.logger.info(`[Create Tag] Template: ${template}`);
 
   const tokens = scanTokens(template);
+  const trace: TemplateTokenTrace[] = [];
 
   // Step 1: resolve {f:...} tokens
   let result = template;
   for (const token of tokens.filter((t) => t.type === 'f')) {
     const colonIdx = token.args.indexOf(':');
     if (colonIdx === -1) {
-      ctx.logger.warn(`[Create Tag] Malformed file token: ${token.full}`);
+      const error = `Malformed file token: ${token.full}`;
+      ctx.logger.warn(`[Create Tag] ${error}`);
+      trace.push({ raw: token.full, value: '', error });
       result = result.replace(token.full, () => '');
       continue;
     }
     const filePath = token.args.substring(0, colonIdx).trim();
     const jsonPath = token.args.substring(colonIdx + 1).trim();
-    const value = await resolveFileToken(filePath, jsonPath, ctx);
+    const { value, error } = await resolveFileToken(filePath, jsonPath, ctx);
+    trace.push({ raw: token.full, value, error });
     result = result.replace(token.full, () => value);
   }
 
-  // Step 2: resolve {s:...} tokens (throws ScriptTokenError on failure)
+  // Step 2: resolve {s:...} tokens.
+  // With abortOnScriptError (the default, used by resolveTagTemplate), the first
+  // failure throws ScriptTokenError immediately, matching legacy behavior exactly.
   for (const token of tokens.filter((t) => t.type === 's')) {
     const colonIdx = token.args.indexOf(':');
     // {s:./script.sh} → stream defaults to stdout; {s:stdout:./script.sh} is explicit
     const stream = colonIdx === -1 ? 'stdout' : token.args.substring(0, colonIdx).trim().toLowerCase();
     const scriptPath = colonIdx === -1 ? token.args.trim() : token.args.substring(colonIdx + 1).trim();
-    const value = await resolveScriptToken(stream, scriptPath, ctx);
-    result = result.replace(token.full, () => value);
+    try {
+      const value = await resolveScriptToken(stream, scriptPath, ctx);
+      trace.push({ raw: token.full, value });
+      result = result.replace(token.full, () => value);
+    } catch (e) {
+      if (abortOnScriptError) {
+        throw e;
+      }
+      const error = e instanceof Error ? e.message : String(e);
+      trace.push({ raw: token.full, value: '', error });
+      result = result.replace(token.full, () => '');
+    }
   }
 
   // Step 3: resolve {b:...} tokens
@@ -370,10 +429,14 @@ export async function resolveTagTemplate(
 
     for (const token of branchTokens) {
       let value = '';
+      let error: string | undefined;
       if (branch) {
         ctx.logger.info(`[Create Tag] Branch regex token found: ${token.args}`);
         value = extractFirstRegexMatch(branch, token.args, ctx.logger);
+      } else {
+        error = 'detached HEAD — no current branch';
       }
+      trace.push({ raw: token.full, value, error });
       result = result.replace(token.full, () => value);
     }
   }
@@ -383,7 +446,7 @@ export async function resolveTagTemplate(
   // taken do we append `<separator><N>` and increment until a free name is found.
   const recurringTokens = tokens.filter((t) => t.type === 'r');
   if (recurringTokens.length === 0) {
-    return { tag: result, recurringAttempts: 0, hadRecurringToken: false };
+    return { tag: result, recurringAttempts: 0, hadRecurringToken: false, tokens: trace };
   }
 
   const { start, separator } = parseRecurringTokenArgs(recurringTokens[0].args);
@@ -406,7 +469,10 @@ export async function resolveTagTemplate(
     `[Create Tag] Trying tag: ${bareCandidate} — ${bareExists ? 'exists' : 'available'}`
   );
   if (!bareExists) {
-    return { tag: bareCandidate, recurringAttempts: attempts, hadRecurringToken: true };
+    for (const token of recurringTokens) {
+      trace.push({ raw: token.full, value: '' });
+    }
+    return { tag: bareCandidate, recurringAttempts: attempts, hadRecurringToken: true, tokens: trace };
   }
 
   // Bare name taken — append `<separator><N>`, incrementing N until free.
@@ -421,11 +487,15 @@ export async function resolveTagTemplate(
     );
 
     if (!exists) {
+      for (const token of recurringTokens) {
+        trace.push({ raw: token.full, value: `${separator}${currentN}` });
+      }
       return {
         tag: candidate,
         recurringValueUsed: currentN,
         recurringAttempts: attempts,
         hadRecurringToken: true,
+        tokens: trace,
       };
     }
     currentN++;
@@ -434,4 +504,13 @@ export async function resolveTagTemplate(
   throw new Error(
     `[Create Tag] Could not find available tag after ${MAX_RECURRING_ITERATIONS} attempts.`
   );
+}
+
+export async function resolveTagTemplate(
+  template: string,
+  ctx: TagTemplateContext
+): Promise<ResolvedTag> {
+  const traced = await resolveTagTemplateWithTrace(template, ctx, { abortOnScriptError: true });
+  const { tokens: _tokens, ...rest } = traced;
+  return rest;
 }
