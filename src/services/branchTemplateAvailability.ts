@@ -43,3 +43,24 @@ export async function canShowCreateBranchFromTemplateCommand(
   }
   return connected;
 }
+
+/**
+ * Availability for "GSC: Preview branch/tag template...". Unlike
+ * canShowCreateBranchFromTemplateCommand, this does NOT require a live Jira
+ * connection test: the preview command is designed to degrade gracefully when
+ * Jira isn't configured (it renders a "needs Jira setup" hint inline instead
+ * of refusing to run), so the command only needs at least one template to be
+ * configured to be worth showing.
+ */
+export function canShowPreviewTemplateCommand(
+  config: ExtensionConfig,
+  logService: LoggingService
+): boolean {
+  const hasBranchTemplate = (config.branchTemplate ?? '').trim() !== '';
+  const hasTagTemplate = (config.tagTemplate ?? '').trim() !== '';
+  const visible = hasBranchTemplate || hasTagTemplate;
+  logService.debug(
+    `[Preview Template] Command visibility: ${visible} (branchTemplate=${hasBranchTemplate}, tagTemplate=${hasTagTemplate})`
+  );
+  return visible;
+}

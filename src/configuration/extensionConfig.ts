@@ -42,6 +42,7 @@ export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
   recentBranchCount: number;
+  showWhatsNew: 'minor' | 'always' | 'never';
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;

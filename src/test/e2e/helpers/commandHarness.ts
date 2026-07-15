@@ -220,6 +220,25 @@ export function stubShowQuickPick(
   };
 }
 
+/** Like {@link stubShowQuickPick}, but for `canPickMany` pickers that resolve an array. */
+export function stubShowQuickPickMany(
+  pick: (
+    items: readonly (vscode.QuickPickItem | string)[],
+    options: vscode.QuickPickOptions | undefined
+  ) => vscode.QuickPickItem[] | undefined
+): () => void {
+  const original = vscode.window.showQuickPick.bind(vscode.window);
+
+  (vscode.window as any).showQuickPick = async (
+    items: readonly (vscode.QuickPickItem | string)[],
+    options?: vscode.QuickPickOptions
+  ) => pick(items, options);
+
+  return () => {
+    (vscode.window as any).showQuickPick = original;
+  };
+}
+
 export function stubInputBox(
   ...answers: Array<string | ((options: vscode.InputBoxOptions) => string | undefined)>
 ): () => void {

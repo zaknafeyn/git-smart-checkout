@@ -5,6 +5,7 @@ import {
   formatJiraTitle,
   parseJiraTitleTokenArgs,
   resolveBranchTemplate,
+  resolveBranchTemplateWithTrace,
   ScriptTokenError,
   BranchTemplateContext,
 } from '../../services/branchTemplateService';
@@ -307,6 +308,100 @@ describe('branchTemplateService', () => {
       }));
       assert.strictEqual(result.branch, 'b-');
       assert.ok(logger.warnings.some((w) => w.includes('Unsafe file path')));
+    });
+  });
+
+  describe('resolveBranchTemplateWithTrace', () => {
+    // Mirrors the tagTemplateService coverage: the preview command must
+    // exercise the exact same resolution logic as resolveBranchTemplate
+    // (single source of truth), so resolveBranchTemplate is expected to be a
+    // thin wrapper that discards the .tokens trace.
+
+    it('produces the same .branch as resolveBranchTemplate for a full Jira + file + recurring template', async () => {
+      const makeFixtureCtx = () =>
+        makeBranchCtx({
+          jiraKey: 'FEAT-1',
+          getCurrentBranch: async () => 'feature/FEAT-99-extra',
+          readFile: async () => JSON.stringify({ version: '1.0' }),
+          realpath: async (p) => p,
+          branchExists: async (name) => name === 'FEAT-1-1.0-FEAT-99',
+        });
+      const template = '{jira-key}-{f:package.json:.version}-{b:\\b[A-Z]+-\\d+\\b}{r:1:-}';
+
+      const viaResolve = await resolveBranchTemplate(template, makeFixtureCtx());
+      const viaTrace = await resolveBranchTemplateWithTrace(template, makeFixtureCtx());
+
+      assert.strictEqual(viaTrace.branch, viaResolve.branch);
+      assert.strictEqual(viaTrace.branch, 'FEAT-1-1.0-feat-99-1');
+    });
+
+    it('includes a trace entry for the {jira-key} token when resolved', async () => {
+      const result = await resolveBranchTemplateWithTrace(
+        '{jira-key}/copy',
+        makeBranchCtx({ jiraKey: 'proj-9' })
+      );
+      const jiraTrace = result.tokens.find((t) => t.raw === '{jira-key}');
+      assert.strictEqual(jiraTrace?.value, 'PROJ-9');
+      assert.strictEqual(jiraTrace?.error, undefined);
+    });
+
+    it('Jira token without Jira configured: needs-setup marker, no thrown error', async () => {
+      const logger = makeLogger();
+      const result = await resolveBranchTemplateWithTrace('pre-{jira-key}-post', makeBranchCtx({
+        logger,
+        jiraConfigured: false,
+      }));
+      assert.strictEqual(result.branch, 'pre--post');
+      const jiraTrace = result.tokens.find((t) => t.raw === '{jira-key}');
+      assert.strictEqual(jiraTrace?.value, '');
+      assert.ok(jiraTrace?.error?.includes('needs Jira setup'));
+    });
+
+    it('Jira title token without Jira configured also gets the needs-setup marker', async () => {
+      const result = await resolveBranchTemplateWithTrace('{jira-key}-{jira-title}', makeBranchCtx({
+        jiraKey: 'X-1',
+        jiraConfigured: false,
+      }));
+      const titleTrace = result.tokens.find((t) => t.raw === '{jira-title}');
+      assert.ok(titleTrace?.error?.includes('needs Jira setup'));
+    });
+
+    it('when Jira IS configured but no issue was picked, uses the legacy "no issue selected" message (not needs-setup)', async () => {
+      const result = await resolveBranchTemplateWithTrace('pre-{jira-key}-post', makeBranchCtx());
+      const jiraTrace = result.tokens.find((t) => t.raw === '{jira-key}');
+      assert.ok(jiraTrace?.error?.includes('no Jira issue selected'));
+    });
+
+    it('per-token independence: a failing script token does not prevent the {r} token from resolving', async () => {
+      const result = await resolveBranchTemplateWithTrace(
+        'b-{s:stdout:./fail.sh}-{r:1}',
+        makeBranchCtx({
+          realpath: async (p) => p,
+          runScript: async () => ({ stdout: '', stderr: 'boom', exitCode: 2 }),
+          branchExists: async () => false,
+        }),
+        { abortOnScriptError: false }
+      );
+      const scriptTrace = result.tokens.find((t) => t.raw === '{s:stdout:./fail.sh}');
+      assert.ok(scriptTrace?.error);
+      assert.strictEqual(result.hadRecurringToken, true);
+    });
+
+    it('multi-root: resolves {f:...} against ctx.workspaceRoot for the selected repo, not a different root', async () => {
+      const readCalls: string[] = [];
+      const result = await resolveBranchTemplateWithTrace(
+        'release-{f:package.json:.version}',
+        makeBranchCtx({
+          workspaceRoot: '/repos/repo-b',
+          readFile: async (p) => {
+            readCalls.push(p);
+            return JSON.stringify({ version: '5.5.5' });
+          },
+          realpath: async (p) => p,
+        })
+      );
+      assert.strictEqual(result.branch, 'release-5.5.5');
+      assert.ok(readCalls[0].startsWith('/repos/repo-b'));
     });
   });
 });
