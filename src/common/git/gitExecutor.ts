@@ -913,6 +913,16 @@ export class GitExecutor {
     await this.#execGitCommand(['worktree', 'prune']);
   }
 
+  /**
+   * Relocates an existing worktree's directory (`git worktree move`). Used to move a PR-clone
+   * temp worktree out of `os.tmpdir()` into the configured worktree base directory once the
+   * user opts to keep it. Throws on failure (e.g. cross-device rename / `EXDEV`) so callers can
+   * fall back to leaving the worktree where it is.
+   */
+  async worktreeMove(fromPath: string, toPath: string): Promise<void> {
+    await this.#execGitCommand(['worktree', 'move', fromPath, toPath]);
+  }
+
   async worktreeAdd(workTreePath: string, targetBranch: string) {
     const { stdout } = await this.#execGitCommand(['worktree', 'add', workTreePath, targetBranch, '--force']);
     return stdout;

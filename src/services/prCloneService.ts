@@ -102,13 +102,15 @@ export class PrCloneService {
     this._tempWorktreeService = new PrCloneTempWorktreeService(
       git,
       ghClient,
-      this.loggingService
+      this.loggingService,
+      this.configurationManager
     );
     this._inPlaceService = new PrCloneInPlaceService(
       git,
       ghClient,
       this.loggingService,
-      this.context.workspaceState
+      this.context.workspaceState,
+      this.configurationManager
     );
 
     for (const cleanUpActions of this.cleanUpActions) {

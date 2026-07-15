@@ -2,6 +2,7 @@ import { commands, env, Memento, Progress, Uri, window } from 'vscode';
 
 import { GitExecutor } from '../common/git/gitExecutor';
 import { GitHubClient } from '../common/api/ghClient';
+import { ConfigurationManager } from '../configuration/configurationManager';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
 import { getStashMessage } from '../commands/utils/getStashMessage';
@@ -58,7 +59,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     git: GitExecutor,
     ghClient: GitHubClient,
     loggingService: LoggingService,
-    private workspaceState?: Memento
+    private workspaceState?: Memento,
+    private configurationManager?: ConfigurationManager
   ) {
     super(git, ghClient, loggingService);
   }
@@ -204,27 +206,45 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         }
       }
 
-      let restoredOriginalBranch = false;
-      try {
-        await this.git.checkout(this.serviceStore.originalBranch);
-        restoredOriginalBranch = true;
-      } catch (error) {
-        this.loggingService.warn(
-          `Failed to restore original branch '${this.serviceStore.originalBranch}': ${error}`
-        );
-      }
+      // On a successful clone (never on abort/failure — recovery must always restore the
+      // original state regardless of the setting), consult checkoutAfterClone to decide
+      // whether to stay on the newly created branch instead of restoring the original one.
+      const stayOnClonedBranch =
+        !isAborting && this.serviceStore.createdBranchName
+          ? await this.resolveCheckoutAfterClone()
+          : false;
 
-      if (restoredOriginalBranch && this.serviceStore.stashMessage) {
+      let restoredOriginalBranch = false;
+      if (!stayOnClonedBranch) {
         try {
-          await this.git.popStash(this.serviceStore.stashMessage);
+          await this.git.checkout(this.serviceStore.originalBranch);
+          restoredOriginalBranch = true;
         } catch (error) {
           this.loggingService.warn(
-            `Failed to restore stashed changes '${this.serviceStore.stashMessage}': ${error}`
+            `Failed to restore original branch '${this.serviceStore.originalBranch}': ${error}`
           );
+        }
+
+        if (restoredOriginalBranch && this.serviceStore.stashMessage) {
+          try {
+            await this.git.popStash(this.serviceStore.stashMessage);
+          } catch (error) {
+            this.loggingService.warn(
+              `Failed to restore stashed changes '${this.serviceStore.stashMessage}': ${error}`
+            );
+          }
         }
       }
 
       if (!isAborting) {
+        if (stayOnClonedBranch && this.serviceStore.stashMessage) {
+          // The user's WIP stays in its auto-stash on the original branch — make sure they
+          // know it wasn't lost and how to get it back.
+          await window.showInformationMessage(
+            `Staying on '${this.serviceStore.createdBranchName}'. Your changes remain stashed; restore via GSC: Manage auto-stashes.`
+          );
+        }
+
         await this.hideActivityBar();
         return;
       }
@@ -361,6 +381,35 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     await window.showErrorMessage(
       `Failed to clone PR: ${error instanceof Error ? error.message : error}`
     );
+  }
+
+  /**
+   * Decides whether to stay on the newly created branch instead of restoring the original
+   * branch (+ popping its auto-stash), per the `prClone.checkoutAfterClone` setting.
+   * Only called on the success path — abort/failure recovery always restores regardless.
+   */
+  private async resolveCheckoutAfterClone(): Promise<boolean> {
+    const checkoutAfterClone = this.configurationManager?.get().prClone.checkoutAfterClone ?? 'ask';
+
+    if (checkoutAfterClone === 'never') {
+      return false;
+    }
+
+    if (checkoutAfterClone === 'always') {
+      return true;
+    }
+
+    const switchAction = 'Switch to it';
+    const stayAction = 'Stay here';
+    const choice = await window.showInformationMessage(
+      `PR cloned to branch '${this.serviceStore.createdBranchName}'. Switch to it, or stay on '${this.serviceStore.originalBranch}'?`,
+      switchAction,
+      stayAction
+    );
+
+    // Dismissing the prompt (choice === undefined) behaves like "Stay here" — i.e. the
+    // pre-existing default behavior of restoring the original branch.
+    return choice === switchAction;
   }
 
   private async recoverFromFailure(error: unknown): Promise<void> {
