@@ -56,10 +56,10 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     git: GitExecutor,
     ghClient: GitHubClient,
     loggingService: LoggingService,
-    private readonly configurationManager?: ConfigurationManager,
+    configurationManager?: ConfigurationManager,
     private readonly worktreeSetupService?: WorktreeSetupService
   ) {
-    super(git, ghClient, loggingService);
+    super(git, ghClient, loggingService, configurationManager);
   }
 
   async clonePR(data: PrCloneData): Promise<void> {
@@ -93,7 +93,7 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
             // Step 2: Fetch the target branch and the PR's commits (works for forks too)
             progress.report({ message: `Fetching PR #${data.prData.number} commits...` });
-            await this.fetchAllBranches(data.targetBranch, data.prData.number);
+            await this.fetchAllBranches(data.targetBranch, data.prData.number, data.prData.base?.repo?.full_name);
 
             throwIfCancellationRequested(token);
 
@@ -115,7 +115,12 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
             // Step 5: Push branch to GitHub
             progress.report({ message: 'Pushing branch to GitHub...' });
-            await this.tempGit?.pushBranchToGitHub(finalBranchName);
+            const pushRemote = await this.resolvePrCloneRemote({
+              branch: finalBranchName,
+              purpose: 'push',
+              githubRepo: data.prData.head?.repo?.full_name ?? data.prData.base?.repo?.full_name,
+            });
+            await this.tempGit?.pushBranchToGitHub(finalBranchName, pushRemote);
 
             throwIfCancellationRequested(token);
 
@@ -333,19 +338,21 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     }
   }
 
-  private async fetchAllBranches(targetBranch: string, prNumber: number): Promise<void> {
+  private async fetchAllBranches(targetBranch: string, prNumber: number, githubRepo?: string): Promise<void> {
     if (!this.tempGit) {
       throw new Error('Temporary git workspace not initialized');
     }
+
+    const remoteName = await this.resolvePrCloneRemote({ branch: targetBranch, purpose: 'fetch', githubRepo });
 
     // Fetch only the target branch here — force-fetching all tags as a side
     // effect of cloning a PR can silently overwrite local tags that diverged
     // from the remote. The PR head fetch below is sufficient to get the
     // commits we need (works for forks too).
-    await this.tempGit.fetchSpecificBranch(targetBranch);
+    await this.tempGit.fetchSpecificBranch(targetBranch, remoteName);
 
     try {
-      await this.tempGit.fetchPullRequestHead(prNumber);
+      await this.tempGit.fetchPullRequestHead(prNumber, remoteName);
     } catch (fetchError) {
       throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);
     }

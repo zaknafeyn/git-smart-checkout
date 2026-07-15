@@ -480,6 +480,11 @@
           "default": "",
           "description": "Base URL for GitHub Enterprise, for example https://ghe.example.com."
         },
+        "git-smart-checkout.defaultRemote": {
+          "type": "string",
+          "default": "",
+          "description": "Preferred Git remote for fetch and push operations. Leave empty to select automatically."
+        },
         "git-smart-checkout.showWhatsNew": {
           "type": "string",
           "enum": ["minor", "always", "never"],

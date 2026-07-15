@@ -43,6 +43,7 @@ export interface ExtensionConfig {
   useFastBranchList: boolean;
   recentBranchCount: number;
   githubEnterpriseBaseUrl: string;
+  defaultRemote: string;
   showWhatsNew: 'minor' | 'always' | 'never';
   showStatusBar: boolean;
   defaultTargetBranch: string;

@@ -17,6 +17,7 @@ function baseConfig(overrides: {
     useFastBranchList: true,
     recentBranchCount: 5,
     githubEnterpriseBaseUrl: '',
+    defaultRemote: '',
     prClone: { checkoutAfterClone: 'ask' },
     showWhatsNew: 'minor',
     showStatusBar: true,

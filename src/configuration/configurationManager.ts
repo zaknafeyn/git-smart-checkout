@@ -97,6 +97,7 @@ export class ConfigurationManager {
       useFastBranchList: vscodeConfig.get('useFastBranchList', true),
       recentBranchCount: vscodeConfig.get('recentBranchCount', 5),
       githubEnterpriseBaseUrl: vscodeConfig.get('githubEnterpriseBaseUrl', ''),
+      defaultRemote: vscodeConfig.get('defaultRemote', ''),
       showWhatsNew: vscodeConfig.get('showWhatsNew', 'minor'),
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),

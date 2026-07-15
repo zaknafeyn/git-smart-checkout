@@ -41,7 +41,7 @@ function makeConfigManagerStub(): ConfigurationManager {
 describe('AutoStashService checkout-success tracking (what\'s-new feedback counter)', () => {
   it('invokes the callback for a completed stash-carrying checkout (AUTO_STASH_CURRENT_BRANCH)', async () => {
     let callCount = 0;
-    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => callCount++);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => { callCount++; });
 
     const outcome = await service.checkoutAndStashChanges(
       makeGitStub(),
@@ -56,7 +56,7 @@ describe('AutoStashService checkout-success tracking (what\'s-new feedback count
 
   it('invokes the callback for a completed stash-carrying checkout (AUTO_STASH_AND_POP_IN_NEW_BRANCH)', async () => {
     let callCount = 0;
-    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => callCount++);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => { callCount++; });
 
     const outcome = await service.checkoutAndStashChanges(
       makeGitStub(),
@@ -71,7 +71,7 @@ describe('AutoStashService checkout-success tracking (what\'s-new feedback count
 
   it('does not invoke the callback when the checkout is cancelled (conflict warning rejected)', async () => {
     let callCount = 0;
-    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => callCount++);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => { callCount++; });
 
     const originalShowWarningMessage = vscode.window.showWarningMessage.bind(vscode.window);
     (vscode.window as any).showWarningMessage = async () => undefined;
@@ -93,7 +93,7 @@ describe('AutoStashService checkout-success tracking (what\'s-new feedback count
 
   it('does not invoke the callback when there were no changes to stash', async () => {
     let callCount = 0;
-    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => callCount++);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => { callCount++; });
 
     const outcome = await service.checkoutAndStashChanges(
       makeGitStub({ isWorkdirHasChanges: async () => false }),
@@ -108,7 +108,7 @@ describe('AutoStashService checkout-success tracking (what\'s-new feedback count
 
   it('does not invoke the callback for AUTO_STASH_IGNORE (no stash is ever carried)', async () => {
     let callCount = 0;
-    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => callCount++);
+    const service = new AutoStashService(makeConfigManagerStub(), mockLogService, () => { callCount++; });
 
     const outcome = await service.checkoutAndStashChanges(
       makeGitStub(),
