@@ -181,6 +181,11 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.reviewPrByNumber",
+        "title": "Review PR by Number...",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.removePRReviewInWorktree",
         "title": "Remove PR Review in Worktree...",
         "category": "GSC"
@@ -399,6 +404,9 @@
           "command": "git-smart-checkout.prReviewInWorktree"
         },
         {
+          "command": "git-smart-checkout.reviewPrByNumber"
+        },
+        {
           "command": "git-smart-checkout.removePRReviewInWorktree"
         },
         {
@@ -487,6 +495,12 @@
           "type": "string",
           "default": "",
           "description": "Base directory where 'Move to new worktree' and 'PR Review in Worktree' create worktrees. Supports ~ expansion. Leave empty to use the repository's parent directory."
+        },
+        "git-smart-checkout.prClone.checkoutAfterClone": {
+          "type": "string",
+          "enum": ["ask", "always", "never"],
+          "default": "ask",
+          "description": "Choose whether to stay on or switch to the branch created by PR Clone."
         },
         "git-smart-checkout.worktreeSetup.copyFiles": {
           "type": "array",

@@ -422,6 +422,15 @@ export class GitExecutor {
     await this.#execGitCommand(['reset', ...(hard ? ['--hard'] : [])]);
   }
 
+  async resetHardTo(ref: string): Promise<void> {
+    await this.#execGitCommand(['reset', '--hard', ref]);
+  }
+
+  async revParse(ref: string): Promise<string> {
+    const { stdout } = await this.#execGitCommand(['rev-parse', ref]);
+    return stdout.trim();
+  }
+
   async discardAllWorktreeChanges() {
     await this.#execGitCommand(['reset', '--hard']);
     await this.#execGitCommand(['clean', '-fd']);
@@ -952,6 +961,16 @@ export class GitExecutor {
     await this.#execGitCommand(['worktree', 'prune']);
   }
 
+  /**
+   * Relocates an existing worktree's directory (`git worktree move`). Used to move a PR-clone
+   * temp worktree out of `os.tmpdir()` into the configured worktree base directory once the
+   * user opts to keep it. Throws on failure (e.g. cross-device rename / `EXDEV`) so callers can
+   * fall back to leaving the worktree where it is.
+   */
+  async worktreeMove(fromPath: string, toPath: string): Promise<void> {
+    await this.#execGitCommand(['worktree', 'move', fromPath, toPath]);
+  }
+
   async worktreeAdd(workTreePath: string, targetBranch: string) {
     const { stdout } = await this.#execGitCommand(['worktree', 'add', workTreePath, targetBranch, '--force']);
     return stdout;
@@ -965,6 +984,19 @@ export class GitExecutor {
   async worktreeAddRemoteBranch(workTreePath: string, localBranch: string, remoteRef: string) {
     const { stdout } = await this.#execGitCommand([
       'worktree', 'add', '--track', '-b', localBranch, workTreePath, remoteRef,
+    ]);
+    return stdout;
+  }
+
+  /**
+   * Creates a worktree on a NEW branch pointing at an arbitrary ref (e.g. a
+   * commit SHA or `FETCH_HEAD`). With `forceBranchReset` the branch is reset to
+   * the ref if it already exists (`-B` semantics) — callers must confirm with
+   * the user before opting in.
+   */
+  async worktreeAddAtRef(workTreePath: string, branch: string, ref: string, forceBranchReset = false) {
+    const { stdout } = await this.#execGitCommand([
+      'worktree', 'add', forceBranchReset ? '-B' : '-b', branch, workTreePath, ref,
     ]);
     return stdout;
   }

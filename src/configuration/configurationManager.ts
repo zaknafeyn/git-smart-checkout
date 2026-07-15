@@ -101,6 +101,7 @@ export class ConfigurationManager {
       showStatusBar: vscodeConfig.get('showStatusBar', true),
       defaultTargetBranch: vscodeConfig.get('defaultTargetBranch', 'main'),
       defaultWorktreeDirectory: vscodeConfig.get('defaultWorktreeDirectory', ''),
+      prClone: { checkoutAfterClone: vscodeConfig.get('prClone.checkoutAfterClone', 'ask') },
       worktreeSetup: {
         copyFiles: vscodeConfig.get('worktreeSetup.copyFiles', [] as string[]),
         command: vscodeConfig.get('worktreeSetup.command', ''),

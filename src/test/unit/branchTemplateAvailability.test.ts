@@ -17,6 +17,7 @@ function baseConfig(overrides: {
     useFastBranchList: true,
     recentBranchCount: 5,
     defaultRemote: '',
+    prClone: { checkoutAfterClone: 'ask' },
     showWhatsNew: 'minor',
     showStatusBar: true,
     defaultTargetBranch: 'main',

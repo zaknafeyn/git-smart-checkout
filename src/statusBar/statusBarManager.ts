@@ -100,6 +100,11 @@ export function buildQuickActionItems(
     { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
     { label: '$(eye) PR review in worktree…', commandId: command('prReviewInWorktree') },
     {
+      label: '$(git-pull-request) Review PR by number…',
+      commandId: command('reviewPrByNumber'),
+      visible: state.isGitHubRepo,
+    },
+    {
       label: '$(terminal) Open worktree dev terminal…',
       commandId: command('openWorktreeDevTerminal'),
     },
