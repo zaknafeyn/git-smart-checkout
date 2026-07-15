@@ -5,12 +5,16 @@ import { CancellationToken, env, ProgressLocation, Uri, window } from 'vscode';
 
 import { GitExecutor } from '../common/git/gitExecutor';
 import { GitHubClient } from '../common/api/ghClient';
+import { ConfigurationManager } from '../configuration/configurationManager';
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
 import { GitHubPR } from '../types/dataTypes';
 import { PrCloneData } from './prCloneService';
 import { setContextShowPRClone, setContextShowPRCommits } from '../utils/setContext';
 import { PrCloneServiceBase } from './prCloneServiceBase';
+import { getBaseWorktreeDirectory } from '../commands/utils/worktreePath';
+import { showWorktreeCompletionActions } from '../commands/utils/worktreeCompletionActions';
+import { WorktreeSetupService } from './worktreeSetupService';
 
 const TEMP_WORKDIR_PREFIX = `${EXTENSION_NAME}-pr-clone`;
 
@@ -48,13 +52,21 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
   private tempWorkspacePath?: string;
   private tempGit?: GitExecutor;
 
-  constructor(git: GitExecutor, ghClient: GitHubClient, loggingService: LoggingService) {
+  constructor(
+    git: GitExecutor,
+    ghClient: GitHubClient,
+    loggingService: LoggingService,
+    private readonly configurationManager?: ConfigurationManager,
+    private readonly worktreeSetupService?: WorktreeSetupService
+  ) {
     super(git, ghClient, loggingService);
   }
 
   async clonePR(data: PrCloneData): Promise<void> {
     let tempPath: string | undefined;
     let createdBranchName: string | undefined;
+    /** Set when the worktree should survive the clone (per checkoutAfterClone), to its final path. */
+    let keptWorktreePath: string | undefined;
     this.loggingService.debug('Start cloning PR using temp worktree...');
 
     try {
@@ -69,6 +81,13 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
             // Step 1: Create temporary worktree
             progress.report({ message: 'Creating temporary worktree...' });
             tempPath = await this.createTempWorktree(data.targetBranch);
+
+            throwIfCancellationRequested(token);
+
+            // Optional: apply worktree setup (local file copy / setup command) to
+            // the temp worktree too, but only when explicitly opted in — this is a
+            // short-lived worktree, so setup runs best-effort and never blocks cloning.
+            await this.maybeRunWorktreeSetup(tempPath);
 
             throwIfCancellationRequested(token);
 
@@ -124,6 +143,23 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
 
             // Step 8: Hide activity bar
             await this.hideActivityBar();
+
+            // Step 9: Per checkoutAfterClone, decide whether to keep the worktree checked out
+            // (moving it out of os.tmpdir() into the configured worktree base directory) or
+            // tear it down as before. Never runs on the failure/cancellation path below, so a
+            // conflict/abort always tears the worktree down regardless of the setting.
+            keptWorktreePath = await this.resolveWorktreeKeepDecision(
+              tempPath!,
+              finalBranchName,
+              newPr.number
+            );
+
+            if (keptWorktreePath) {
+              // The worktree is no longer a disposable scratch resource owned by this service
+              // instance — clear these so a later dispose()/repository switch doesn't delete it.
+              this.tempWorkspacePath = undefined;
+              this.tempGit = undefined;
+            }
           } catch (error) {
             progress.report({ message: 'Error occurred during PR cloning, reverting changes ...' });
             throw error;
@@ -157,9 +193,15 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
         );
       }
     } finally {
-      // Step 9: Cleanup temp worktree
-      if (tempPath) {
+      // Step 10: Cleanup temp worktree, unless the user opted to keep it (see
+      // resolveWorktreeKeepDecision) — in that case the worktree has already been left in
+      // place (or moved to the configured base directory) and must not be torn down.
+      if (tempPath && !keptWorktreePath) {
         await this.cleanupTempWorktree(tempPath);
+        this.cleanUp();
+      } else if (tempPath) {
+        // Still run registered cleanup actions (e.g. hiding the activity bar state) without
+        // touching the kept worktree directory itself.
         this.cleanUp();
       }
     }
@@ -178,6 +220,22 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     }
   }
 
+  private async maybeRunWorktreeSetup(tempPath: string): Promise<void> {
+    if (!this.configurationManager || !this.worktreeSetupService) {
+      return;
+    }
+
+    if (!this.configurationManager.get().worktreeSetup.applyToPrCloneWorktrees) {
+      return;
+    }
+
+    try {
+      await this.worktreeSetupService.runSetup(this.git.repositoryPath, tempPath);
+    } catch (error) {
+      this.loggingService.warn(`Worktree setup failed for PR clone temp worktree: ${error}`);
+    }
+  }
+
   private async createTempWorktree(targetBranch: string): Promise<string> {
     const tempDir = os.tmpdir();
     const workspaceName = `${TEMP_WORKDIR_PREFIX}-${Date.now()}`;
@@ -191,6 +249,88 @@ export class PrCloneTempWorktreeService extends PrCloneServiceBase {
     this.tempGit = new GitExecutor(tempPath, this.loggingService);
 
     return tempPath;
+  }
+
+  /**
+   * Decides whether to keep the temp worktree checked out (moving it out of `os.tmpdir()` into
+   * the configured worktree base directory) instead of tearing it down, per the
+   * `prClone.checkoutAfterClone` setting. Returns the worktree's final path when kept, or
+   * `undefined` when it should be torn down as before. Only ever called on the success path —
+   * a cancellation/failure always tears the worktree down regardless of the setting.
+   */
+  private async resolveWorktreeKeepDecision(
+    tempPath: string,
+    branchName: string,
+    prNumber: number
+  ): Promise<string | undefined> {
+    const checkoutAfterClone = this.configurationManager?.get().prClone.checkoutAfterClone ?? 'ask';
+
+    let keep = checkoutAfterClone === 'always';
+
+    if (checkoutAfterClone === 'ask') {
+      const openAction = 'Open worktree';
+      const stayAction = 'Stay here';
+      const choice = await window.showInformationMessage(
+        `PR #${prNumber} cloned to branch '${branchName}' in a worktree.`,
+        openAction,
+        stayAction
+      );
+
+      // Dismissing the prompt (choice === undefined) behaves like "Stay here" — i.e. the
+      // pre-existing default behavior of tearing the worktree down.
+      keep = choice === openAction;
+    }
+
+    if (!keep) {
+      return undefined;
+    }
+
+    const finalPath = await this.moveWorktreeToBaseDirectory(tempPath);
+
+    await showWorktreeCompletionActions(
+      finalPath,
+      `Worktree for '${branchName}' kept at ${finalPath}.`
+    );
+
+    return finalPath;
+  }
+
+  /**
+   * Moves the worktree from its temp location into the configured worktree base directory
+   * (`getBaseWorktreeDirectory`). On failure (e.g. a cross-device/`EXDEV` rename because tmpdir
+   * and the base directory live on different filesystems) falls back to leaving the worktree at
+   * its current (temp) path rather than escalating the error.
+   */
+  private async moveWorktreeToBaseDirectory(tempPath: string): Promise<string> {
+    const configuredDirectory = this.configurationManager?.get().defaultWorktreeDirectory ?? '';
+    const baseDirectory = getBaseWorktreeDirectory(this.git.repositoryPath, configuredDirectory);
+
+    if (path.dirname(tempPath) === baseDirectory) {
+      // Already in the configured base directory — nothing to move.
+      return tempPath;
+    }
+
+    try {
+      fs.mkdirSync(baseDirectory, { recursive: true });
+    } catch (error) {
+      this.loggingService.warn(
+        `Failed to ensure worktree base directory '${baseDirectory}' exists (keeping worktree at ${tempPath}): ${error}`
+      );
+      return tempPath;
+    }
+
+    const destinationPath = path.join(baseDirectory, path.basename(tempPath));
+
+    try {
+      await this.git.worktreeMove(tempPath, destinationPath);
+      this.loggingService.info(`Moved worktree from ${tempPath} to ${destinationPath}`);
+      return destinationPath;
+    } catch (error) {
+      this.loggingService.warn(
+        `Failed to move worktree to configured directory (keeping it at ${tempPath}): ${error}`
+      );
+      return tempPath;
+    }
   }
 
   private async fetchAllBranches(targetBranch: string, prNumber: number): Promise<void> {

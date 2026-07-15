@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AUTO_STASH_IGNORE } from './constants';
+import { BranchItemAction, buildRefActionButtons } from './branchActionButtons';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { getFullRefname } from '../../common/git/refName';
 import { IGitRef } from '../../common/git/types';
@@ -12,6 +13,7 @@ import { RefDetailsCache } from '../../services/refDetailsCache';
 import { getRepoId } from '../../utils/getRepoId';
 import { UserCancelledError } from '../../utils/userCancelledError';
 import { BaseCommand } from '../command';
+import { validateBranchName } from '../createBranchFromTemplateCommand/validateBranchName';
 import { attachLazyEnrichment } from '../utils/enrichOnActive';
 import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
@@ -162,23 +164,7 @@ export class CheckoutToCommand extends BaseCommand {
         .filter(Boolean)
         .join(' ');
 
-      const buttons: (vscode.QuickInputButton & { action?: string })[] = [{
-        iconPath: new vscode.ThemeIcon(
-          this.configManager.isPreferred(repoId, ref) ? 'star-full' : 'star'
-        ),
-        tooltip: this.configManager.isPreferred(repoId, ref) ? 'Unstar' : 'Star',
-        action: 'star',
-      }];
-      const canPush = !ref.isTag && !ref.remote && (!ref.upstreamTrack || Boolean(ref.parsedUpstreamTrack?.[0]));
-      if (ref.isTag) {
-        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete tag', action: 'delete' });
-      } else if (ref.remote) {
-        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete remote branch', action: 'delete' });
-      } else if (ref.name !== currentBranch) {
-        buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete branch', action: 'delete' });
-        buttons.push({ iconPath: new vscode.ThemeIcon('edit'), tooltip: 'Rename branch', action: 'rename' });
-        if (canPush) buttons.push({ iconPath: new vscode.ThemeIcon('cloud-upload'), tooltip: 'Publish branch', action: 'push' });
-      }
+      const buttons = buildRefActionButtons(ref, isPreferred);
       return {
         label,
         description: getRefDescription(ref),
@@ -192,9 +178,13 @@ export class CheckoutToCommand extends BaseCommand {
     const buildItems = () => {
       const [locals, remotes] = getMergedBranchLists(branchList, currentBranch);
       const recentNames = recentBranchNames ?? [];
+      // getRecentBranches over-fetches (limit * 2) so the list survives the
+      // existence filter below; re-cap to the configured count here so the
+      // Recent section never shows more than the user asked for.
       const recentRefs = recentNames
         .map((name) => locals.find((ref) => ref.name === name))
-        .filter((ref): ref is IGitRef => Boolean(ref));
+        .filter((ref): ref is IGitRef => Boolean(ref))
+        .slice(0, recentBranchCount);
       const recentSet = new Set(recentRefs.map((ref) => ref.name));
       const tags = branchList.filter((t) => t.isTag);
       // Preferred refs float to the top of each section, ordered by when they were starred.
@@ -238,39 +228,22 @@ export class CheckoutToCommand extends BaseCommand {
     }
 
     qp.onDidTriggerItemButton(async (e) => {
-      const ref = (e.item as any).ref as IGitRef | undefined;
+      const ref = (e.item as { ref?: IGitRef }).ref;
       if (!ref) {
         return;
       }
-      const action = (e.button as any).action ?? 'star';
+      const action = ((e.button as { action?: BranchItemAction }).action ?? 'star') as BranchItemAction;
       qp.busy = true;
       try {
-        if (action === 'star') {
-          await this.configManager.togglePreferred(repoId, ref, branchList);
-        } else if (action === 'rename') {
-          const name = await vscode.window.showInputBox({ value: ref.name, prompt: 'New branch name' });
-          if (!name) return;
-          if (!/^[A-Za-z0-9._/-]+$/.test(name) || name.includes('..')) {
-            await vscode.window.showErrorMessage('Invalid branch name.', 'OK');
-            return;
-          }
-          await git.renameBranch(ref.name, name);
-        } else if (action === 'push') {
-          await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Publishing ${ref.name}` }, () => git.pushSetUpstream(ref.name));
-        } else if (ref.isTag) {
-          const confirmed = await vscode.window.showWarningMessage(`Delete tag ${ref.name}?`, { modal: true }, 'Delete');
-          if (confirmed === 'Delete') await git.deleteTag(ref.name);
-        } else if (ref.remote) {
-          const confirmed = await vscode.window.showWarningMessage(`Delete remote branch ${ref.remote}/${ref.name}?`, { modal: true }, 'Delete');
-          if (confirmed === 'Delete') await git.deleteRemoteBranch(ref.remote, ref.name);
-        } else {
-          const merged = await git.getMergedBranches(this.configManager.get().defaultTargetBranch);
-          const force = !merged.includes(ref.name);
-          if (force) {
-            const confirmed = await vscode.window.showWarningMessage(`Branch ${ref.name} is not merged into ${this.configManager.get().defaultTargetBranch}. Delete anyway?`, { modal: true }, 'Delete');
-            if (confirmed !== 'Delete') return;
-          }
-          await git.deleteBranch(ref.name, force);
+        const mutated = await this.handleItemButtonAction(git, repoId, currentBranch, branchList, ref, action);
+        if (mutated) {
+          const [refreshedList, refreshedCurrentBranch] = await Promise.all([
+            this.refreshBranchList(git),
+            git.getCurrentBranch(),
+          ]);
+          branchList = refreshedList;
+          currentBranch = refreshedCurrentBranch;
+          void this.refDetailsCache?.upsertFromRefs(git.repositoryPath, branchList);
         }
       } finally {
         qp.busy = false;
@@ -371,6 +344,189 @@ export class CheckoutToCommand extends BaseCommand {
       selectedRef: picked.ref,
       branchList,
     };
+  }
+
+  /**
+   * Re-fetches the full ref list from git. Called after a mutating inline
+   * action (delete/rename/push) so the picker reflects the new state instead
+   * of the stale list captured when it was first opened.
+   */
+  protected async refreshBranchList(git: GitExecutor): Promise<IGitRef[]> {
+    return await git.getAllRefListExtended();
+  }
+
+  /**
+   * Routes an inline QuickPick button click to the appropriate action.
+   * Returns true when the ref list changed and should be re-fetched.
+   */
+  protected async handleItemButtonAction(
+    git: GitExecutor,
+    repoId: string,
+    currentBranch: string,
+    branchList: IGitRef[],
+    ref: IGitRef,
+    action: BranchItemAction
+  ): Promise<boolean> {
+    if (action === 'star') {
+      await this.configManager.togglePreferred(repoId, ref, branchList);
+      return false;
+    }
+    if (action === 'rename') {
+      return await this.renameBranchAction(git, ref);
+    }
+    if (action === 'push') {
+      return await this.publishBranchAction(git, ref);
+    }
+    if (ref.isTag) {
+      return await this.deleteTagAction(git, ref);
+    }
+    if (ref.remote) {
+      return await this.deleteRemoteBranchAction(git, ref);
+    }
+    return await this.deleteLocalBranchAction(git, ref, currentBranch);
+  }
+
+  protected async renameBranchAction(git: GitExecutor, ref: IGitRef): Promise<boolean> {
+    const newName = await this.showInputBox({
+      value: ref.name,
+      prompt: 'New branch name',
+      validateInput: (value) => validateBranchName(value),
+    });
+    if (!newName || newName === ref.name) {
+      // Escape, or unchanged name — silent no-op.
+      return false;
+    }
+
+    try {
+      await git.renameBranch(ref.name, newName);
+      await this.showInformationMessage(`Renamed branch ${ref.name} to ${newName}.`);
+      return true;
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await this.showErrorMessage(`Failed to rename branch ${ref.name}: ${msg}`, 'OK');
+      return false;
+    }
+  }
+
+  protected async publishBranchAction(git: GitExecutor, ref: IGitRef): Promise<boolean> {
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Publishing ${ref.name}` },
+        () => git.pushSetUpstream(ref.name)
+      );
+      return true;
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await this.showErrorMessage(`Failed to publish branch ${ref.name}: ${msg}`, 'OK');
+      return false;
+    }
+  }
+
+  protected async deleteTagAction(git: GitExecutor, ref: IGitRef): Promise<boolean> {
+    const confirmed = await vscode.window.showWarningMessage(
+      `Delete tag ${ref.name}? This cannot be undone.`,
+      { modal: true },
+      'Delete'
+    );
+    if (confirmed !== 'Delete') {
+      // Escape/Cancel — silent no-op.
+      return false;
+    }
+
+    try {
+      await git.deleteTag(ref.name);
+      await this.showInformationMessage(`Deleted tag ${ref.name}.`);
+      return true;
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await this.showErrorMessage(`Failed to delete tag ${ref.name}: ${msg}`, 'OK');
+      return false;
+    }
+  }
+
+  protected async deleteRemoteBranchAction(git: GitExecutor, ref: IGitRef): Promise<boolean> {
+    const remote = ref.remote ?? 'origin';
+    const confirmed = await vscode.window.showWarningMessage(
+      `Delete branch ${ref.name} from remote "${remote}"? This removes it for everyone and cannot be undone.`,
+      { modal: true },
+      'Delete'
+    );
+    if (confirmed !== 'Delete') {
+      // Escape/Cancel — silent no-op.
+      return false;
+    }
+
+    try {
+      await git.deleteRemoteBranch(remote, ref.name);
+      await this.showInformationMessage(`Deleted remote branch ${remote}/${ref.name}.`);
+      return true;
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await this.showErrorMessage(`Failed to delete remote branch ${remote}/${ref.name}: ${msg}`, 'OK');
+      return false;
+    }
+  }
+
+  protected async deleteLocalBranchAction(
+    git: GitExecutor,
+    ref: IGitRef,
+    currentBranch: string
+  ): Promise<boolean> {
+    if (ref.name === currentBranch) {
+      await this.showErrorMessage(
+        `Cannot delete ${ref.name} — it is the currently checked out branch. Switch to another branch first.`,
+        'OK'
+      );
+      return false;
+    }
+
+    const conflictWorktree = await findWorktreeForBranch(git, ref.name);
+    if (conflictWorktree) {
+      // Surface the existing worktree-conflict flow instead of a raw git
+      // error from `git branch -d/-D` on a branch checked out elsewhere.
+      await handleWorktreeBranchConflict(ref.fullName ?? ref.name, conflictWorktree.path);
+      return false;
+    }
+
+    let force = false;
+    let defaultBranch: string | undefined;
+    try {
+      defaultBranch = await git.getDefaultBranch();
+      const merged = await git.getMergedBranches(defaultBranch);
+      force = !merged.includes(ref.name);
+    } catch (e) {
+      captureException(e);
+      // Could not determine merge status — err on the side of asking for confirmation.
+      force = true;
+    }
+
+    if (force) {
+      const targetLabel = defaultBranch ?? 'the default branch';
+      const confirmed = await vscode.window.showWarningMessage(
+        `Branch ${ref.name} is not merged into ${targetLabel}. Delete anyway?`,
+        { modal: true },
+        'Delete'
+      );
+      if (confirmed !== 'Delete') {
+        // Escape/Cancel — silent no-op.
+        return false;
+      }
+    }
+
+    try {
+      await git.deleteBranch(ref.name, force);
+      await this.showInformationMessage(`Deleted branch ${ref.name}.`);
+      return true;
+    } catch (e) {
+      captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      await this.showErrorMessage(`Failed to delete branch ${ref.name}: ${msg}`, 'OK');
+      return false;
+    }
   }
 
   async getTargetBranch(

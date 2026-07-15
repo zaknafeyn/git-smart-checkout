@@ -1,11 +1,15 @@
 import * as assert from 'assert';
 
 import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig, PULL_AFTER_CHECKOUT_FF_ONLY } from '../../configuration/extensionConfig';
-import { canShowCreateBranchFromTemplateCommand } from '../../services/branchTemplateAvailability';
+import {
+  canShowCreateBranchFromTemplateCommand,
+  canShowPreviewTemplateCommand,
+} from '../../services/branchTemplateAvailability';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
 function baseConfig(overrides: {
   branchTemplate?: string;
+  tagTemplate?: string;
   jira?: JiraConfig;
 } = {}): ExtensionConfig {
   return {
@@ -13,15 +17,18 @@ function baseConfig(overrides: {
     useFastBranchList: true,
     recentBranchCount: 5,
     githubEnterpriseBaseUrl: '',
+    prClone: { checkoutAfterClone: 'ask' },
+    showWhatsNew: 'minor',
     showStatusBar: true,
     defaultTargetBranch: 'main',
     defaultWorktreeDirectory: '',
+    worktreeSetup: { copyFiles: [], command: '', applyToPrCloneWorktrees: false },
     prBranchPrefix: '',
     useInPlaceCherryPick: true,
     pullAfterCheckout: PULL_AFTER_CHECKOUT_FF_ONLY,
     logging: { enabled: false },
     telemetry: { enabled: false },
-    tagTemplate: '',
+    tagTemplate: overrides.tagTemplate ?? '',
     pushTagWithoutConfirmation: false,
     tagRemote: 'origin',
     branchTemplate: overrides.branchTemplate ?? '',
@@ -68,5 +75,54 @@ describe('branchTemplateAvailability', () => {
       mockLogService
     );
     assert.strictEqual(visible, false);
+  });
+});
+
+describe('canShowPreviewTemplateCommand', () => {
+  it('hides command when neither template is configured', () => {
+    assert.strictEqual(canShowPreviewTemplateCommand(baseConfig(), mockLogService), false);
+  });
+
+  it('hides command when both templates are whitespace only', () => {
+    const visible = canShowPreviewTemplateCommand(
+      baseConfig({ branchTemplate: '   ', tagTemplate: '  ' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, false);
+  });
+
+  it('shows command when only a branch template is configured', () => {
+    const visible = canShowPreviewTemplateCommand(
+      baseConfig({ branchTemplate: 'feature/{r:1}' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
+  });
+
+  it('shows command when only a tag template is configured', () => {
+    const visible = canShowPreviewTemplateCommand(
+      baseConfig({ tagTemplate: 'v{r:1}' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
+  });
+
+  it('shows command when a branch template needs Jira but Jira is not configured', () => {
+    // Unlike canShowCreateBranchFromTemplateCommand, the preview command must
+    // stay visible even without Jira configured — it degrades gracefully by
+    // showing a "needs Jira setup" hint per-token instead of refusing to run.
+    const visible = canShowPreviewTemplateCommand(
+      baseConfig({ branchTemplate: 'vradchuk/{jira-key}-{r:1}' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
+  });
+
+  it('shows command when both templates are configured', () => {
+    const visible = canShowPreviewTemplateCommand(
+      baseConfig({ branchTemplate: 'feature/{r:1}', tagTemplate: 'v{r:1}' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
   });
 });

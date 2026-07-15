@@ -90,6 +90,8 @@ export function buildQuickActionItems(
     },
     { label: '$(git-branch) Create branch from template…', commandId: command('createBranchFromTemplate') },
     { label: '$(tag) Create tag from template…', commandId: command('createTagFromTemplate') },
+    { label: 'Branches', kind: QuickPickItemKind.Separator },
+    { label: '$(trash) Delete merged branches…', commandId: command('cleanupBranches') },
     { label: 'Update branch', kind: QuickPickItemKind.Separator },
     { label: '$(repo-pull) Pull (With Stash)', commandId: command('pullWithStash') },
     { label: '$(repo-pull) Pull (Rebase With Stash)', commandId: command('pullRebaseWithStash') },
@@ -97,6 +99,11 @@ export function buildQuickActionItems(
     { label: 'Worktree', kind: QuickPickItemKind.Separator },
     { label: '$(list-tree) Move to new worktree', commandId: command('moveToNewWorktree') },
     { label: '$(eye) PR review in worktree…', commandId: command('prReviewInWorktree') },
+    {
+      label: '$(git-pull-request) Review PR by number…',
+      commandId: command('reviewPrByNumber'),
+      visible: state.isGitHubRepo,
+    },
     {
       label: '$(terminal) Open worktree dev terminal…',
       commandId: command('openWorktreeDevTerminal'),

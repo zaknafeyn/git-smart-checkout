@@ -37,10 +37,10 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
     super(logService);
   }
 
-  async execute(): Promise<void> {
+  async execute(preselectedWorktreePath?: string): Promise<void> {
     try {
       const git = await this.getGitExecutor(this.vscodeGitProvider);
-      const worktree = await this.selectWorktree(git);
+      const worktree = await this.selectWorktree(git, preselectedWorktreePath);
 
       if (!worktree) {
         return;
@@ -86,7 +86,10 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
     }
   }
 
-  private async selectWorktree(git: GitExecutor): Promise<IGitWorktree | undefined> {
+  private async selectWorktree(
+    git: GitExecutor,
+    preselectedWorktreePath?: string
+  ): Promise<IGitWorktree | undefined> {
     const worktrees = await git.worktreeListDetailed();
     const selectableWorktrees = worktrees.filter(
       (worktree) =>
@@ -101,6 +104,15 @@ abstract class CopyChangesToWorktreeCommand extends BaseCommand {
         ACTION_OK
       );
       return undefined;
+    }
+
+    if (preselectedWorktreePath) {
+      const preselected = selectableWorktrees.find((worktree) =>
+        isSamePath(worktree.path, preselectedWorktreePath)
+      );
+      if (preselected) {
+        return preselected;
+      }
     }
 
     const items = await Promise.all(

@@ -394,6 +394,69 @@ export function createForkPRTestRepo(): ForkPRTestRepo {
   };
 }
 
+export interface PRNumberTestRepo extends TestRepo {
+  remoteRepoPath: string;
+  prNumber: number;
+  headSha: string;
+  /** Pushes a new commit onto the synthetic `refs/pull/<n>/head` ref and returns its SHA. */
+  advancePullRef(): string;
+}
+
+/**
+ * Repo with a bare sibling registered as origin. A synthetic `refs/pull/<n>/head`
+ * ref is created directly on the remote (as GitHub does for PR heads), without a
+ * corresponding local or remote-tracking branch — simulating a PR reviewed purely
+ * by number via `GitExecutor.fetchPullRequestHead`.
+ */
+export function createPRNumberTestRepo(prNumber = 7): PRNumberTestRepo {
+  const remoteRepoPath = createBareRepo('gsc-pr-number-remote-');
+
+  const base = buildRepo('gsc-pr-number-test-', (repoPath, exec) => {
+    fs.writeFileSync(path.join(repoPath, 'file1.txt'), 'initial content\n');
+    exec('git add file1.txt');
+    exec('git commit -m "init: initial commit"');
+  });
+
+  function execInRepo(cmd: string): string {
+    return execSync(cmd, { cwd: base.repoPath, encoding: 'utf-8' });
+  }
+
+  execInRepo(`git remote add origin "${remoteRepoPath}"`);
+  execInRepo('git push -u origin main');
+
+  function pushPullRefCommit(branchName: string, content: string): string {
+    execInRepo(`git checkout -b ${branchName}`);
+    fs.writeFileSync(path.join(base.repoPath, 'pr.txt'), content);
+    execInRepo('git add pr.txt');
+    execInRepo(`git commit -m "feat: ${branchName}"`);
+    const sha = execInRepo('git rev-parse HEAD').trim();
+    // Force-push: a PR head advancing (e.g. after a rebase/force-push by the
+    // author) is a non-fast-forward update to the synthetic pull ref.
+    execInRepo(`git push --force "${remoteRepoPath}" HEAD:refs/pull/${prNumber}/head`);
+    execInRepo('git checkout main');
+    execInRepo(`git branch -D ${branchName}`);
+    return sha;
+  }
+
+  const headSha = pushPullRefCommit('pr-source', 'pr content v1\n');
+
+  const originalCleanup = base.cleanup.bind(base);
+
+  return {
+    ...base,
+    remoteRepoPath,
+    prNumber,
+    headSha,
+    advancePullRef(): string {
+      return pushPullRefCommit('pr-source-advance', `pr content v2 ${Date.now()}\n`);
+    },
+    cleanup() {
+      originalCleanup();
+      fs.rmSync(remoteRepoPath, { recursive: true, force: true });
+    },
+  };
+}
+
 export interface WorktreeTestRepo extends TestRepo {
   worktreePath: string;
   worktreeBranch: string;
