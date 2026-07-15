@@ -119,7 +119,8 @@ export class PrCloneService {
       git,
       ghClient,
       this.loggingService,
-      this.context.workspaceState
+      this.context.workspaceState,
+      this.configurationManager
     );
 
     for (const cleanUpActions of this.cleanUpActions) {

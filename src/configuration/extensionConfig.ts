@@ -46,6 +46,7 @@ export interface ExtensionConfig {
   showStatusBar: boolean;
   defaultTargetBranch: string;
   defaultWorktreeDirectory: string;
+  prClone: { checkoutAfterClone: 'ask' | 'always' | 'never' };
   worktreeSetup: {
     copyFiles: string[];
     command: string;
