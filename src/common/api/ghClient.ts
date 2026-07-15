@@ -100,8 +100,17 @@ export interface GitHubHostConfig {
  * with an unrecognized host, so a `GitHubClient` is never constructed with
  * an empty base URL.
  */
+/** Strips trailing `/` characters without a regex (avoids any polynomial-backtracking risk on untrusted input). */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end--;
+  }
+  return value.slice(0, end);
+}
+
 export function resolveGitHubHostConfig(host: string, enterpriseBaseUrl: string): GitHubHostConfig {
-  const trimmedEnterpriseUrl = enterpriseBaseUrl.trim().replace(/\/+$/, '');
+  const trimmedEnterpriseUrl = stripTrailingSlashes(enterpriseBaseUrl.trim());
   let enterpriseHost = '';
   if (trimmedEnterpriseUrl) {
     try {

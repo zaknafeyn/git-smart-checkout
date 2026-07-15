@@ -200,11 +200,13 @@ export function parseUpstreamTrack(upstreamTrack: string): TUpstreamTrack {
  * string for blank/malformed input.
  */
 function extractHost(baseUrl: string): string {
-  const trimmed = baseUrl.trim().replace(/\/+$/, '');
+  const trimmed = baseUrl.trim();
   if (!trimmed) {
     return '';
   }
   try {
+    // `URL` parses the hostname independently of any trailing slash in the
+    // path, so no separate trim is needed before handing it off.
     return new URL(trimmed).hostname.toLowerCase();
   } catch {
     return '';
