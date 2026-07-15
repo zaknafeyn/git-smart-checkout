@@ -3,6 +3,7 @@ import { authentication } from 'vscode';
 
 import { EXTENSION_NAME } from '../../const';
 import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubUser } from '../../types/dataTypes';
+import { detectProvider } from './prProvider';
 
 /**
  * Locations GitHub recognizes for a single pull request template, in priority
@@ -78,8 +79,46 @@ export const decodeGitHubFileContent = (
   }
 };
 
+/** Default github.com API base URL, used when no Enterprise host matches. */
+export const GITHUB_COM_API_BASE_URL = 'https://api.github.com';
+/** Default github.com web base URL (compare links, PR URLs, etc). */
+export const GITHUB_COM_WEB_BASE_URL = 'https://github.com';
+
+export interface GitHubHostConfig {
+  /** Base URL for REST API calls, e.g. `https://api.github.com` or `https://ghe.corp/api/v3`. */
+  apiBaseUrl: string;
+  /** Base URL for web/compare links, e.g. `https://github.com` or `https://ghe.corp`. */
+  webBaseUrl: string;
+}
+
+/**
+ * Resolve the API/web base URLs to use for a given remote host.
+ *
+ * `host` is expected to already be validated as either `github.com` or the
+ * configured Enterprise host (see `parseGitHubRemoteUrl`); this function
+ * still falls back to github.com defaults defensively if it's ever called
+ * with an unrecognized host, so a `GitHubClient` is never constructed with
+ * an empty base URL.
+ */
+export function resolveGitHubHostConfig(host: string, enterpriseBaseUrl: string): GitHubHostConfig {
+  const trimmedEnterpriseUrl = enterpriseBaseUrl.trim().replace(/\/+$/, '');
+  let enterpriseHost = '';
+  if (trimmedEnterpriseUrl) {
+    try {
+      enterpriseHost = new URL(trimmedEnterpriseUrl).hostname.toLowerCase();
+    } catch {
+      // Malformed enterprise URL; detectProvider below will fall through to github.com.
+    }
+  }
+
+  if (detectProvider(host, enterpriseHost) === 'github-enterprise') {
+    return { apiBaseUrl: `${trimmedEnterpriseUrl}/api/v3`, webBaseUrl: trimmedEnterpriseUrl };
+  }
+
+  return { apiBaseUrl: GITHUB_COM_API_BASE_URL, webBaseUrl: GITHUB_COM_WEB_BASE_URL };
+}
+
 export class GitHubClient {
-  private static readonly BASE_URL = 'https://api.github.com';
   private static readonly USER_AGENT = `${EXTENSION_NAME}-vscode-extension`;
 
   /**
@@ -89,13 +128,19 @@ export class GitHubClient {
   public static readonly MAX_PR_COMMITS = 250;
 
   private cachedCurrentUserLogin?: Promise<string | undefined>;
+  private readonly apiBaseUrl: string;
+  private readonly webBaseUrl: string;
 
   constructor(
     private readonly _owner: string,
     private readonly _repo: string,
     private readonly warn: (message: string, error: unknown) => void = (message, error) =>
-      console.warn(message, error)
-  ) {}
+      console.warn(message, error),
+    hostConfig?: GitHubHostConfig
+  ) {
+    this.apiBaseUrl = hostConfig?.apiBaseUrl ?? GITHUB_COM_API_BASE_URL;
+    this.webBaseUrl = hostConfig?.webBaseUrl ?? GITHUB_COM_WEB_BASE_URL;
+  }
 
   get owner(): string {
     return this._owner;
@@ -127,7 +172,7 @@ export class GitHubClient {
     reAuthenticate = false
   ): Promise<T> {
     const token = await this.getAuthToken(reAuthenticate);
-    const url = `${GitHubClient.BASE_URL}${endpoint}`;
+    const url = `${this.apiBaseUrl}${endpoint}`;
 
     const headers: { [key: string]: string } = {
       'User-Agent': GitHubClient.USER_AGENT,
@@ -309,7 +354,7 @@ export class GitHubClient {
     featureBranch: string,
     description: string
   ): string {
-    return `https://github.com/${this.owner}/${this.repo}/compare/${targetBranch}...${featureBranch}?expand=1&body=${encodeURIComponent(description)}`;
+    return `${this.webBaseUrl}/${this.owner}/${this.repo}/compare/${targetBranch}...${featureBranch}?expand=1&body=${encodeURIComponent(description)}`;
   }
 
   /**

@@ -5,6 +5,7 @@ import * as path from 'path';
 
 import { LoggingService } from '../../logging/loggingService';
 import { execCommand } from '../../utils/execCommand';
+import { detectProvider } from '../api/prProvider';
 import { VscodeGitProvider } from './vscodeGitProvider';
 import { IGitRef, IGitStash, IGitWorktree, TUpstreamTrack } from './types';
 
@@ -193,19 +194,57 @@ export function parseUpstreamTrack(upstreamTrack: string): TUpstreamTrack {
   return [ahead, behind];
 }
 
-export function parseGitHubRemoteUrl(remoteUrl: string): { owner: string; repo: string } | null {
+/**
+ * Extract the lowercased hostname from a base URL such as
+ * `https://ghe.corp.example/` (trailing slashes tolerated). Returns an empty
+ * string for blank/malformed input.
+ */
+function extractHost(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return '';
+  }
+  try {
+    return new URL(trimmed).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Parse a git remote URL into `{ owner, repo, host }`, accepting github.com
+ * and (when configured) a GitHub Enterprise host. `enterpriseBaseUrl` is the
+ * raw `git-smart-checkout.githubEnterpriseBaseUrl` setting value; pass '' (or
+ * omit) when Enterprise support isn't configured, in which case behavior is
+ * unchanged from before Enterprise support existed (github.com only).
+ */
+export function parseGitHubRemoteUrl(
+  remoteUrl: string,
+  enterpriseBaseUrl = ''
+): { owner: string; repo: string; host: string } | null {
   const value = remoteUrl.trim();
-  const scpMatch = value.match(/^[^@\s]+@github\.com:([^/\s]+)\/([^/\s]+)\/?$/i);
+  const enterpriseHost = extractHost(enterpriseBaseUrl);
+  const isAllowedHost = (host: string): boolean => detectProvider(host, enterpriseHost) !== undefined;
+
+  const scpMatch = value.match(/^[^@\s]+@([^:\s]+):([^/\s]+)\/([^/\s]+)\/?$/i);
 
   let owner: string;
   let repoWithSuffix: string;
+  let host: string;
 
   if (scpMatch) {
-    [, owner, repoWithSuffix] = scpMatch;
+    const [, scpHost, scpOwner, scpRepo] = scpMatch;
+    host = scpHost.toLowerCase();
+    if (!isAllowedHost(host)) {
+      return null;
+    }
+    owner = scpOwner;
+    repoWithSuffix = scpRepo;
   } else {
     try {
       const url = new URL(value);
-      if (url.hostname.toLowerCase() !== 'github.com') {
+      host = url.hostname.toLowerCase();
+      if (!isAllowedHost(host)) {
         return null;
       }
 
@@ -221,7 +260,7 @@ export function parseGitHubRemoteUrl(remoteUrl: string): { owner: string; repo: 
   }
 
   const repo = repoWithSuffix.replace(/\.git$/i, '');
-  return owner && repo ? { owner, repo } : null;
+  return owner && repo ? { owner, repo, host } : null;
 }
 
 export class GitExecutor {
@@ -973,10 +1012,16 @@ export class GitExecutor {
     return stdout.split('\n').map((l) => l.trim()).filter(Boolean);
   }
 
-  async getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
+  /**
+   * @param enterpriseBaseUrl the `git-smart-checkout.githubEnterpriseBaseUrl`
+   *   setting value. Pass '' (or omit) when Enterprise support isn't
+   *   configured; remotes are then matched against github.com only, same as
+   *   before Enterprise support existed.
+   */
+  async getRepoInfo(enterpriseBaseUrl = ''): Promise<{ owner: string; repo: string; host: string } | null> {
     try {
       const remoteUrl = await this.getRemoteUrl();
-      return parseGitHubRemoteUrl(remoteUrl);
+      return parseGitHubRemoteUrl(remoteUrl, enterpriseBaseUrl);
     } catch (error) {
       this.#logService.error(`Failed to get repo info: ${error}`);
     }

@@ -459,7 +459,7 @@ describe('CheckoutByPRCommand — worktree conflict', () => {
 
   before(() => {
     repo = createPRWorktreeTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
   });
 
   after(() => { repo.cleanup(); });

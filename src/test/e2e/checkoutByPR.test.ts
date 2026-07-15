@@ -99,7 +99,7 @@ describe('CheckoutByPRCommand – same-repo PR', () => {
 
     before(() => {
       repo = createPRTestRepo();
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
       restoreStubs = withStubs(
         stubInputBox('42'),
         stubInfoMessages(infoMessages)
@@ -138,7 +138,7 @@ describe('CheckoutByPRCommand – same-repo PR', () => {
 
     before(() => {
       repo = createPRTestRepo();
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
       restoreStubs = withStubs(stubInputBox('42'), stubInfoMessages([]));
     });
 
@@ -172,7 +172,7 @@ describe('CheckoutByPRCommand – same-repo PR', () => {
 
     before(() => {
       repo = createPRTestRepo();
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
       restoreStubs = withStubs(stubInputBox('42'), stubInfoMessages([]));
     });
 
@@ -209,7 +209,7 @@ describe('CheckoutByPRCommand – same-repo PR', () => {
 
     before(() => {
       repo = createPRTestRepo();
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
       restoreStubs = withStubs(stubInputBox('42'), stubInfoMessages([]));
     });
 
@@ -248,7 +248,7 @@ describe('CheckoutByPRCommand – fork PR', () => {
 
     before(() => {
       repo = createForkPRTestRepo();
-      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+      repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
       restoreStubs = withStubs(stubInputBox('99'), stubInfoMessages([]));
     });
 
@@ -291,7 +291,7 @@ describe('CheckoutByPRCommand – input parsing', () => {
 
   before(() => {
     repo = createPRTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
   });
 
   after(() => { repo.cleanup(); });
@@ -373,7 +373,7 @@ describe('CheckoutByPRCommand – error handling', () => {
 
   before(() => {
     repo = createPRTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'test-repo', host: 'github.com' });
   });
 
   after(() => { repo.cleanup(); });

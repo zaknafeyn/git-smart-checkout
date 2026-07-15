@@ -84,7 +84,7 @@ describe('Heavy repo — checkout by PR (same repo)', () => {
 
   before(() => {
     repo = createHeavyTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'heavy-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'heavy-repo', host: 'github.com' });
     restoreInput = stubInputBox('42');
     restoreInfo = stubInfoMessages([]);
   });
@@ -119,7 +119,7 @@ describe('Heavy repo — checkout by PR (fork)', () => {
 
   before(() => {
     repo = createHeavyTestRepo();
-    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'heavy-repo' });
+    repo.git.getRepoInfo = async () => ({ owner: 'owner', repo: 'heavy-repo', host: 'github.com' });
     restoreInput = stubInputBox('99');
     restoreInfo = stubInfoMessages([]);
   });
