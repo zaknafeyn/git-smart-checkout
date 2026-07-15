@@ -18,10 +18,11 @@ export type TPullWithStashStrategy = 'merge' | 'rebase';
 export type CheckoutOutcome = 'completed' | 'cancelled' | 'rescued';
 
 export class AutoStashService {
-  
+
   constructor(
     private configManager: ConfigurationManager,
-    private logService: LoggingService
+    private logService: LoggingService,
+    private onStashCarryingCheckoutSuccess?: () => void
   ) { }
 
   async getAutoStashMode(): Promise<TAutoStashMode | undefined> {
@@ -296,6 +297,13 @@ export class AutoStashService {
 
     if (outcome === 'completed') {
       capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
+
+      // A "stash-carrying" checkout is one where a stash was actually created and
+      // cleanly popped/applied onto the target branch (AUTO_STASH_IGNORE never stashes;
+      // a 'rescued' outcome had a pop/apply conflict, so it doesn't count as clean).
+      if (isWorkdirHasChanges && autoStashMode !== AUTO_STASH_IGNORE) {
+        this.onStashCarryingCheckoutSuccess?.();
+      }
     } else if (outcome === 'rescued') {
       // Checkout happened, but the stash pop/apply conflicted and a rescue notification
       // was already shown in place of a generic error — tag instead of double-reporting success.
