@@ -15,6 +15,7 @@ import {
   parsePRInput,
 } from '../utils/parsePRInput';
 import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
+import { resolveGitHubRemoteInteractive } from '../../utils/remoteSelection';
 
 export class CheckoutByPRCommand extends BaseCommand {
   constructor(
@@ -75,6 +76,12 @@ export class CheckoutByPRCommand extends BaseCommand {
       const currentBranch = await git.getCurrentBranch();
       const isAlreadyOnPrBranch = isFork && currentBranch === headRef;
 
+      // Tracks which remote the branch was actually fetched from (same-repo PR
+      // path only — fork PRs fetch by URL, not by remote name) so the later
+      // checkout uses that same remote instead of silently defaulting to
+      // 'origin', which would break or misresolve on multi-remote repos.
+      let fetchedFromRemote: string | undefined;
+
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -89,7 +96,13 @@ export class CheckoutByPRCommand extends BaseCommand {
             // out, so fetch to FETCH_HEAD instead and let the user know.
             await git.fetchFromUrl(pr.head.repo.clone_url, headRef, isAlreadyOnPrBranch);
           } else {
-            await git.fetchSpecificBranch(headRef, 'origin');
+            fetchedFromRemote = await resolveGitHubRemoteInteractive(git, {
+              branch: headRef,
+              defaultRemote: this.configManager.get().defaultRemote,
+              purpose: 'fetch',
+              githubRepo: pr.base.repo?.full_name,
+            });
+            await git.fetchSpecificBranch(headRef, fetchedFromRemote);
           }
         }
       );
@@ -109,7 +122,8 @@ export class CheckoutByPRCommand extends BaseCommand {
 
       const prBranch: IGitRef = {
         name: headRef,
-        fullName: headRef,
+        fullName: fetchedFromRemote ? `${fetchedFromRemote}/${headRef}` : headRef,
+        remote: fetchedFromRemote,
         authorName: '',
         comment: pr.title,
       };

@@ -160,7 +160,11 @@ describe('What\'s new / feedback notifications — activation-level e2e', () => 
       const { context } = await getExtensionApi();
       const current = String(context.extension.packageJSON.version);
       await context.globalState.update(LAST_SEEN_VERSION_KEY, current);
-      await context.globalState.update(CHECKOUT_SUCCESS_COUNT_KEY, 5);
+      // `checkoutSuccessCount` is a real, process-wide extension counter shared across the
+      // whole e2e run (not reset between test files), so assert a *delta* here rather than an
+      // absolute value — an absolute assertion would be flaky against any other test file's
+      // real stash-carrying checkouts landing asynchronously around this one.
+      const before = context.globalState.get<number>(CHECKOUT_SUCCESS_COUNT_KEY, 0);
 
       await withRepoWorkspace(repo, async () => {
         repo.makeChange('file1.txt', 'dirty change, cancelled checkout\n');
@@ -178,7 +182,7 @@ describe('What\'s new / feedback notifications — activation-level e2e', () => 
 
       assert.strictEqual(
         context.globalState.get(CHECKOUT_SUCCESS_COUNT_KEY),
-        5,
+        before,
         'a cancelled checkout must not increment the feedback counter'
       );
     });

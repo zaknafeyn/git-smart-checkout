@@ -475,6 +475,11 @@
           "minimum": 0,
           "description": "Number of recently checked-out branches shown in the checkout picker. Set to 0 to disable."
         },
+        "git-smart-checkout.defaultRemote": {
+          "type": "string",
+          "default": "",
+          "description": "Preferred Git remote for fetch and push operations. Leave empty to select automatically."
+        },
         "git-smart-checkout.showWhatsNew": {
           "type": "string",
           "enum": ["minor", "always", "never"],

@@ -22,6 +22,7 @@ import { GitHubCommit, GitHubPR } from '../types/dataTypes';
 import { WebviewCommand } from '../types/webviewCommands';
 import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
+import { resolveGitHubRemoteInteractive } from '../utils/remoteSelection';
 import { PrCommitsWebViewProvider } from './PrCommitsWebViewProvider';
 import {
   setContextIsCloning,
@@ -277,7 +278,12 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       // Fetch the PR's commits (works for same-repo and fork PRs alike)
       this.loggingService.info(`Fetching commits for PR #${prNumber}`);
       try {
-        await git.fetchPullRequestHead(prNumber);
+        const remoteName = await resolveGitHubRemoteInteractive(git, {
+          defaultRemote: this.configurationManager.get().defaultRemote,
+          purpose: 'fetch',
+          githubRepo: prData.base.repo?.full_name,
+        });
+        await git.fetchPullRequestHead(prNumber, remoteName);
         this.loggingService.info(`Successfully fetched commits for PR #${prNumber}`);
       } catch (fetchError) {
         throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);

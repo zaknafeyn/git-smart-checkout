@@ -60,9 +60,9 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     ghClient: GitHubClient,
     loggingService: LoggingService,
     private workspaceState?: Memento,
-    private configurationManager?: ConfigurationManager
+    configurationManager?: ConfigurationManager
   ) {
-    super(git, ghClient, loggingService);
+    super(git, ghClient, loggingService, configurationManager);
   }
 
   async cherryPickNext(isContinue = false) {
@@ -95,7 +95,14 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         this.updateProgress?.report({ message: 'All commits were applied' });
 
         // push branch and proceed to PR creation
-        await this.git.pushBranchToGitHub(this.serviceStore.createdBranchName!);
+        const pushRemote = await this.resolvePrCloneRemote({
+          branch: this.serviceStore.createdBranchName,
+          purpose: 'push',
+          githubRepo:
+            this.serviceStore.originalPrData?.prData.head?.repo?.full_name ??
+            this.serviceStore.originalPrData?.prData.base?.repo?.full_name,
+        });
+        await this.git.pushBranchToGitHub(this.serviceStore.createdBranchName!, pushRemote);
 
         const { targetBranch, prData, description, isDraft } = this.serviceStore.originalPrData || {
           targetBranch: '',
@@ -311,7 +318,12 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       // Step 2: Fetch the PR's commits (works for same-repo and fork PRs alike)
       updateProgress.report({ message: `Fetching PR #${data.prData.number} commits...` });
       try {
-        await this.git.fetchPullRequestHead(data.prData.number);
+        const fetchRemote = await this.resolvePrCloneRemote({
+          branch: data.targetBranch,
+          purpose: 'fetch',
+          githubRepo: data.prData.base?.repo?.full_name,
+        });
+        await this.git.fetchPullRequestHead(data.prData.number, fetchRemote);
         this.loggingService.info(`Fetched PR #${data.prData.number} commits`);
       } catch (fetchError) {
         throw new Error(`Could not fetch the PR's commits from GitHub: ${fetchError}`);

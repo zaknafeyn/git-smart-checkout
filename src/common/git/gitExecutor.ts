@@ -520,6 +520,26 @@ export class GitExecutor {
     return stdout.trim();
   }
 
+  async listRemotes(): Promise<Array<{ name: string; fetchUrl: string; pushUrl: string }>> {
+    const { stdout } = await this.#execGitCommand(['remote', '-v']);
+    const remotes = new Map<string, { name: string; fetchUrl: string; pushUrl: string }>();
+    for (const line of stdout.split('\n')) {
+      const match = line.match(/^([^\s]+)\s+(.+)\s+\((fetch|push)\)$/);
+      if (!match) continue;
+      const current = remotes.get(match[1]) ?? { name: match[1], fetchUrl: '', pushUrl: '' };
+      current[match[3] === 'fetch' ? 'fetchUrl' : 'pushUrl'] = match[2];
+      remotes.set(match[1], current);
+    }
+    return [...remotes.values()];
+  }
+
+  async getUpstreamRemote(branch: string): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand(['for-each-ref', '--format=%(upstream:remotename)', `refs/heads/${branch}`]);
+      return stdout.trim() || undefined;
+    } catch { return undefined; }
+  }
+
   async pullFromRemoteBranch(options: { rebase?: boolean } = {}) {
     await this.#execGitCommand(['pull', ...(options.rebase ? ['--rebase'] : [])]);
   }
@@ -998,8 +1018,8 @@ export class GitExecutor {
     }
   }
 
-  async pushBranchToGitHub(branchName: string): Promise<void> {
-    await this.#execGitCommand(['push', '-u', 'origin', branchName]);
+  async pushBranchToGitHub(branchName: string, remoteName = 'origin'): Promise<void> {
+    await this.#execGitCommand(['push', '-u', remoteName, branchName]);
   }
 
   async tagExists(tagName: string): Promise<boolean> {
