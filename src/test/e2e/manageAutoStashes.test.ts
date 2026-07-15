@@ -12,7 +12,7 @@ import {
   stubWarningMessages,
   withRepoWorkspace,
 } from './helpers/commandHarness';
-import { createTestRepo, TestRepo } from './helpers/gitTestRepo';
+import { createConflictTestRepo, createTestRepo, TestRepo } from './helpers/gitTestRepo';
 
 type ManagerQuickPickItem = vscode.QuickPickItem & {
   stash?: IGitStash;
@@ -237,6 +237,48 @@ describe('Manage auto-stashes command', () => {
         assert.strictEqual(repo.readFile('unrelated.txt'), 'keep this dirty change\n');
         assert.strictEqual(repo.stashCount(), 1);
         assert.deepStrictEqual(errors.messages, []);
+      });
+    } finally {
+      errors.restore();
+      info.restore();
+      warnings.restore();
+      restoreQuickPick();
+      repo.cleanup();
+    }
+  });
+
+  it('shows a rescue notification (not a generic error) when popping a conflicting auto-stash', async () => {
+    // A real 3-way-merge conflict (with conflict markers, not just a "would be
+    // overwritten" refusal) requires the stash to be popped against a commit that
+    // diverged from its base — so stash on main, then switch to feature (which
+    // already modifies the same line of file1.txt) before popping.
+    const repo = createConflictTestRepo();
+    repo.makeChange('file1.txt', 'main dirty change\n');
+    await repo.git.createStash('auto-stash-main-2026-06-14T12:34:56');
+    repo.exec(`git checkout ${repo.featureBranch}`);
+
+    let stashPickerCount = 0;
+    const restoreQuickPick = stubShowQuickPick((items, options) => {
+      const managerItems = items as readonly ManagerQuickPickItem[];
+      if (options?.placeHolder === 'Select an auto-stash') {
+        stashPickerCount++;
+        return stashPickerCount === 1 ? managerItems[0] : undefined;
+      }
+      return managerItems.find((item) => item.action === 'pop');
+    });
+    const warnings = stubWarningMessages(() => undefined);
+    const info = stubInformationMessages(() => undefined);
+    const errors = stubErrorMessages();
+
+    try {
+      await withRepoWorkspace(repo, async () => {
+        await vscode.commands.executeCommand(commandId('manageAutoStashes'));
+
+        const rescueMessage = warnings.messages.find((message) => message.includes('Stash restored with conflicts'));
+        assert.ok(rescueMessage, 'rescue notification should be shown instead of a generic error');
+        assert.match(rescueMessage as string, /stash was preserved because pop conflicted/);
+        assert.strictEqual(repo.stashCount(), 1, 'stash retained because pop conflicted');
+        assert.deepStrictEqual(errors.messages, [], 'no generic error should be shown');
       });
     } finally {
       errors.restore();

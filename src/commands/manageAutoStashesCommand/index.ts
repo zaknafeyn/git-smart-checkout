@@ -66,11 +66,12 @@ export class ManageAutoStashesCommand extends BaseCommand {
           continue;
         }
 
-        await this.runAction(git, stash, action);
+        const stashConflict = await this.runAction(git, stash, action);
         capture(AnalyticsEvent.AutoStashManaged, {
           action,
           file_count: stash.files.length,
           had_changes: hadChanges,
+          ...(stashConflict ? { stashConflict: true } : {}),
         });
       }
     } catch (error) {
@@ -154,11 +155,16 @@ export class ManageAutoStashesCommand extends BaseCommand {
     return choice === ACTION_DROP;
   }
 
+  /**
+   * Runs the selected stash action. Returns true when the action ended in a
+   * conflict-rescue path (so the caller can tag analytics instead of reporting
+   * a plain success) and false otherwise.
+   */
   private async runAction(
     git: GitExecutor,
     stash: IGitStash,
     action: StashAction
-  ): Promise<void> {
+  ): Promise<boolean> {
     switch (action) {
       case 'apply': {
         const selector = await git.resolveStashSelector(stash.selector, stash.hash);
@@ -168,10 +174,10 @@ export class ManageAutoStashesCommand extends BaseCommand {
           const conflicts = await git.getConflictedFiles();
           if (conflicts.length === 0) throw error;
           await offerConflictRescue(git, conflicts, 'apply');
-          return;
+          return true;
         }
         await vscode.window.showInformationMessage('Auto-stash applied.', 'OK');
-        return;
+        return false;
       }
       case 'pop': {
         const selector = await git.resolveStashSelector(stash.selector, stash.hash);
@@ -181,22 +187,22 @@ export class ManageAutoStashesCommand extends BaseCommand {
           const conflicts = await git.getConflictedFiles();
           if (conflicts.length === 0) throw error;
           await offerConflictRescue(git, conflicts, 'pop');
-          return;
+          return true;
         }
         await vscode.window.showInformationMessage('Auto-stash popped.', 'OK');
-        return;
+        return false;
       }
       case 'drop': {
         const selector = await git.resolveStashSelector(stash.selector, stash.hash);
         await git.dropStash(selector);
         await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
-        return;
+        return false;
       }
       case 'diff': {
         const patch = await git.getStashPatch(stash.selector);
         if (!patch) {
           await vscode.window.showInformationMessage('This auto-stash has no diff to display.', 'OK');
-          return;
+          return false;
         }
 
         const document = await vscode.workspace.openTextDocument({
@@ -204,6 +210,7 @@ export class ManageAutoStashesCommand extends BaseCommand {
           language: 'diff',
         });
         await vscode.window.showTextDocument(document, { preview: true });
+        return false;
       }
     }
   }

@@ -15,9 +15,16 @@ export class OpenWorktreeDevTerminalCommand extends BaseCommand {
     super(logService);
   }
 
-  async execute(): Promise<void> {
+  async execute(preselectedWorktreePath?: string): Promise<void> {
     try {
       const git = await this.getGitExecutor(this.vscodeGitProvider, 'Open Worktree Dev Terminal');
+
+      if (preselectedWorktreePath) {
+        this.openTerminal(preselectedWorktreePath);
+        capture(AnalyticsEvent.WorktreeDevTerminalOpened, { had_multiple_worktrees: true });
+        return;
+      }
+
       const worktrees = await git.worktreeListDetailed(true);
 
       // No worktrees (or just the current one): behave like opening a plain
