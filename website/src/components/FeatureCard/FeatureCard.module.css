@@ -125,3 +125,25 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+.clickable {
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.clickable:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border);
+  transform: translateY(-2px);
+}
+.cardButton { all: unset; font: inherit; color: inherit; cursor: pointer; }
+.cardButton::after { content: ''; position: absolute; inset: 0; }
+.cardButton:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+@media (prefers-reduced-motion: reduce) {
+  .clickable { transition: none; }
+  .clickable:hover { transform: none; }
+}

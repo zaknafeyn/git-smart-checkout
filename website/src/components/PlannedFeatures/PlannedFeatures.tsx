@@ -10,20 +10,6 @@ interface PlannedFeature {
 
 const planned: PlannedFeature[] = [
   {
-    icon: '🕒',
-    tier: 1,
-    title: 'Recent Branches',
-    description:
-      'Automatically surface the last 5–10 branches you visited using reflog data, so your most relevant branches are always first.',
-  },
-  {
-    icon: '⚡',
-    tier: 1,
-    title: 'Inline Branch Actions',
-    description:
-      'Delete, rename, and push branches right from the checkout quick-pick using VS Code\'s per-item buttons — no terminal needed.',
-  },
-  {
     icon: '📡',
     tier: 1,
     title: 'Upstream Indicator',
@@ -42,7 +28,7 @@ const planned: PlannedFeature[] = [
     tier: 2,
     title: 'GitLab & Bitbucket',
     description:
-      'Extend PR Clone to support non-GitHub providers. GitLab (glab) and Bitbucket adapters behind a shared PrProvider interface.',
+      'The provider abstraction and host detection groundwork has shipped — GitLab (glab) and Bitbucket adapters behind that shared PrProvider interface are still planned.',
   },
 ];
 
