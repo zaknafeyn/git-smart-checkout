@@ -14,6 +14,7 @@ interface FeatureCardProps {
   tone?: FeatureCardTone;
   compact?: boolean;
   titleLevel?: 3 | 4;
+  onClick?: () => void;
 }
 
 export function FeatureCard({
@@ -25,6 +26,7 @@ export function FeatureCard({
   tone,
   compact = false,
   titleLevel = 3,
+  onClick,
 }: FeatureCardProps) {
   const commandPaletteShortcut = command ? getCommandPaletteShortcut() : undefined;
   const Title = titleLevel === 4 ? 'h4' : 'h3';
@@ -32,6 +34,7 @@ export function FeatureCard({
     styles.card,
     compact ? styles.compact : '',
     tone ? styles[tone] : '',
+    onClick ? styles.clickable : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -41,7 +44,20 @@ export function FeatureCard({
       <div className={styles.cardIcon}>{icon}</div>
       <div className={styles.cardBody}>
         <div className={styles.cardTitleRow}>
-          <Title className={styles.cardTitle}>{title}</Title>
+          <Title className={styles.cardTitle}>
+            {onClick ? (
+              <button
+                type="button"
+                className={styles.cardButton}
+                onClick={onClick}
+                aria-haspopup="dialog"
+              >
+                {title}
+              </button>
+            ) : (
+              title
+            )}
+          </Title>
           {tag && <span className={styles.tag}>{tag}</span>}
         </div>
         <p className={styles.cardDesc}>{description}</p>
