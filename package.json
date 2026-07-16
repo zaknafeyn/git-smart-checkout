@@ -20,7 +20,7 @@
     "clone pull request"
   ],
   "license": "MIT",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
@@ -487,7 +487,11 @@
         },
         "git-smart-checkout.showWhatsNew": {
           "type": "string",
-          "enum": ["minor", "always", "never"],
+          "enum": [
+            "minor",
+            "always",
+            "never"
+          ],
           "default": "minor",
           "description": "Control the What's New notification after extension updates."
         },
@@ -503,13 +507,19 @@
         },
         "git-smart-checkout.prClone.checkoutAfterClone": {
           "type": "string",
-          "enum": ["ask", "always", "never"],
+          "enum": [
+            "ask",
+            "always",
+            "never"
+          ],
           "default": "ask",
           "description": "Choose whether to stay on or switch to the branch created by PR Clone."
         },
         "git-smart-checkout.worktreeSetup.copyFiles": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Glob patterns for untracked or ignored local files to copy into new worktrees. Workspace values should be treated like tasks."
         },

@@ -1,3 +1,32 @@
+# [0.14.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.2...v0.14.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **branches:** close cleanup-command gaps vs spec (grouping, gone-upstream, undo hint, quick actions) ([#162](https://github.com/zaknafeyn/git-smart-checkout/issues/162)) ([73b16e8](https://github.com/zaknafeyn/git-smart-checkout/commit/73b16e8ba9e2240554fd659157a0857f8ebf694b)), closes [#153](https://github.com/zaknafeyn/git-smart-checkout/issues/153)
+* **checkout:** cap recent branches to configured count and dedupe reflog parsing ([82a69bc](https://github.com/zaknafeyn/git-smart-checkout/commit/82a69bc74c01ed032c9b36e16653714874942c8c)), closes [#parseReflogCheckouts](https://github.com/zaknafeyn/git-smart-checkout/issues/parseReflogCheckouts)
+* **checkout:** close spec gaps in inline branch actions ([#161](https://github.com/zaknafeyn/git-smart-checkout/issues/161)) ([8dea131](https://github.com/zaknafeyn/git-smart-checkout/commit/8dea131174d3b1b8f744b9d0bfbae31e007312e7)), closes [#149](https://github.com/zaknafeyn/git-smart-checkout/issues/149)
+* **remotes:** thread the resolved remote through checkout-by-PR ([f729d12](https://github.com/zaknafeyn/git-smart-checkout/commit/f729d124541bd3ab35fec28644c6354724aebab6))
+* **stash:** await the stash-carrying-checkout success callback ([c21330c](https://github.com/zaknafeyn/git-smart-checkout/commit/c21330c265e7f263dfbf825a21548116cf7eba8d))
+* **stash:** stop double-reporting conflicted pop/apply as a generic error ([#160](https://github.com/zaknafeyn/git-smart-checkout/issues/160)) ([ffcf7d3](https://github.com/zaknafeyn/git-smart-checkout/commit/ffcf7d332a07f850ee334f43318568de4aa60360))
+* **worktree-explorer:** close gaps in the Worktrees tree view vs spec ([#158](https://github.com/zaknafeyn/git-smart-checkout/issues/158)) ([5937cd0](https://github.com/zaknafeyn/git-smart-checkout/commit/5937cd05298a272290eb3e95b905d49b1bc6726b)), closes [#147](https://github.com/zaknafeyn/git-smart-checkout/issues/147)
+
+
+### Features
+
+* add branch and tag template preview ([#154](https://github.com/zaknafeyn/git-smart-checkout/issues/154)) ([87054dd](https://github.com/zaknafeyn/git-smart-checkout/commit/87054dd46b49d1a31a2b5761995b74c7dc632fde))
+* add post-worktree setup hooks ([#151](https://github.com/zaknafeyn/git-smart-checkout/issues/151)) ([bc33f6b](https://github.com/zaknafeyn/git-smart-checkout/commit/bc33f6bf71835c814deec72a8e844be8bee11585))
+* add provider abstraction and host detection ([#156](https://github.com/zaknafeyn/git-smart-checkout/issues/156)) ([08a65b5](https://github.com/zaknafeyn/git-smart-checkout/commit/08a65b51b162e794d513948312abd21f4d579d1c))
+* add review PR by number command ([#150](https://github.com/zaknafeyn/git-smart-checkout/issues/150)) ([336e250](https://github.com/zaknafeyn/git-smart-checkout/commit/336e250cef2b55167aed989dcaddd7a57f0f4e35))
+* add worktree explorer view ([#147](https://github.com/zaknafeyn/git-smart-checkout/issues/147)) ([ab1b562](https://github.com/zaknafeyn/git-smart-checkout/commit/ab1b5625b1a8e1e12f490400125152dd6200daae))
+* **branches:** add merged branch cleanup command ([#153](https://github.com/zaknafeyn/git-smart-checkout/issues/153)) ([5c38ad9](https://github.com/zaknafeyn/git-smart-checkout/commit/5c38ad9797b4614b75cae5801a490f5458429663))
+* **checkout:** add inline branch actions ([#149](https://github.com/zaknafeyn/git-smart-checkout/issues/149)) ([c3d6184](https://github.com/zaknafeyn/git-smart-checkout/commit/c3d61845c0febc6185be406cdf84bbea09791514))
+* **checkout:** show recently used branches ([#146](https://github.com/zaknafeyn/git-smart-checkout/issues/146)) ([6bbbe8b](https://github.com/zaknafeyn/git-smart-checkout/commit/6bbbe8b2a7ef7857935ef29af3299e768def14bc))
+* configure checkout after PR clone ([#155](https://github.com/zaknafeyn/git-smart-checkout/issues/155)) ([313d52e](https://github.com/zaknafeyn/git-smart-checkout/commit/313d52e7886fe6929569129c844d3dd2e2422cba))
+* **remotes:** add remote resolution helpers ([b1a1aeb](https://github.com/zaknafeyn/git-smart-checkout/commit/b1a1aeba2a6322720e57584dfaf57fdb424fcf79))
+* rescue stash conflicts with guided actions ([#148](https://github.com/zaknafeyn/git-smart-checkout/issues/148)) ([d9fd976](https://github.com/zaknafeyn/git-smart-checkout/commit/d9fd976131127836bdb3c104e2c08e142d7fbfe1))
+* show whats new after updates ([#152](https://github.com/zaknafeyn/git-smart-checkout/issues/152)) ([19617f4](https://github.com/zaknafeyn/git-smart-checkout/commit/19617f4207eb516103718ed1feb8efbcaf15df2b)), closes [#26](https://github.com/zaknafeyn/git-smart-checkout/issues/26)
+
 ## [0.13.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.1...v0.13.2) (2026-07-14)
 
 
