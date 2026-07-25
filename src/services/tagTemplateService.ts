@@ -64,6 +64,16 @@ export interface ResolveTemplateOptions {
    * "Preview branch/tag template" command.
    */
   abortOnScriptError?: boolean;
+  /**
+   * When true, produces a lightweight preview used to label templates in the
+   * multi-template picker: {f:...} and {b:...} tokens still resolve (cheap,
+   * read-only), but {s:...} scripts are NOT run and the {r} uniqueness loop is
+   * NOT executed — those token substrings are left literal in the result. The
+   * branch resolver additionally leaves Jira tokens literal when no Jira data
+   * is supplied. Full resolution (scripts, {r}, Jira) only happens for the
+   * template the user actually selects.
+   */
+  preview?: boolean;
 }
 
 export class ScriptTokenError extends Error {
@@ -365,6 +375,7 @@ export async function resolveTagTemplateWithTrace(
   options: ResolveTemplateOptions = {}
 ): Promise<ResolvedTagWithTrace> {
   const abortOnScriptError = options.abortOnScriptError !== false;
+  const preview = options.preview === true;
   ctx.logger.info(`[Create Tag] Template: ${template}`);
 
   const tokens = scanTokens(template);
@@ -391,22 +402,26 @@ export async function resolveTagTemplateWithTrace(
   // Step 2: resolve {s:...} tokens.
   // With abortOnScriptError (the default, used by resolveTagTemplate), the first
   // failure throws ScriptTokenError immediately, matching legacy behavior exactly.
-  for (const token of tokens.filter((t) => t.type === 's')) {
-    const colonIdx = token.args.indexOf(':');
-    // {s:./script.sh} → stream defaults to stdout; {s:stdout:./script.sh} is explicit
-    const stream = colonIdx === -1 ? 'stdout' : token.args.substring(0, colonIdx).trim().toLowerCase();
-    const scriptPath = colonIdx === -1 ? token.args.trim() : token.args.substring(colonIdx + 1).trim();
-    try {
-      const value = await resolveScriptToken(stream, scriptPath, ctx);
-      trace.push({ raw: token.full, value });
-      result = result.replace(token.full, () => value);
-    } catch (e) {
-      if (abortOnScriptError) {
-        throw e;
+  // In preview mode we never run scripts — the {s:...} token is left literal so
+  // the picker label stays cheap and side-effect free.
+  if (!preview) {
+    for (const token of tokens.filter((t) => t.type === 's')) {
+      const colonIdx = token.args.indexOf(':');
+      // {s:./script.sh} → stream defaults to stdout; {s:stdout:./script.sh} is explicit
+      const stream = colonIdx === -1 ? 'stdout' : token.args.substring(0, colonIdx).trim().toLowerCase();
+      const scriptPath = colonIdx === -1 ? token.args.trim() : token.args.substring(colonIdx + 1).trim();
+      try {
+        const value = await resolveScriptToken(stream, scriptPath, ctx);
+        trace.push({ raw: token.full, value });
+        result = result.replace(token.full, () => value);
+      } catch (e) {
+        if (abortOnScriptError) {
+          throw e;
+        }
+        const error = e instanceof Error ? e.message : String(e);
+        trace.push({ raw: token.full, value: '', error });
+        result = result.replace(token.full, () => '');
       }
-      const error = e instanceof Error ? e.message : String(e);
-      trace.push({ raw: token.full, value: '', error });
-      result = result.replace(token.full, () => '');
     }
   }
 
@@ -447,6 +462,13 @@ export async function resolveTagTemplateWithTrace(
   const recurringTokens = tokens.filter((t) => t.type === 'r');
   if (recurringTokens.length === 0) {
     return { tag: result, recurringAttempts: 0, hadRecurringToken: false, tokens: trace };
+  }
+
+  // In preview mode we don't run the uniqueness loop (it hits the git index for
+  // every candidate). The {r} token is left literal so the picker label shows
+  // that a suffix will be appended without resolving it.
+  if (preview) {
+    return { tag: result, recurringAttempts: 0, hadRecurringToken: true, tokens: trace };
   }
 
   const { start, separator } = parseRecurringTokenArgs(recurringTokens[0].args);

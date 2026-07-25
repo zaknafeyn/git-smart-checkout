@@ -333,13 +333,14 @@ export const features: Feature[] = [
     icon: '🏷️',
     title: 'Tag from Template',
     description:
-      'Generate version tags from a configurable template. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
+      'Generate version tags from configurable, named templates. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
     command: 'GSC: Create Tag from Template...',
     color: 'blue',
     details: {
       longDescription:
-        'Build version tags from a reusable template — pull tokens from package.json or a branch-name regex, auto-increment to dodge collisions, and preview the result before creating anything.',
+        'Build version tags from reusable, named templates — pull tokens from package.json or a branch-name regex, auto-increment to dodge collisions, and preview the result before creating anything. Configure several and pick one at creation time.',
       highlights: [
+        'Define multiple named templates and pick one (search by name or generated value)',
         'Tokens sourced from package.json or branch-name regex',
         'Auto-increment avoids tag collisions',
         'Optional push via the resolved remote',
@@ -357,13 +358,14 @@ export const features: Feature[] = [
     icon: '🌿',
     title: 'Branch from Template',
     description:
-      'Create and check out a branch from a reusable template. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
+      'Create and check out a branch from reusable, named templates. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
     command: 'GSC: Create Branch from Template...',
     color: 'green',
     details: {
       longDescription:
-        'Generate a branch name from a template populated by a Jira ticket\'s key and title, package.json values, a branch-name regex, or a custom script — then preview it before creating anything.',
+        'Generate a branch name from named templates populated by a Jira ticket\'s key and title, package.json values, a branch-name regex, or a custom script — then preview it before creating anything. Configure several and pick one at creation time.',
       highlights: [
+        'Define multiple named templates and pick one (search by name or generated value)',
         'Jira key/title resolvers, with a guided Init Jira setup and the token in Secret Storage',
         'package.json, regex, and custom-script resolvers',
         'Dry-run the result first with Template Preview',

@@ -5,7 +5,17 @@ Command: `Git Smart Checkout: Create Branch from Template ...`
 Create and check out a new Git branch from a configurable template. Supports Jira issue keys and titles, file JSON values, branch regex matches, script output, and auto-incrementing suffixes when a branch name already exists.
 
 > [!TIP]
-> Set `git-smart-checkout.branchTemplate` once per project. When the template uses Jira tokens, configure Jira settings and pick an issue assigned to you.
+> Configure one or more named templates in `git-smart-checkout.branchTemplates`, each `{ "name": "...", "template": "..." }`. When several are defined the command shows a picker — search by name **or** by the generated value — before the editable step; a single template skips the picker. When a template uses Jira tokens, configure Jira settings and pick an issue assigned to you.
+>
+> The deprecated single-value `git-smart-checkout.branchTemplate` still works as a fallback when `branchTemplates` is empty, but will be removed in a future release.
+
+## Selecting a template
+
+When more than one template is configured, the command first shows a template picker:
+
+- The **label** is the template's name; the **description** is a lightweight preview of the generated value.
+- The preview resolves `{f:...}` file and `{b:...}` regex tokens against currently available data. To keep the list fast and side-effect free, `{s:...}` scripts and the `{r}` uniqueness suffix are **not** run here (they appear as literal tokens) and Jira is **not** prompted.
+- After you pick a template, the normal flow runs: Jira prompt if needed, full token resolution, then the editable input box.
 
 ## Jira Configuration
 
