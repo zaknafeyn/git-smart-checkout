@@ -1,3 +1,11 @@
+# [0.15.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.14.1...v0.15.0) (2026-07-25)
+
+
+### Features
+
+* **templates:** support multiple named branch and tag templates ([#166](https://github.com/zaknafeyn/git-smart-checkout/issues/166)) ([012b129](https://github.com/zaknafeyn/git-smart-checkout/commit/012b129130a8fa7e6508a07b26730fbef0d56f25))
+* **website:** add v0.14.0 feature cards and clickable feature detail modals ([#164](https://github.com/zaknafeyn/git-smart-checkout/issues/164)) ([63573fc](https://github.com/zaknafeyn/git-smart-checkout/commit/63573fc7b7e7a7828f087341a742b33518ce386f))
+
 # [0.14.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.13.2...v0.14.0) (2026-07-16)
 
 

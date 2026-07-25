@@ -20,7 +20,7 @@
     "clone pull request"
   ],
   "license": "MIT",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
@@ -583,7 +583,10 @@
                 "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nThe `{r}` token is an optional uniqueness suffix: it is dropped when the tag built without it is free, otherwise it appends `<separator><start-number>` and increments until the name is free.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}{r:1:-}`"
               }
             },
-            "required": ["name", "template"],
+            "required": [
+              "name",
+              "template"
+            ],
             "additionalProperties": false
           },
           "default": [],
@@ -603,7 +606,10 @@
                 "markdownDescription": "Template used to generate Git branch names. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}`."
               }
             },
-            "required": ["name", "template"],
+            "required": [
+              "name",
+              "template"
+            ],
             "additionalProperties": false
           },
           "default": [],
