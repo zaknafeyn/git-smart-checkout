@@ -146,27 +146,33 @@ export async function resolveBranchTemplateWithTrace(
   ctx.logger.info(`[Create Branch] Template: ${template}`);
 
   const jiraConfigured = ctx.jiraConfigured !== false;
+  const preview = options.preview === true;
   const trace: TemplateTokenTrace[] = [];
   let result = template;
 
   if (result.includes(JIRA_KEY_TOKEN)) {
     const key = (ctx.jiraKey ?? '').toUpperCase();
-    if (!key) {
-      if (!jiraConfigured) {
-        ctx.logger.warn('[Create Branch] Jira key token present but Jira is not configured.');
-        trace.push({
-          raw: JIRA_KEY_TOKEN,
-          value: '',
-          error: 'needs Jira setup (run GSC: Init Jira)',
-        });
-      } else {
-        ctx.logger.warn('[Create Branch] Jira key token present but no Jira issue was selected.');
-        trace.push({ raw: JIRA_KEY_TOKEN, value: '', error: 'no Jira issue selected' });
-      }
+    if (!key && preview) {
+      // Lightweight preview: no Jira issue has been picked yet, so leave the
+      // token literal in the picker label instead of blanking or erroring.
     } else {
-      trace.push({ raw: JIRA_KEY_TOKEN, value: key });
+      if (!key) {
+        if (!jiraConfigured) {
+          ctx.logger.warn('[Create Branch] Jira key token present but Jira is not configured.');
+          trace.push({
+            raw: JIRA_KEY_TOKEN,
+            value: '',
+            error: 'needs Jira setup (run GSC: Init Jira)',
+          });
+        } else {
+          ctx.logger.warn('[Create Branch] Jira key token present but no Jira issue was selected.');
+          trace.push({ raw: JIRA_KEY_TOKEN, value: '', error: 'no Jira issue selected' });
+        }
+      } else {
+        trace.push({ raw: JIRA_KEY_TOKEN, value: key });
+      }
+      result = result.split(JIRA_KEY_TOKEN).join(key);
     }
-    result = result.split(JIRA_KEY_TOKEN).join(key);
   }
 
   const titleTokens = scanJiraTitleTokens(result);
@@ -175,6 +181,10 @@ export async function resolveBranchTemplateWithTrace(
     const formatOpts = parseJiraTitleTokenArgs(args);
     const title = ctx.jiraTitle ?? '';
     const value = title ? formatJiraTitle(title, formatOpts) : '';
+    if (!title && preview) {
+      // Lightweight preview: leave the title token literal (see above).
+      continue;
+    }
     if (!title) {
       if (!jiraConfigured) {
         ctx.logger.warn('[Create Branch] Jira title token present but Jira is not configured.');

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig, PULL_AFTER_CHECKOUT_FF_ONLY } from '../../configuration/extensionConfig';
+import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, JiraConfig, NamedTemplate, PULL_AFTER_CHECKOUT_FF_ONLY } from '../../configuration/extensionConfig';
 import {
   canShowCreateBranchFromTemplateCommand,
   canShowPreviewTemplateCommand,
@@ -10,6 +10,8 @@ import { mockLogService } from '../e2e/helpers/mockLogService';
 function baseConfig(overrides: {
   branchTemplate?: string;
   tagTemplate?: string;
+  branchTemplates?: NamedTemplate[];
+  tagTemplates?: NamedTemplate[];
   jira?: JiraConfig;
 } = {}): ExtensionConfig {
   return {
@@ -30,9 +32,11 @@ function baseConfig(overrides: {
     logging: { enabled: false },
     telemetry: { enabled: false },
     tagTemplate: overrides.tagTemplate ?? '',
+    tagTemplates: overrides.tagTemplates ?? [],
     pushTagWithoutConfirmation: false,
     tagRemote: 'origin',
     branchTemplate: overrides.branchTemplate ?? '',
+    branchTemplates: overrides.branchTemplates ?? [],
     jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [] },
   };
 }
@@ -62,6 +66,40 @@ describe('branchTemplateAvailability', () => {
   it('hides command when template needs Jira but Jira is not configured', async () => {
     const visible = await canShowCreateBranchFromTemplateCommand(
       baseConfig({ branchTemplate: 'vradchuk/{jira-key}-{r:1}' }),
+      mockLogService
+    );
+    assert.strictEqual(visible, false);
+  });
+
+  it('shows command from the plural branchTemplates list', async () => {
+    const visible = await canShowCreateBranchFromTemplateCommand(
+      baseConfig({ branchTemplates: [{ name: 'Feature', template: 'feature/{r:1}' }] }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
+  });
+
+  it('shows command when at least one template does not need Jira (mixed list)', async () => {
+    const visible = await canShowCreateBranchFromTemplateCommand(
+      baseConfig({
+        branchTemplates: [
+          { name: 'Jira', template: 'vradchuk/{jira-key}-{r:1}' },
+          { name: 'Plain', template: 'feature/{r:1}' },
+        ],
+      }),
+      mockLogService
+    );
+    assert.strictEqual(visible, true);
+  });
+
+  it('hides command when every template needs Jira but Jira is not configured', async () => {
+    const visible = await canShowCreateBranchFromTemplateCommand(
+      baseConfig({
+        branchTemplates: [
+          { name: 'Key', template: 'vradchuk/{jira-key}-{r:1}' },
+          { name: 'Title', template: '{jira-title:25:-}' },
+        ],
+      }),
       mockLogService
     );
     assert.strictEqual(visible, false);

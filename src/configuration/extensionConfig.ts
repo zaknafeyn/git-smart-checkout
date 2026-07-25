@@ -38,6 +38,11 @@ export interface JiraConfig {
   projectKeys: string[];
 }
 
+export interface NamedTemplate {
+  name: string;
+  template: string;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -65,9 +70,11 @@ export interface ExtensionConfig {
   };
   preferredRefs?: PreferredRefsMap;
   tagTemplate: string;
+  tagTemplates: NamedTemplate[];
   pushTagWithoutConfirmation: boolean;
   tagRemote: string;
   branchTemplate: string;
+  branchTemplates: NamedTemplate[];
   jira: JiraConfig;
 }
 

@@ -5,7 +5,13 @@ Command: `Git Smart Checkout: Create Tag from Template`
 Generate Git tags from a configurable template with safe token substitution for file values, branch regex matches, script output, and auto-incrementing suffixes.
 
 > [!TIP]
-> Set `git-smart-checkout.tagTemplate` once per project and run this command from the command palette to produce a correct, collision-free tag in one step.
+> Configure one or more named templates in `git-smart-checkout.tagTemplates`, each `{ "name": "...", "template": "..." }`, then run this command from the command palette to produce a correct, collision-free tag in one step. When several are defined the command shows a picker (search by name **or** by the generated value) before the editable step; a single template skips the picker.
+>
+> The deprecated single-value `git-smart-checkout.tagTemplate` still works as a fallback when `tagTemplates` is empty, but will be removed in a future release.
+
+## Selecting a template
+
+When more than one template is configured, the command first shows a template picker whose label is the template name and whose description is a lightweight preview of the generated value. The preview resolves `{f:...}` and `{b:...}` tokens, but does **not** run `{s:...}` scripts or the `{r}` uniqueness loop (those appear as literal tokens); full resolution runs only for the template you select.
 
 ## Template Tokens
 

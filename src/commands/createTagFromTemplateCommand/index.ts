@@ -5,9 +5,12 @@ import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
 import {
   resolveTagTemplate,
+  resolveTagTemplateWithTrace,
   ScriptTokenError,
   TagTemplateContext,
 } from '../../services/tagTemplateService';
+import { getTagTemplates } from '../../services/templateList';
+import { pickTemplate } from '../utils/pickTemplate';
 import { validateTagName } from './validateTagName';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
 
@@ -45,31 +48,51 @@ export class CreateTagFromTemplateCommand extends BaseCommand {
     log(`Current workspace folder: ${workspaceRoot}`);
 
     const cfg = this.configManager.get();
-    const template = (cfg.tagTemplate ?? '').trim();
     const remote = cfg.tagRemote || 'origin';
+    const templates = getTagTemplates(cfg);
+
+    const ctx: TagTemplateContext = {
+      workspaceRoot,
+      getCurrentBranch: async () => {
+        try {
+          const branch = await git.getCurrentBranch();
+          return branch ?? '';
+        } catch {
+          return '';
+        }
+      },
+      tagExists: (name) => git.tagExists(name),
+      logger: {
+        info: (m, d) => this.logService.info(m, d),
+        warn: (m, d) => this.logService.warn(m, d),
+        debug: (m, d) => this.logService.debug(m, d),
+      },
+    };
+
+    // Tag templates are optional: with none configured we skip resolution and
+    // prompt with an empty initial name (unchanged legacy behavior). With one,
+    // the picker is skipped; with several, the user chooses.
+    let template = '';
+    if (templates.length > 0) {
+      const selected = await pickTemplate(
+        templates,
+        async (entry) => {
+          const traced = await resolveTagTemplateWithTrace(entry.template, ctx, { preview: true });
+          return traced.tag;
+        },
+        'Select a tag template'
+      );
+      if (!selected) {
+        return;
+      }
+      template = selected.template;
+    }
 
     let initialTagName = '';
     let hadRecurringToken = false;
 
     if (template !== '') {
       log(`Template: ${template}`);
-      const ctx: TagTemplateContext = {
-        workspaceRoot,
-        getCurrentBranch: async () => {
-          try {
-            const branch = await git.getCurrentBranch();
-            return branch ?? '';
-          } catch {
-            return '';
-          }
-        },
-        tagExists: (name) => git.tagExists(name),
-        logger: {
-          info: (m, d) => this.logService.info(m, d),
-          warn: (m, d) => this.logService.warn(m, d),
-          debug: (m, d) => this.logService.debug(m, d),
-        },
-      };
 
       let resolved: Awaited<ReturnType<typeof resolveTagTemplate>>;
       try {
