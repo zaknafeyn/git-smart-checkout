@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { captureException } from '../../analytics/analytics';
 import { ConfigurationManager } from '../../configuration/configurationManager';
+import { ExtensionConfig } from '../../configuration/extensionConfig';
 import { LoggingService } from '../../logging/loggingService';
 import {
   branchTemplateNeedsJira,
@@ -15,7 +16,9 @@ import {
 } from '../../services/jiraService';
 import { ScriptConsentStore } from '../../services/scriptConsentStore';
 import { resolveTagTemplateWithTrace, TagTemplateContext } from '../../services/tagTemplateService';
+import { getBranchTemplates, getTagTemplates } from '../../services/templateList';
 import { BaseCommand } from '../command';
+import { pickTemplate } from '../utils/pickTemplate';
 import { extractScriptTokenPaths } from './extractScriptTokenPaths';
 import { formatPreviewDocument } from './formatPreviewDocument';
 
@@ -55,7 +58,7 @@ export class PreviewTemplateCommand extends BaseCommand {
     const workspaceRoot = git.repositoryPath;
 
     const cfg = this.configManager.get();
-    const pick = await this.pickTemplate(cfg.branchTemplate, cfg.tagTemplate);
+    const pick = await this.pickKindAndTemplate(cfg, git, workspaceRoot);
     if (!pick) {
       return;
     }
@@ -159,41 +162,92 @@ export class PreviewTemplateCommand extends BaseCommand {
     }
   }
 
-  private async pickTemplate(
-    branchTemplateRaw: string,
-    tagTemplateRaw: string
+  private async pickKindAndTemplate(
+    cfg: ExtensionConfig,
+    git: Awaited<ReturnType<typeof this.getGitExecutor>>,
+    workspaceRoot: string
   ): Promise<TemplatePick | undefined> {
-    const branchTemplate = (branchTemplateRaw ?? '').trim();
-    const tagTemplate = (tagTemplateRaw ?? '').trim();
+    const branchTemplates = getBranchTemplates(cfg);
+    const tagTemplates = getTagTemplates(cfg);
 
-    if (!branchTemplate && !tagTemplate) {
+    if (branchTemplates.length === 0 && tagTemplates.length === 0) {
       await this.showErrorMessage(
-        'No branch or tag template is configured. Set git-smart-checkout.branchTemplate or git-smart-checkout.tagTemplate in settings.'
+        'No branch or tag template is configured. Set git-smart-checkout.branchTemplates or git-smart-checkout.tagTemplates in settings.'
       );
       return undefined;
     }
 
-    if (branchTemplate && !tagTemplate) {
-      return { kind: 'branch', template: branchTemplate };
-    }
-    if (tagTemplate && !branchTemplate) {
-      return { kind: 'tag', template: tagTemplate };
+    let kind: 'branch' | 'tag';
+    if (branchTemplates.length > 0 && tagTemplates.length === 0) {
+      kind = 'branch';
+    } else if (tagTemplates.length > 0 && branchTemplates.length === 0) {
+      kind = 'tag';
+    } else {
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: 'Branch template', templateKind: 'branch' as const },
+          { label: 'Tag template', templateKind: 'tag' as const },
+        ],
+        { title: 'Preview which template?', ignoreFocusOut: true }
+      );
+      if (!choice) {
+        return undefined;
+      }
+      kind = choice.templateKind;
     }
 
-    const choice = await vscode.window.showQuickPick(
-      [
-        { label: 'Branch template', description: branchTemplate, templateKind: 'branch' as const },
-        { label: 'Tag template', description: tagTemplate, templateKind: 'tag' as const },
-      ],
-      { title: 'Preview which template?', ignoreFocusOut: true }
+    const entries = kind === 'branch' ? branchTemplates : tagTemplates;
+    const selected = await pickTemplate(
+      entries,
+      (entry) => this.buildPreviewLabel(kind, entry.template, git, workspaceRoot),
+      kind === 'branch' ? 'Select a branch template' : 'Select a tag template'
     );
-    if (!choice) {
+    if (!selected) {
       return undefined;
     }
-    return {
-      kind: choice.templateKind,
-      template: choice.templateKind === 'branch' ? branchTemplate : tagTemplate,
+    return { kind, template: selected.template };
+  }
+
+  /**
+   * Lightweight resolution used to label a template in the selection picker:
+   * resolves {f:...}/{b:...} and available data but never runs scripts, the {r}
+   * loop, or a Jira prompt (see ResolveTemplateOptions.preview).
+   */
+  private async buildPreviewLabel(
+    kind: 'branch' | 'tag',
+    template: string,
+    git: Awaited<ReturnType<typeof this.getGitExecutor>>,
+    workspaceRoot: string
+  ): Promise<string> {
+    const logger = {
+      info: (m: string, d?: unknown) => this.logService.info(m, d),
+      warn: (m: string, d?: unknown) => this.logService.warn(m, d),
+      debug: (m: string, d?: unknown) => this.logService.debug(m, d),
     };
+    if (kind === 'branch') {
+      const traced = await resolveBranchTemplateWithTrace(
+        template,
+        {
+          workspaceRoot,
+          getCurrentBranch: () => this.safeGetCurrentBranch(git),
+          branchExists: (name) => git.branchExist(name),
+          logger,
+        },
+        { preview: true }
+      );
+      return traced.branch;
+    }
+    const traced = await resolveTagTemplateWithTrace(
+      template,
+      {
+        workspaceRoot,
+        getCurrentBranch: () => this.safeGetCurrentBranch(git),
+        tagExists: (name) => git.tagExists(name),
+        logger,
+      },
+      { preview: true }
+    );
+    return traced.tag;
   }
 
   /**

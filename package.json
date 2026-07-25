@@ -569,15 +569,57 @@
           "default": {},
           "markdownDescription": "Per-user map of preferred refs by repository. Keys are `<owner>/<repo>` (GitHub) or workspace folder name; values include arrays: locals, remotes, tags (stored as full refnames like `refs/heads/<name>`, `refs/remotes/<remote>/<name>`, `refs/tags/<name>`)."
         },
+        "git-smart-checkout.tagTemplates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name shown when picking a tag template."
+              },
+              "template": {
+                "type": "string",
+                "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nThe `{r}` token is an optional uniqueness suffix: it is dropped when the tag built without it is free, otherwise it appends `<separator><start-number>` and increments until the name is free.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}{r:1:-}`"
+              }
+            },
+            "required": ["name", "template"],
+            "additionalProperties": false
+          },
+          "default": [],
+          "markdownDescription": "Named tag templates. When more than one is configured, **GSC: Create Tag from Template ...** shows a picker (search by name or by the generated value); a single template skips the picker. Each entry is `{ \"name\": \"...\", \"template\": \"...\" }`.\n\nExample: `[{ \"name\": \"Release\", \"template\": \"v{f:package.json:.version}{r:1:-}\" }]`"
+        },
+        "git-smart-checkout.branchTemplates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name shown when picking a branch template."
+              },
+              "template": {
+                "type": "string",
+                "markdownDescription": "Template used to generate Git branch names. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}`."
+              }
+            },
+            "required": ["name", "template"],
+            "additionalProperties": false
+          },
+          "default": [],
+          "markdownDescription": "Named branch templates. When more than one is configured, **GSC: Create Branch from Template ...** shows a picker (search by name or by the generated value); a single template skips the picker. Each entry is `{ \"name\": \"...\", \"template\": \"...\" }`.\n\nExample: `[{ \"name\": \"Feature\", \"template\": \"vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}\" }]`"
+        },
         "git-smart-checkout.tagTemplate": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nThe `{r}` token is an optional uniqueness suffix: it is dropped when the tag built without it is free, otherwise it appends `<separator><start-number>` and increments until the name is free.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}{r:1:-}`"
+          "markdownDescription": "Template used to generate Git tag names. Supports tokens: `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}` (stdout) or `{s:stderr:<script>}`.\n\nThe `{r}` token is an optional uniqueness suffix: it is dropped when the tag built without it is free, otherwise it appends `<separator><start-number>` and increments until the name is free.\n\nExample: `test-v{f:package.json:.version}-{b:\\b[A-Z]+-\\d{3,4}\\b}-{s:./test.sh}{r:1:-}`",
+          "markdownDeprecationMessage": "Deprecated: use `git-smart-checkout.tagTemplates` (named templates) instead. This setting still works as a fallback but will be removed in a future release."
         },
         "git-smart-checkout.branchTemplate": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Template used to generate Git branch names when running **Create Branch from Template ...**. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}` — fetches a Jira issue, uppercases the key (e.g. `KEY-123`), slugifies the title (max 25 chars, `-` separator), and adds `{r:1:-}` only if the branch already exists (appending `-1`, `-2`, … until free). The resolved name is lowercased except the Jira key."
+          "markdownDescription": "Template used to generate Git branch names when running **Create Branch from Template ...**. Supports tokens: `{jira-key}`, `{jira-title[:limit[:separator]]}`, `{f:<file>:<json-path>}`, `{b:<regex>}`, `{r:<start-number>[:<separator>]}`, `{s:<script>}`.\n\nExample: `vradchuk/{jira-key}-{jira-title:25:-}{r:1:-}` — fetches a Jira issue, uppercases the key (e.g. `KEY-123`), slugifies the title (max 25 chars, `-` separator), and adds `{r:1:-}` only if the branch already exists (appending `-1`, `-2`, … until free). The resolved name is lowercased except the Jira key.",
+          "markdownDeprecationMessage": "Deprecated: use `git-smart-checkout.branchTemplates` (named templates) instead. This setting still works as a fallback but will be removed in a future release."
         },
         "git-smart-checkout.jira.domain": {
           "type": "string",

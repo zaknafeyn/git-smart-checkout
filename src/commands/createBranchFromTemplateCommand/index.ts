@@ -6,6 +6,7 @@ import { LoggingService } from '../../logging/loggingService';
 import {
   branchTemplateNeedsJira,
   resolveBranchTemplate,
+  resolveBranchTemplateWithTrace,
   ScriptTokenError,
 } from '../../services/branchTemplateService';
 import {
@@ -14,7 +15,9 @@ import {
   isJiraConfigured,
   pickJiraIssue,
 } from '../../services/jiraService';
+import { getBranchTemplates } from '../../services/templateList';
 import { BaseCommand } from '../command';
+import { pickTemplate } from '../utils/pickTemplate';
 import { validateBranchName } from './validateBranchName';
 
 const COPY_BRANCH_ACTION = 'Copy Branch Name';
@@ -50,14 +53,50 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     const workspaceRoot = git.repositoryPath;
 
     const cfg = this.configManager.get();
-    const template = (cfg.branchTemplate ?? '').trim();
+    const templates = getBranchTemplates(cfg);
 
-    if (template === '') {
+    if (templates.length === 0) {
       await this.showErrorMessage(
-        'Branch template is not configured. Set git-smart-checkout.branchTemplate in settings.'
+        'No branch template is configured. Set git-smart-checkout.branchTemplates in settings.'
       );
       return;
     }
+
+    const previewLogger = {
+      info: (m: string, d?: unknown) => this.logService.info(m, d),
+      warn: (m: string, d?: unknown) => this.logService.warn(m, d),
+      debug: (m: string, d?: unknown) => this.logService.debug(m, d),
+    };
+    const getCurrentBranch = async (): Promise<string> => {
+      try {
+        const branch = await git.getCurrentBranch();
+        return branch ?? '';
+      } catch {
+        return '';
+      }
+    };
+
+    const selected = await pickTemplate(
+      templates,
+      async (entry) => {
+        const traced = await resolveBranchTemplateWithTrace(
+          entry.template,
+          {
+            workspaceRoot,
+            getCurrentBranch,
+            branchExists: (name) => git.branchExist(name),
+            logger: previewLogger,
+          },
+          { preview: true }
+        );
+        return traced.branch;
+      },
+      'Select a branch template'
+    );
+    if (!selected) {
+      return;
+    }
+    const template = selected.template;
 
     let jiraKey: string | undefined;
     let jiraTitle: string | undefined;
@@ -95,20 +134,9 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
         workspaceRoot,
         jiraKey,
         jiraTitle,
-        getCurrentBranch: async () => {
-          try {
-            const branch = await git.getCurrentBranch();
-            return branch ?? '';
-          } catch {
-            return '';
-          }
-        },
+        getCurrentBranch,
         branchExists: (name) => git.branchExist(name),
-        logger: {
-          info: (m, d) => this.logService.info(m, d),
-          warn: (m, d) => this.logService.warn(m, d),
-          debug: (m, d) => this.logService.debug(m, d),
-        },
+        logger: previewLogger,
       });
     } catch (e) {
       if (e instanceof ScriptTokenError) {
