@@ -72,7 +72,7 @@ describe('AutoStashService — conflict rescue routing', () => {
 
     await assert.rejects(
       () => service.checkoutAndStashChanges(git, 'main', nextBranch, AUTO_STASH_AND_POP_IN_NEW_BRANCH),
-      /Failed to pop the stash on the new branch/
+      /Failed to (pop the stash on the new branch|restore the auto-stash on this branch)/
     );
   });
 
@@ -103,7 +103,7 @@ describe('AutoStashService — conflict rescue routing', () => {
 
     await assert.rejects(
       () => service.checkoutAndStashChanges(git, 'main', nextBranch, AUTO_STASH_CURRENT_BRANCH),
-      /Failed to pop the stash on the new branch/
+      /Failed to (pop the stash on the new branch|restore the auto-stash on this branch)/
     );
   });
 

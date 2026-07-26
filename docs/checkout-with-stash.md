@@ -26,7 +26,7 @@ If a branch is already checked out in another Git worktree, the checkout picker 
 
 | Mode | Behavior |
 | --- | --- |
-| Auto stash in current branch | Stashes changes for the current branch before checkout. When you later return to that branch with the same mode, the matching stash is popped automatically. |
+| Auto stash in current branch | Stashes changes for the current branch (as `auto-stash-<branch>`) before checkout. When you later return to that branch the matching stash is restored — see [Restoring a branch's stash on return](#restoring-a-branchs-stash-on-return). |
 | Auto stash and pop in new branch | Stashes current changes, checks out the target branch, then pops the stash onto the target branch. |
 | Auto stash and apply in new branch | Stashes current changes, checks out the target branch, then applies the stash onto the target branch while keeping the stash entry available. |
 | No auto stash | Runs checkout without automatic stash handling. Git may block the checkout if local changes would be overwritten. |
@@ -40,6 +40,15 @@ Temporary stashes used by the pop/apply flows are named `auto-stash-<branch>-<yy
 > Stashes created by "Auto stash and apply in new branch" are not used by the automatic branch-restore flow. They remain available for manual stash access.
 
 Stashes are matched by their complete message after Git's `On <branch>: ` subject prefix. Message text containing `: ` is preserved when the extension locates a stash to pop or apply.
+
+## Restoring a Branch's Stash on Return
+
+A stash named `auto-stash-<branch>` (created by "Auto stash in current branch") belongs to that branch. Whenever you check out **to** that branch again — through any checkout command, in any mode, and even when your working tree is clean — Git Smart Checkout restores it:
+
+- In **Auto stash in current branch** mode the stash is popped automatically.
+- In every other mode (including **Manual**) you are prompted with **Pop** (restore and remove the stash) or **Apply (keep stash)** (restore but leave the stash in place). Dismiss the notification to leave the changes stashed.
+
+This is what lets you recover a branch's stashed work even when you return to it with a clean working tree, or in a mode where you are not asked to choose stash handling at checkout time. If restoring conflicts with the target branch, the extension shows the conflict-rescue notification instead of a generic error, and the stash is preserved.
 
 ## Pull After Checkout
 
