@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.15.0...v0.15.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **checkout:** restore a branch's auto-stash when returning to it ([#170](https://github.com/zaknafeyn/git-smart-checkout/issues/170)) ([9d14518](https://github.com/zaknafeyn/git-smart-checkout/commit/9d14518219f862e6461f682e035089caaa6110f9))
+
 # [0.15.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.14.1...v0.15.0) (2026-07-25)
 
 
