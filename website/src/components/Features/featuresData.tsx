@@ -282,6 +282,10 @@ export const features: Feature[] = [
     tag: 'New',
     color: 'orange',
     details: {
+      media:{
+        kind: 'video',
+        src: '/videos/review-pr-by-number.mp4',
+      },
       longDescription:
         'Skip the PR list picker entirely — type a PR number or paste a URL and go straight into an isolated review worktree.',
       highlights: [
@@ -534,6 +538,10 @@ export const features: Feature[] = [
     command: 'GSC: Quick Actions...',
     color: 'purple',
     details: {
+      media:{
+        kind: 'video',
+        src: '/videos/status-bar-integration.mp4',
+      },
       longDescription:
         'The status bar always shows your current stash mode at a glance. Click it to open a quick-actions menu covering checkout, pull/rebase, worktree commands, PR clone, and settings — each entry gated to what makes sense for your repo\'s current state.',
       highlights: [
