@@ -302,6 +302,23 @@ export class AutoStashService {
         break;
     }
 
+    // Whenever we land on a branch that owns an `auto-stash-<branch>` stash, restore
+    // it — regardless of the mode used or whether the source tree was dirty. This is
+    // what makes returning to a branch with a clean tree (or in Manual / pop / apply
+    // modes) still recover that branch's stashed WIP. Only the explicit
+    // `autoStashForBranch` mode restores silently (its advertised contract); every
+    // other path prompts the user first.
+    if (outcome === 'completed') {
+      const restoreOutcome = await this.#restoreBranchOwnedStash(
+        git,
+        nextBranchName,
+        autoStashMode === AUTO_STASH_CURRENT_BRANCH
+      );
+      if (restoreOutcome === 'rescued') {
+        outcome = 'rescued';
+      }
+    }
+
     if (outcome === 'completed') {
       capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges });
 
@@ -345,31 +362,77 @@ export class AutoStashService {
     }
     await this.#maybePullAfterCheckout(git, nextBranch);
 
+    // NB: restoring the target branch's own `auto-stash-<branch>` stash is no
+    // longer done here. It is centralized in `checkoutAndStashChanges` so it runs
+    // after every checkout path (all modes, clean or dirty tree), not just this one.
+    return 'completed';
+  }
+
+  /**
+   * After landing on `branchName`, look for the branch's own un-dated
+   * `auto-stash-<branch>` stash and, if present, restore it. When `silent` is true
+   * (the explicit `autoStashForBranch` mode) it is popped without asking, preserving
+   * that mode's advertised auto-pop. Otherwise the user is prompted to Pop (restore
+   * and remove) or Apply (restore and keep) before anything is applied.
+   */
+  async #restoreBranchOwnedStash(
+    git: GitExecutor,
+    branchName: string,
+    silent: boolean
+  ): Promise<'restored' | 'none' | 'dismissed' | 'rescued'> {
+    const message = `${AUTO_STASH_PREFIX}-${branchName}`;
+
+    let stashExists: boolean;
     try {
-      const message = `${AUTO_STASH_PREFIX}-${nextBranch}`;
-      const isStashWithMessageExists = await git.isStashWithMessageExists(message);
-      this.logService.info(
-        `Stash is ${isStashWithMessageExists ? 'found' : 'not found'} for stash with message: '${message}'`
+      stashExists = await git.isStashWithMessageExists(message);
+    } catch (e) {
+      this.logService.info(`Failed to check for auto-stash '${message}': ${e instanceof Error ? e.message : String(e)}`);
+      return 'none';
+    }
+    this.logService.info(`Stash is ${stashExists ? 'found' : 'not found'} for stash with message: '${message}'`);
+    if (!stashExists) {
+      return 'none';
+    }
+
+    // Decide how to restore: silently pop for the auto mode, otherwise ask.
+    let apply = false;
+    if (!silent) {
+      const POP = 'Pop';
+      const APPLY = 'Apply (keep stash)';
+      const choice = await window.showInformationMessage(
+        `Branch '${branchName}' has auto-stashed changes. Restore them?`,
+        POP,
+        APPLY
       );
-      if (isStashWithMessageExists) {
-        await git.popStash(message);
+      if (choice === POP) {
+        apply = false;
+      } else if (choice === APPLY) {
+        apply = true;
+      } else {
+        // Notification dismissed — leave the stash untouched.
+        return 'dismissed';
       }
+    }
+
+    try {
+      await git.popStash(message, apply);
+      capture(AnalyticsEvent.BranchStashRestored, { silent, apply });
+      return 'restored';
     } catch (e) {
       const conflicts = await git.getConflictedFiles();
       if (conflicts.length > 0) {
-        await offerConflictRescue(git, conflicts, 'pop');
+        await offerConflictRescue(git, conflicts, apply ? 'apply' : 'pop');
         return 'rescued';
       }
       handleErrorMessage(
         e,
         'No stash found',
-        'No stash to pop on the new branch.',
-        'Failed to pop the stash on the new branch.',
+        'No auto-stash to restore on this branch.',
+        'Failed to restore the auto-stash on this branch.',
         this.logService
       );
+      return 'none';
     }
-
-    return 'completed';
   }
 
   async #confirmStashConflicts(files: string[], operation: string): Promise<boolean> {

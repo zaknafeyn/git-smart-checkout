@@ -33,6 +33,7 @@ export enum AnalyticsEvent {
   JiraTokenSet = 'jira_token_set',
   JiraInitialized = 'jira_initialized',
   AutoStashManaged = 'auto_stash_managed',
+  BranchStashRestored = 'branch_stash_restored',
   StatusBarMenuOpened = 'status_bar_menu_opened',
   SettingsOpened = 'settings_opened',
 }
