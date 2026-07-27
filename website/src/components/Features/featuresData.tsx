@@ -97,6 +97,10 @@ export const features: Feature[] = [
     command: 'GSC: Pull (With Stash)',
     color: 'green',
     details: {
+      media:{
+        kind: 'video',
+        src: '/videos/pull-with-stash.mp4',
+      },
       longDescription:
         'Your local changes are stashed before the pull, then restored the moment it completes — no manual stash juggling required.',
       highlights: [
