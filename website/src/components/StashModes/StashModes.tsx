@@ -1,10 +1,9 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
   faArrowUpFromBracket,
-  faCopy,
+  faCodeBranch,
   faGear,
   faLightbulb,
-  faThumbtack,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -27,7 +26,7 @@ const modes: Mode[] = [
     useCase: 'Best when: you want full control over every checkout decision.',
   },
   {
-    icon: faThumbtack,
+    icon: faCodeBranch,
     name: 'Auto stash in current branch',
     badge: 'Recommended',
     description:
@@ -43,7 +42,7 @@ const modes: Mode[] = [
     useCase: 'Best when: you started work on the wrong branch and need to move it.',
   },
   {
-    icon: faCopy,
+    icon: faArrowUpFromBracket,
     name: 'Auto stash and apply',
     badge: 'Non-destructive',
     description:
