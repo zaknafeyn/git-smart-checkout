@@ -1,3 +1,17 @@
+# [0.16.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.15.1...v0.16.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* add video media for smart branch checkout feature ([f949814](https://github.com/zaknafeyn/git-smart-checkout/commit/f94981484d411b605cec04a511059be1da9ebb46))
+* **website:** use Font Awesome free icons for feature cards ([#172](https://github.com/zaknafeyn/git-smart-checkout/issues/172)) ([399f02a](https://github.com/zaknafeyn/git-smart-checkout/commit/399f02a31fdbb3ad92b0c9691c0e08cf98e3f900))
+* **worktrees:** pass worktree path to tree actions and move title buttons into the view ([#171](https://github.com/zaknafeyn/git-smart-checkout/issues/171)) ([890deff](https://github.com/zaknafeyn/git-smart-checkout/commit/890deffbd0c05b8e15f730cd97556c1f1c148454))
+
+
+### Features
+
+* add video media for PR review and status bar integration features ([65e839e](https://github.com/zaknafeyn/git-smart-checkout/commit/65e839ec828cfe68b80811e7e5d142dedd910181))
+
 ## [0.15.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.15.0...v0.15.1) (2026-07-26)
 
 
