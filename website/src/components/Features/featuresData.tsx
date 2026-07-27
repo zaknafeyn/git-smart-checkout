@@ -43,6 +43,10 @@ export const features: Feature[] = [
     command: 'GSC: Checkout to... (With Stash)',
     color: 'blue',
     details: {
+      media:{
+        kind: 'video',
+        src: '/videos/smart-branch-checkout.mp4',
+      },
       longDescription:
         'Pick a stash strategy globally or per checkout, then switch branches with your working tree carried along automatically. Conflict prediction runs before the switch so you never get a mid-checkout surprise.',
       highlights: [
