@@ -1,7 +1,17 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import {
+  faArrowUpFromBracket,
+  faCopy,
+  faGear,
+  faLightbulb,
+  faThumbtack,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+
 import styles from './StashModes.module.css';
 
 interface Mode {
-  icon: string;
+  icon: IconDefinition;
   name: string;
   badge: string;
   description: string;
@@ -10,14 +20,14 @@ interface Mode {
 
 const modes: Mode[] = [
   {
-    icon: '⚙️',
+    icon: faGear,
     name: 'Manual',
     badge: 'Default',
     description: 'You choose the stash strategy each time you run a checkout command.',
     useCase: 'Best when: you want full control over every checkout decision.',
   },
   {
-    icon: '📌',
+    icon: faThumbtack,
     name: 'Auto stash in current branch',
     badge: 'Recommended',
     description:
@@ -25,7 +35,7 @@ const modes: Mode[] = [
     useCase: 'Best when: you frequently context-switch between long-running branches.',
   },
   {
-    icon: '📤',
+    icon: faArrowUpFromBracket,
     name: 'Auto stash and pop',
     badge: 'Transfer',
     description:
@@ -33,7 +43,7 @@ const modes: Mode[] = [
     useCase: 'Best when: you started work on the wrong branch and need to move it.',
   },
   {
-    icon: '📋',
+    icon: faCopy,
     name: 'Auto stash and apply',
     badge: 'Non-destructive',
     description:
@@ -59,7 +69,9 @@ export function StashModes() {
           {modes.map((mode) => (
             <article key={mode.name} className={styles.card}>
               <div className={styles.cardTop}>
-                <span className={styles.icon}>{mode.icon}</span>
+                <span className={styles.icon} aria-hidden="true">
+                  <FontAwesomeIcon icon={mode.icon} />
+                </span>
                 <span className={styles.badge}>{mode.badge}</span>
               </div>
               <h3 className={styles.modeName}>{mode.name}</h3>
@@ -70,7 +82,9 @@ export function StashModes() {
         </div>
 
         <div className={styles.tip}>
-          <span className={styles.tipIcon}>💡</span>
+          <span className={styles.tipIcon} aria-hidden="true">
+            <FontAwesomeIcon icon={faLightbulb} />
+          </span>
           <p>
             Set your default mode once in the status bar — the extension remembers it per workspace.
             Override it any time with a single click.

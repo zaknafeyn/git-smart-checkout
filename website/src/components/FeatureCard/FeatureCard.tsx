@@ -1,3 +1,5 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import type { ReactNode } from 'react';
 
 import { getCommandPaletteShortcut } from '../../utils/shortcuts';
@@ -6,7 +8,7 @@ import styles from './FeatureCard.module.css';
 export type FeatureCardTone = 'blue' | 'green' | 'purple' | 'orange';
 
 interface FeatureCardProps {
-  icon: string;
+  icon: IconDefinition;
   title: string;
   description: ReactNode;
   command?: string;
@@ -41,7 +43,9 @@ export function FeatureCard({
 
   return (
     <article className={className}>
-      <div className={styles.cardIcon}>{icon}</div>
+      <div className={styles.cardIcon} aria-hidden="true">
+        <FontAwesomeIcon icon={icon} />
+      </div>
       <div className={styles.cardBody}>
         <div className={styles.cardTitleRow}>
           <Title className={styles.cardTitle}>

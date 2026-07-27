@@ -1,3 +1,4 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useRef, type MouseEvent } from 'react';
 
 import type { Feature } from '../Features/featuresData';
@@ -77,7 +78,7 @@ export function FeatureModal({ feature, onClose }: FeatureModalProps) {
         <div className={styles.body}>
           <header className={styles.titleRow}>
             <span className={styles.icon} aria-hidden="true">
-              {feature.icon}
+              <FontAwesomeIcon icon={feature.icon} />
             </span>
             <h3 id="feature-modal-title">{feature.title}</h3>
             {feature.tag && <span className={styles.tag}>{feature.tag}</span>}

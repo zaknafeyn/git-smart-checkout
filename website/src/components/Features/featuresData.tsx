@@ -1,3 +1,30 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import {
+  faArrowRotateLeft,
+  faArrowsRotate,
+  faBoxArchive,
+  faBroom,
+  faBuilding,
+  faClone,
+  faCodeBranch,
+  faCodeMerge,
+  faCodePullRequest,
+  faEye,
+  faFlask,
+  faFolderTree,
+  faHashtag,
+  faMagnifyingGlass,
+  faPlug,
+  faSatelliteDish,
+  faSeedling,
+  faShieldHalved,
+  faStar,
+  faTag,
+  faTerminal,
+  faTree,
+  faTruckMedical,
+  faWindowMaximize,
+} from '@fortawesome/free-solid-svg-icons';
 import type { ReactNode } from 'react';
 
 import type { FeatureCardTone } from '../FeatureCard/FeatureCard';
@@ -22,7 +49,7 @@ export interface FeatureDetails {
 
 export interface Feature {
   id: string; // unique kebab-case slug; used as React key
-  icon: string;
+  icon: IconDefinition; // Font Awesome free (solid) icon definition
   title: string;
   description: ReactNode; // short card copy — unchanged from today
   command?: string;
@@ -36,7 +63,7 @@ const DOCS_BASE = 'https://github.com/zaknafeyn/git-smart-checkout/blob/main/doc
 export const features: Feature[] = [
   {
     id: 'smart-checkout',
-    icon: '🔄',
+    icon: faCodeBranch,
     title: 'Smart Branch Checkout',
     description:
       'Switch branches without worrying about uncommitted changes. Choose your stash strategy once or per checkout — the extension handles everything else.',
@@ -59,7 +86,7 @@ export const features: Feature[] = [
   },
   {
     id: 'pull-with-stash',
-    icon: '📥',
+    icon: faClone,
     title: 'Pull with Stash',
     description:
       'Pull the latest changes from remote without losing your local work. Changes are stashed before the pull and restored automatically after.',
@@ -79,7 +106,7 @@ export const features: Feature[] = [
   },
   {
     id: 'pull-with-rebase',
-    icon: '🔃',
+    icon: faArrowsRotate,
     title: 'Pull with Rebase',
     description:
       'Pull with rebase while preserving local changes. The extension stashes your work, rebases onto the remote branch, and restores your changes afterward.',
@@ -99,7 +126,7 @@ export const features: Feature[] = [
   },
   {
     id: 'rebase-with-stash',
-    icon: '🔀',
+    icon: faCodeMerge,
     title: 'Rebase with Stash',
     description:
       'Rebase the current branch onto any other branch, tag, or ref while your local changes are stashed and restored automatically — no need to commit or clean up first.',
@@ -119,7 +146,7 @@ export const features: Feature[] = [
   },
   {
     id: 'checkout-previous',
-    icon: '⬅️',
+    icon: faArrowRotateLeft,
     title: 'Checkout Previous Branch',
     description: (
       <>
@@ -142,7 +169,7 @@ export const features: Feature[] = [
   },
   {
     id: 'preferred-branches',
-    icon: '⭐',
+    icon: faStar,
     title: 'Preferred Branches',
     description:
       'Star the branches, tags, and remotes you use most — they float to the top of the checkout picker, marked with a star. Toggle a star straight from the picker, no settings file to edit.',
@@ -162,7 +189,7 @@ export const features: Feature[] = [
   },
   {
     id: 'delete-merged-branches',
-    icon: '🧹',
+    icon: faBroom,
     title: 'Delete Merged Branches',
     description:
       'Sweep away branches already merged or whose upstream is gone, in one multi-select pass.',
@@ -183,7 +210,7 @@ export const features: Feature[] = [
   },
   {
     id: 'pr-clone',
-    icon: '🍒',
+    icon: faCodePullRequest,
     title: 'GitHub PR Clone',
     description:
       'Cherry-pick individual commits from any GitHub PR into a new branch and open a new pull request — without merging the entire PR. The description preview renders full GitHub-Flavored Markdown and can pre-fill from the repo PR template.',
@@ -211,7 +238,7 @@ export const features: Feature[] = [
   },
   {
     id: 'checkout-by-pr',
-    icon: '#️⃣',
+    icon: faHashtag,
     title: 'Checkout by PR Number',
     description:
       "Check out any GitHub pull request's branch by its PR number or URL, with the same auto-stash handling as a regular checkout. No more copying branch names by hand.",
@@ -231,7 +258,7 @@ export const features: Feature[] = [
   },
   {
     id: 'multi-remote',
-    icon: '🛰️',
+    icon: faSatelliteDish,
     title: 'Multi-Remote Support',
     description:
       'Fork-friendly — the right remote is picked automatically for fetch and push, or pin one with defaultRemote.',
@@ -249,7 +276,7 @@ export const features: Feature[] = [
   },
   {
     id: 'pr-review-worktree',
-    icon: '🔎',
+    icon: faMagnifyingGlass,
     title: 'PR Review in Worktree',
     description:
       'Open a GitHub PR in an isolated linked worktree, track its review metadata, and remove the review worktree later with dirty-state stash handling.',
@@ -274,7 +301,7 @@ export const features: Feature[] = [
   },
   {
     id: 'review-pr-by-number',
-    icon: '👀',
+    icon: faEye,
     title: 'Review PR by Number',
     description:
       'Type a PR number or URL and land in an isolated review worktree in one step.',
@@ -299,7 +326,7 @@ export const features: Feature[] = [
   },
   {
     id: 'github-enterprise',
-    icon: '🏢',
+    icon: faBuilding,
     title: 'GitHub Enterprise',
     description: 'All PR features work against GitHub Enterprise Server, not just github.com.',
     color: 'purple',
@@ -316,7 +343,7 @@ export const features: Feature[] = [
   },
   {
     id: 'worktree-terminal',
-    icon: '🖥️',
+    icon: faTerminal,
     title: 'Worktree Dev Terminal',
     description:
       'Open a new integrated terminal straight in any worktree directory. Pick a project, choose the worktree, and get a shell in the right working directory — no manual navigation.',
@@ -334,7 +361,7 @@ export const features: Feature[] = [
   },
   {
     id: 'tag-template',
-    icon: '🏷️',
+    icon: faTag,
     title: 'Tag from Template',
     description:
       'Generate version tags from configurable, named templates. Read values from package.json, extract ticket IDs from branch names, and auto-increment to avoid collisions.',
@@ -359,7 +386,7 @@ export const features: Feature[] = [
   },
   {
     id: 'branch-template',
-    icon: '🌿',
+    icon: faSeedling,
     title: 'Branch from Template',
     description:
       'Create and check out a branch from reusable, named templates. Pull the key and title straight from a Jira ticket, or fill values from package.json, branch-name regex, and custom scripts.',
@@ -384,7 +411,7 @@ export const features: Feature[] = [
   },
   {
     id: 'template-preview',
-    icon: '🧪',
+    icon: faFlask,
     title: 'Branch/Tag Template Preview',
     description:
       'Dry-run your branch and tag templates — see exactly what each resolves to before creating anything.',
@@ -403,7 +430,7 @@ export const features: Feature[] = [
   },
   {
     id: 'worktree-workflows',
-    icon: '🌲',
+    icon: faTree,
     title: 'Worktree Workflows',
     description:
       'Create a new branch worktree, carry local changes with your stash mode, copy staged or WIP changes between worktrees, move WIP back, and remove several worktrees at once with a single confirmation.',
@@ -432,7 +459,7 @@ export const features: Feature[] = [
   },
   {
     id: 'worktrees-explorer',
-    icon: '🗂️',
+    icon: faFolderTree,
     title: 'Worktrees Explorer',
     description:
       'A dedicated Worktrees view showing every worktree across your open repos with live status.',
@@ -450,7 +477,7 @@ export const features: Feature[] = [
   },
   {
     id: 'worktree-setup-hooks',
-    icon: '🪝',
+    icon: faPlug,
     title: 'Post-Worktree Setup Hooks',
     description:
       'New worktrees arrive ready to work — copy .env-style ignored files in and run your install command automatically.',
@@ -474,7 +501,7 @@ export const features: Feature[] = [
   },
   {
     id: 'conflict-prediction',
-    icon: '🛡️',
+    icon: faShieldHalved,
     title: 'Conflict Prediction',
     description:
       'Before switching branches, the extension detects which files would conflict with your stash. No more surprise merge disasters mid-checkout.',
@@ -491,7 +518,7 @@ export const features: Feature[] = [
   },
   {
     id: 'stash-rescue',
-    icon: '🚑',
+    icon: faTruckMedical,
     title: 'Stash-Conflict Rescue',
     description:
       'When restoring a stash conflicts, get guided rescue actions instead of a cryptic Git error.',
@@ -510,7 +537,7 @@ export const features: Feature[] = [
   },
   {
     id: 'auto-stash-manager',
-    icon: '📋',
+    icon: faBoxArchive,
     title: 'Auto-Stash Manager',
     description:
       'Inspect, recover, or remove the stashes Git Smart Checkout creates — see branch, age, file count and a diff preview, then Apply, Pop, or Drop each one with a single click.',
@@ -531,7 +558,7 @@ export const features: Feature[] = [
   },
   {
     id: 'status-bar',
-    icon: '📊',
+    icon: faWindowMaximize,
     title: 'Status Bar Integration',
     description:
       "See your current stash mode at a glance, then click the status bar item for a quick-actions menu — checkout, pull/rebase, worktree commands, clone PR, and settings, each gated to your repo's state.",

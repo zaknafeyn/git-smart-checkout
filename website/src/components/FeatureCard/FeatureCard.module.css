@@ -34,15 +34,20 @@
 }
 
 .cardIcon {
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 4px;
+  width: 1.25em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
 }
 
 .compact .cardIcon {
-  font-size: 22px;
-  margin-top: 1px;
+  font-size: 20px;
+  margin-top: 3px;
 }
 
 .cardBody {

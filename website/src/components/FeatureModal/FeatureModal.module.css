@@ -115,8 +115,9 @@
   gap: 10px;
 }
 .icon {
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
+  color: var(--accent);
 }
 .titleRow h3 {
   font-size: 20px;
