@@ -1,6 +1,11 @@
 import * as assert from 'assert';
 import * as os from 'os';
-import { WorktreeTreeDataProvider, WorktreeTreeItem } from '../../view/WorktreeTreeDataProvider';
+import {
+  WorktreeActionTreeItem,
+  WorktreeRepositoryTreeItem,
+  WorktreeTreeDataProvider,
+  WorktreeTreeItem,
+} from '../../view/WorktreeTreeDataProvider';
 import { PRReviewWorktreeStore } from '../../services/prReviewWorktreeStore';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
@@ -71,6 +76,35 @@ describe('WorktreeTreeItem', () => {
     item.applyEnrichment({ isDirty: false, dirtyFileCount: 0, isPrReview: false });
 
     assert.strictEqual(item.description, '~/projects/repo-review');
+  });
+});
+
+describe('WorktreeRepositoryTreeItem', () => {
+  it('uses a contextValue that does not collide with the \\bworktree\\b menu matcher', () => {
+    const item = new WorktreeRepositoryTreeItem('/repo', []);
+    assert.strictEqual(item.contextValue, 'worktreeRepository');
+    assert.ok(!/\bworktree\b/.test(item.contextValue));
+  });
+});
+
+describe('WorktreeTreeDataProvider.getChildren action rows', () => {
+  function makeProvider() {
+    const store = { getForRepository: async () => [] } as unknown as PRReviewWorktreeStore;
+    return new WorktreeTreeDataProvider(mockLogService, store);
+  }
+
+  it('lists a "Move to New Worktree" action row before any worktrees, with no "Remove Multiple" row when there are none to remove', async () => {
+    const provider = makeProvider();
+    const children = await provider.getChildren();
+
+    const actionRows = children.filter((child) => child instanceof WorktreeActionTreeItem);
+    assert.strictEqual(actionRows.length, 1);
+    assert.strictEqual(actionRows[0].label, 'Move to New Worktree…');
+    assert.strictEqual(
+      (actionRows[0].command as { command: string }).command,
+      'git-smart-checkout.moveToNewWorktree'
+    );
+    assert.ok(!/\bworktree\b/.test(String(actionRows[0].contextValue)));
   });
 });
 

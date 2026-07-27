@@ -27,6 +27,9 @@ export function isSameOrChildPath(candidatePath: string, parentPath: string): bo
 }
 
 export function normalizePathForComparison(targetPath: string): string {
+  if (typeof targetPath !== 'string') {
+    return '';
+  }
   try {
     return fs.realpathSync.native(targetPath);
   } catch {

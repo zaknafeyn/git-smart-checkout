@@ -5,6 +5,7 @@ import { RemoveWorktreeCommand } from './removeWorktreeCommand';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { LoggingService } from '../logging/loggingService';
 import { addToWorkspace } from './utils/worktreeCompletionActions';
+import { resolveWorktreeArg } from './utils/resolveWorktreeArg';
 import { BaseCommand } from './command';
 
 export type WorktreeTreeAction =
@@ -31,8 +32,12 @@ export class WorktreeTreeActionCommand extends BaseCommand {
     super(logService);
   }
 
-  async execute(worktreePath?: string, repositoryPath?: string): Promise<void> {
-    if (!worktreePath) return;
+  async execute(arg?: unknown, repositoryPathArg?: string): Promise<void> {
+    const resolved = resolveWorktreeArg(arg, repositoryPathArg);
+    if (!resolved) {
+      return;
+    }
+    const { worktreePath, repositoryPath } = resolved;
 
     switch (this.action) {
       case 'open':
