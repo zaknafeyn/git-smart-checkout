@@ -92,12 +92,26 @@ export class WorktreeRepositoryTreeItem extends vscode.TreeItem {
   constructor(public readonly repositoryPath: string, public readonly children: WorktreeTreeItem[]) {
     super(path.basename(repositoryPath) || repositoryPath, vscode.TreeItemCollapsibleState.Expanded);
     this.description = repositoryPath;
-    this.contextValue = 'worktree.repository';
+    this.contextValue = 'worktreeRepository';
     this.iconPath = new vscode.ThemeIcon('repo');
   }
 }
 
-type WorktreeNode = WorktreeTreeItem | WorktreeRepositoryTreeItem;
+/**
+ * Full-width action row rendered at the top of the tree, replacing the text buttons that
+ * used to live in the view/title toolbar (VS Code renders title-bar buttons without an
+ * icon as text, which crowded out the view header).
+ */
+export class WorktreeActionTreeItem extends vscode.TreeItem {
+  constructor(label: string, icon: string, command: string) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.iconPath = new vscode.ThemeIcon(icon);
+    this.contextValue = 'worktreeAction';
+    this.command = { command, title: label };
+  }
+}
+
+type WorktreeNode = WorktreeTreeItem | WorktreeRepositoryTreeItem | WorktreeActionTreeItem;
 
 const DEFAULT_DEBOUNCE_MS = 2000;
 
@@ -119,17 +133,39 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
     return item;
   }
 
-  async getChildren(element?: WorktreeRepositoryTreeItem): Promise<WorktreeNode[]> {
+  async getChildren(element?: WorktreeNode): Promise<WorktreeNode[]> {
     if (!this.loaded) {
       await this.load();
     }
-    if (element) {
+    if (element instanceof WorktreeRepositoryTreeItem) {
       return element.children;
     }
-    if (this.repositories.length > 1) {
-      return this.repositories;
+    if (element) {
+      return [];
     }
-    return this.items;
+    const nodes = this.repositories.length > 1 ? this.repositories : this.items;
+    return [...this.getActionItems(), ...nodes];
+  }
+
+  private getActionItems(): WorktreeActionTreeItem[] {
+    const removableCount = this.items.filter((item) => !item.isMain).length;
+    const actions = [
+      new WorktreeActionTreeItem(
+        'Move to New Worktree…',
+        'new-folder',
+        'git-smart-checkout.moveToNewWorktree'
+      ),
+    ];
+    if (removableCount >= 2) {
+      actions.push(
+        new WorktreeActionTreeItem(
+          'Remove Multiple Worktrees…',
+          'trash',
+          'git-smart-checkout.removeMultipleWorktrees'
+        )
+      );
+    }
+    return actions;
   }
 
   /** Reloads immediately. Used for explicit user-triggered refreshes. */

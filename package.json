@@ -233,6 +233,7 @@
       {
         "command": "git-smart-checkout.worktree.open",
         "title": "Open Worktree in New Window",
+        "icon": "$(folder-opened)",
         "category": "GSC"
       },
       {
@@ -328,16 +329,6 @@
           "command": "git-smart-checkout.worktree.refresh",
           "when": "view == git-smart-checkout.worktrees",
           "group": "navigation@1"
-        },
-        {
-          "command": "git-smart-checkout.moveToNewWorktree",
-          "when": "view == git-smart-checkout.worktrees",
-          "group": "navigation@2"
-        },
-        {
-          "command": "git-smart-checkout.removeMultipleWorktrees",
-          "when": "view == git-smart-checkout.worktrees && git-smart-checkout.hasMultipleRemovableWorktrees",
-          "group": "navigation@3"
         },
         {
           "command": "git-smart-checkout.prCancelCloneMenu",
