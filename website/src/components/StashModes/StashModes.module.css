@@ -59,7 +59,9 @@
 }
 
 .icon {
-  font-size: 26px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--accent);
 }
 
 .badge {
@@ -103,7 +105,9 @@
 }
 
 .tipIcon {
-  font-size: 20px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--orange);
   flex-shrink: 0;
   margin-top: 1px;
 }

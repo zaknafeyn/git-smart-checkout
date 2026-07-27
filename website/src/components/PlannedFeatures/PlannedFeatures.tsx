@@ -1,8 +1,15 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import {
+  faGlobe,
+  faLayerGroup,
+  faTowerBroadcast,
+} from '@fortawesome/free-solid-svg-icons';
+
 import { FeatureCard } from '../FeatureCard/FeatureCard';
 import styles from './PlannedFeatures.module.css';
 
 interface PlannedFeature {
-  icon: string;
+  icon: IconDefinition;
   title: string;
   description: string;
   tier: 1 | 2;
@@ -10,21 +17,21 @@ interface PlannedFeature {
 
 const planned: PlannedFeature[] = [
   {
-    icon: '📡',
+    icon: faTowerBroadcast,
     tier: 1,
     title: 'Upstream Indicator',
     description:
       'See ⇡N ⇣M (ahead/behind) counts in the status bar for the current branch, with a click-to-fetch shortcut.',
   },
   {
-    icon: '🗂️',
+    icon: faLayerGroup,
     tier: 2,
     title: 'Multi-root Workspace',
     description:
       'Proper support for workspaces with multiple git repositories — pick the target repo when a command is ambiguous.',
   },
   {
-    icon: '🌐',
+    icon: faGlobe,
     tier: 2,
     title: 'GitLab & Bitbucket',
     description:
