@@ -166,53 +166,61 @@ export class ManageAutoStashesCommand extends BaseCommand {
     action: StashAction
   ): Promise<boolean> {
     switch (action) {
-      case 'apply': {
-        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-        try {
-          await git.applyStash(selector);
-        } catch (error) {
-          const conflicts = await git.getConflictedFiles();
-          if (conflicts.length === 0) throw error;
-          await offerConflictRescue(git, conflicts, 'apply');
-          return true;
-        }
-        await vscode.window.showInformationMessage('Auto-stash applied.', 'OK');
-        return false;
-      }
-      case 'pop': {
-        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-        try {
-          await git.popStashBySelector(selector);
-        } catch (error) {
-          const conflicts = await git.getConflictedFiles();
-          if (conflicts.length === 0) throw error;
-          await offerConflictRescue(git, conflicts, 'pop');
-          return true;
-        }
-        await vscode.window.showInformationMessage('Auto-stash popped.', 'OK');
-        return false;
-      }
-      case 'drop': {
-        const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-        await git.dropStash(selector);
-        await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
-        return false;
-      }
-      case 'diff': {
-        const patch = await git.getStashPatch(stash.selector);
-        if (!patch) {
-          await vscode.window.showInformationMessage('This auto-stash has no diff to display.', 'OK');
-          return false;
-        }
-
-        const document = await vscode.workspace.openTextDocument({
-          content: patch,
-          language: 'diff',
-        });
-        await vscode.window.showTextDocument(document, { preview: true });
-        return false;
-      }
+      case 'apply':
+        return this.applyOrPopStash(git, stash, 'apply');
+      case 'pop':
+        return this.applyOrPopStash(git, stash, 'pop');
+      case 'drop':
+        return this.dropStash(git, stash);
+      case 'diff':
+        return this.showStashDiff(git, stash);
     }
+  }
+
+  private async applyOrPopStash(
+    git: GitExecutor,
+    stash: IGitStash,
+    action: 'apply' | 'pop'
+  ): Promise<boolean> {
+    const selector = await git.resolveStashSelector(stash.selector, stash.hash);
+    try {
+      if (action === 'apply') {
+        await git.applyStash(selector);
+      } else {
+        await git.popStashBySelector(selector);
+      }
+    } catch (error) {
+      const conflicts = await git.getConflictedFiles();
+      if (conflicts.length === 0) throw error;
+      await offerConflictRescue(git, conflicts, action);
+      return true;
+    }
+
+    const message = action === 'apply' ? 'Auto-stash applied.' : 'Auto-stash popped.';
+    await vscode.window.showInformationMessage(message, 'OK');
+    return false;
+  }
+
+  private async dropStash(git: GitExecutor, stash: IGitStash): Promise<boolean> {
+    const selector = await git.resolveStashSelector(stash.selector, stash.hash);
+    await git.dropStash(selector);
+    await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
+    return false;
+  }
+
+  private async showStashDiff(git: GitExecutor, stash: IGitStash): Promise<boolean> {
+    const patch = await git.getStashPatch(stash.selector);
+    if (!patch) {
+      await vscode.window.showInformationMessage('This auto-stash has no diff to display.', 'OK');
+      return false;
+    }
+
+    const document = await vscode.workspace.openTextDocument({
+      content: patch,
+      language: 'diff',
+    });
+    await vscode.window.showTextDocument(document, { preview: true });
+    return false;
   }
 
   private formatFileCount(count: number): string {
