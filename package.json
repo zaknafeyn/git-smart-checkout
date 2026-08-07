@@ -760,7 +760,7 @@
     "@typescript-eslint/parser/**/brace-expansion": "^5.0.7",
     "ovsx/**/brace-expansion": "^5.0.7",
     "semantic-release/**/brace-expansion": "^5.0.7",
-    "fast-uri": "^3.1.4",
+    "fast-uri": "^3.1.5",
     "sigstore": "^4.1.1",
     "@sigstore/core": "^3.2.1"
   }

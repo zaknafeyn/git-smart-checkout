@@ -42,6 +42,29 @@ function pickBranch(branchName: string): (items: readonly QuickPickLikeItem[]) =
   return (items) => items.find((candidate) => candidate.ref?.name === branchName && !candidate.ref.remote && !candidate.ref.isTag);
 }
 
+async function getSettledCheckoutSuccessCount(context: vscode.ExtensionContext): Promise<number> {
+  let count = context.globalState.get<number>(CHECKOUT_SUCCESS_COUNT_KEY, 0);
+  let stableSamples = 0;
+
+  // Other e2e tests exercise real contributed commands in the same extension host.
+  // Let any success callback already in flight finish before taking a baseline.
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await delay(50);
+    const next = context.globalState.get<number>(CHECKOUT_SUCCESS_COUNT_KEY, 0);
+    if (next === count) {
+      stableSamples++;
+      if (stableSamples === 3) {
+        return next;
+      }
+    } else {
+      count = next;
+      stableSamples = 0;
+    }
+  }
+
+  return count;
+}
+
 /** Drives the real `checkoutTo` command with a fixed auto-stash mode, resolving once it finishes. */
 async function executeCheckoutTo(branchName: string, stashMode: string): Promise<string[]> {
   const restoreQuickPick = stubCreateQuickPick(pickBranch(branchName));
@@ -164,7 +187,7 @@ describe('What\'s new / feedback notifications — activation-level e2e', () => 
       // whole e2e run (not reset between test files), so assert a *delta* here rather than an
       // absolute value — an absolute assertion would be flaky against any other test file's
       // real stash-carrying checkouts landing asynchronously around this one.
-      const before = context.globalState.get<number>(CHECKOUT_SUCCESS_COUNT_KEY, 0);
+      const before = await getSettledCheckoutSuccessCount(context);
 
       await withRepoWorkspace(repo, async () => {
         repo.makeChange('file1.txt', 'dirty change, cancelled checkout\n');
@@ -181,7 +204,7 @@ describe('What\'s new / feedback notifications — activation-level e2e', () => 
       });
 
       assert.strictEqual(
-        context.globalState.get(CHECKOUT_SUCCESS_COUNT_KEY),
+        await getSettledCheckoutSuccessCount(context),
         before,
         'a cancelled checkout must not increment the feedback counter'
       );
