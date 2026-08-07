@@ -12,6 +12,7 @@ import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/r
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
 import { getRefDescription, getRefLabel } from '../utils/refFormatting';
 import { GitExecutor } from '../../common/git/gitExecutor';
+import { UserCancelledError } from '../../utils/userCancelledError';
 
 export class RebaseWithStashCommand extends BaseCommand {
   constructor(
@@ -53,6 +54,10 @@ export class RebaseWithStashCommand extends BaseCommand {
         this.vscodeGitProvider
       );
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        // User dismissed a picker (e.g. the multi-root repository picker) — not an error.
+        return;
+      }
       if (error instanceof Error) {
         const message = error.message;
         message && (await vscode.window.showErrorMessage(message, 'OK'));
