@@ -97,21 +97,7 @@ export class WorktreeRepositoryTreeItem extends vscode.TreeItem {
   }
 }
 
-/**
- * Full-width action row rendered at the top of the tree, replacing the text buttons that
- * used to live in the view/title toolbar (VS Code renders title-bar buttons without an
- * icon as text, which crowded out the view header).
- */
-export class WorktreeActionTreeItem extends vscode.TreeItem {
-  constructor(label: string, icon: string, command: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-    this.iconPath = new vscode.ThemeIcon(icon);
-    this.contextValue = 'worktreeAction';
-    this.command = { command, title: label };
-  }
-}
-
-type WorktreeNode = WorktreeTreeItem | WorktreeRepositoryTreeItem | WorktreeActionTreeItem;
+type WorktreeNode = WorktreeTreeItem | WorktreeRepositoryTreeItem;
 
 const DEFAULT_DEBOUNCE_MS = 2000;
 
@@ -143,29 +129,9 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
     if (element) {
       return [];
     }
-    const nodes = this.repositories.length > 1 ? this.repositories : this.items;
-    return [...this.getActionItems(), ...nodes];
-  }
-
-  private getActionItems(): WorktreeActionTreeItem[] {
-    const removableCount = this.items.filter((item) => !item.isMain).length;
-    const actions = [
-      new WorktreeActionTreeItem(
-        'Move to New Worktree…',
-        'new-folder',
-        'git-smart-checkout.moveToNewWorktree'
-      ),
-    ];
-    if (removableCount >= 2) {
-      actions.push(
-        new WorktreeActionTreeItem(
-          'Remove Multiple Worktrees…',
-          'trash',
-          'git-smart-checkout.removeMultipleWorktrees'
-        )
-      );
-    }
-    return actions;
+    // "Move to New Worktree" / "Remove Multiple Worktrees" are icon buttons in the
+    // view/title toolbar (see package.json `menus.view/title`), not rows in the tree.
+    return this.repositories.length > 1 ? this.repositories : this.items;
   }
 
   /** Reloads immediately. Used for explicit user-triggered refreshes. */

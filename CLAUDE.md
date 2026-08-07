@@ -19,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `yarn test:e2e` - Run e2e tests in manual (visual) mode
 - `yarn test:e2e:ci` - Run e2e tests headless via xvfb
 - `yarn test:e2e:heavy` - Heavy e2e suite (large real repo fixtures, opt-in)
+- `yarn build-tests` - `yarn compile && yarn compile-tests`; every `test*` script runs this first, so tests never execute against a stale `out/`
 - `yarn compile-tests` - Compile test files only
 - `yarn watch-tests` - Watch and compile tests
 

@@ -193,6 +193,7 @@
       {
         "command": "git-smart-checkout.moveToNewWorktree",
         "title": "Move to New Worktree...",
+        "icon": "$(new-folder)",
         "category": "GSC"
       },
       {
@@ -223,6 +224,7 @@
       {
         "command": "git-smart-checkout.removeMultipleWorktrees",
         "title": "Remove Multiple Worktrees...",
+        "icon": "$(trash)",
         "category": "GSC"
       },
       {
@@ -326,9 +328,19 @@
       ],
       "view/title": [
         {
-          "command": "git-smart-checkout.worktree.refresh",
+          "command": "git-smart-checkout.moveToNewWorktree",
           "when": "view == git-smart-checkout.worktrees",
           "group": "navigation@1"
+        },
+        {
+          "command": "git-smart-checkout.removeMultipleWorktrees",
+          "when": "view == git-smart-checkout.worktrees && git-smart-checkout.hasMultipleRemovableWorktrees",
+          "group": "navigation@2"
+        },
+        {
+          "command": "git-smart-checkout.worktree.refresh",
+          "when": "view == git-smart-checkout.worktrees",
+          "group": "navigation@3"
         },
         {
           "command": "git-smart-checkout.prCancelCloneMenu",
@@ -675,17 +687,17 @@
     "package": "yarn check-types && yarn lint && node esbuild.mjs --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "yarn compile-tests && yarn compile && yarn lint",
+    "build-tests": "yarn compile && yarn compile-tests",
     "check-types": "tsc --noEmit",
     "check-types-webview": "tsc --noEmit --project tsconfig.webview.json",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test --label unit",
-    "test:e2e": "vscode-test --label e2e-manual",
-    "test:e2e:manual": "vscode-test --label e2e-manual",
-    "test:e2e:ci": "mkdir -p test-results && xvfb-run -a vscode-test --label e2e-ci",
-    "test:e2e:heavy": "vscode-test --label e2e-heavy",
-    "test:e2e:heavy:ci": "mkdir -p test-results && xvfb-run -a vscode-test --label e2e-heavy",
-    "test:unit": "vscode-test --label unit",
+    "test": "yarn build-tests && vscode-test --label unit",
+    "test:e2e": "yarn build-tests && vscode-test --label e2e-manual",
+    "test:e2e:manual": "yarn build-tests && vscode-test --label e2e-manual",
+    "test:e2e:ci": "yarn build-tests && mkdir -p test-results && xvfb-run -a vscode-test --label e2e-ci",
+    "test:e2e:heavy": "yarn build-tests && vscode-test --label e2e-heavy",
+    "test:e2e:heavy:ci": "yarn build-tests && mkdir -p test-results && xvfb-run -a vscode-test --label e2e-heavy",
+    "test:unit": "yarn build-tests && vscode-test --label unit",
     "build-vsix": "yarn package && vsce package --yarn",
     "build-vsix-dev": "yarn compile && vsce package --yarn --no-dependencies",
     "publish": "yarn package && vsce publish --yarn",
@@ -712,7 +724,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-cli": "^0.0.9",
-    "@vscode/test-electron": "^2.4.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^2.15.0",
     "css-loader": "^6.8.1",
     "esbuild": "^0.28.1",
