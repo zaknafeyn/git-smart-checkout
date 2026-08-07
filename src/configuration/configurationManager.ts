@@ -138,6 +138,7 @@ export class ConfigurationManager {
       // The token lives in Secret Storage, not settings. See initJiraToken.
       token: this.jiraToken,
       projectKeys: vscodeConfig.get<string[]>('jira.projectKeys', []),
+      customJql: vscodeConfig.get<string>('jira.customJql', ''),
     };
   }
 

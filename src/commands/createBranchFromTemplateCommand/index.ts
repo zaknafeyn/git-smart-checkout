@@ -9,6 +9,7 @@ import {
   resolveBranchTemplateWithTrace,
   ScriptTokenError,
 } from '../../services/branchTemplateService';
+import { JiraIssueFilterStore } from '../../services/jiraIssueFilterStore';
 import {
   createJiraClient,
   fetchJiraIssueByKey,
@@ -25,7 +26,8 @@ const COPY_BRANCH_ACTION = 'Copy Branch Name';
 export class CreateBranchFromTemplateCommand extends BaseCommand {
   constructor(
     private readonly configManager: ConfigurationManager,
-    logService: LoggingService
+    logService: LoggingService,
+    private readonly jiraIssueFilterStore?: JiraIssueFilterStore
   ) {
     super(logService);
   }
@@ -109,7 +111,7 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
         return;
       }
 
-      const issue = await pickJiraIssue(cfg.jira, this.logService);
+      const issue = await pickJiraIssue(cfg.jira, this.logService, this.jiraIssueFilterStore);
       if (!issue) {
         return;
       }
@@ -190,9 +192,14 @@ export class CreateBranchFromTemplateCommand extends BaseCommand {
     try {
       await git.createBranch(branchName);
       log(`Branch created and checked out: ${branchName}`);
+      const jiraFilter = jiraKey ? this.jiraIssueFilterStore?.get() : undefined;
       capture(AnalyticsEvent.BranchFromTemplateCreated, {
         used_jira: Boolean(jiraKey),
         had_recurring_token: hadRecurringToken,
+        jira_assignee_filter: jiraFilter?.assignee,
+        jira_status_filter: jiraFilter?.status,
+        jira_project_filtered: jiraFilter ? jiraFilter.projectKeys.length > 0 : undefined,
+        jira_custom_jql: jiraKey ? cfg.jira.customJql.trim() !== '' : undefined,
       });
     } catch (e) {
       captureException(e);
