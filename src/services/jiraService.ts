@@ -3,6 +3,14 @@ import * as vscode from 'vscode';
 
 import { JiraConfig } from '../configuration/extensionConfig';
 import { LoggingService } from '../logging/loggingService';
+import {
+  buildIssuesJql,
+  DEFAULT_JIRA_ISSUE_FILTER,
+  describeJiraIssueFilter,
+  JiraIssueFilter,
+} from './jiraIssueFilter';
+import { JiraIssueFilterStore } from './jiraIssueFilterStore';
+import { pickJiraIssueFilter } from './jiraIssueFilterPicker';
 
 export interface JiraIssueSummary {
   key: string;
@@ -141,11 +149,17 @@ function mapSearchIssue(issue: {
 
 const JIRA_SEARCH_PAGE_SIZE = 100;
 const JIRA_SEARCH_MAX_PAGES = 100;
+const JIRA_SEARCH_MAX_ISSUES = 500;
 
 interface JiraEnhancedSearchResponse {
   issues?: Array<Parameters<typeof mapSearchIssue>[0]>;
   nextPageToken?: string;
   isLast?: boolean;
+}
+
+interface JiraSearchResult {
+  issues: Array<Parameters<typeof mapSearchIssue>[0]>;
+  truncated: boolean;
 }
 
 /**
@@ -154,18 +168,24 @@ interface JiraEnhancedSearchResponse {
  * jira-client's `searchJira` has been removed from Jira Cloud, so requests to
  * it fail even when authentication succeeds. The new endpoint uses cursor-based
  * pagination via `nextPageToken` instead of `startAt`/`total`.
+ *
+ * Stops early once `maxIssues` results have been collected — broad filters
+ * (e.g. any assignee, no project, no status) can otherwise match far more
+ * issues than a QuickPick can usefully show.
  */
-async function searchIssuesWithJql(
+export async function searchIssuesWithJql(
   client: JiraApi,
   jql: string,
-  fields: string[]
-): Promise<Array<Parameters<typeof mapSearchIssue>[0]>> {
+  fields: string[],
+  maxIssues: number = JIRA_SEARCH_MAX_ISSUES
+): Promise<JiraSearchResult> {
   const issues: Array<Parameters<typeof mapSearchIssue>[0]> = [];
   const seenTokens = new Set<string>();
   let nextPageToken: string | undefined;
   let page = 0;
+  let truncated = false;
 
-  while (page < JIRA_SEARCH_MAX_PAGES) {
+  while (page < JIRA_SEARCH_MAX_PAGES && issues.length < maxIssues) {
     page += 1;
 
     const params = new URLSearchParams({
@@ -183,6 +203,11 @@ async function searchIssuesWithJql(
 
     issues.push(...(result.issues ?? []));
 
+    if (issues.length >= maxIssues) {
+      truncated = result.isLast !== true;
+      break;
+    }
+
     const token = result.nextPageToken;
     // Guard against the known Jira Cloud bug where nextPageToken chains
     // endlessly while re-serving the first page.
@@ -193,38 +218,29 @@ async function searchIssuesWithJql(
     nextPageToken = token;
   }
 
-  return issues;
+  return { issues: issues.slice(0, maxIssues), truncated };
 }
 
-/**
- * Builds the JQL query for the assigned-issues picker. Issues are ordered
- * newest-created first. When `projectKeys` are provided, the result is limited
- * to those Jira projects (e.g. `["KEY", "HOME"]` -> issues like `KEY-123`,
- * `HOME-341`); an empty list returns all issues assigned to the current user.
- */
-export function buildAssignedIssuesJql(projectKeys: string[] = []): string {
-  const keys = projectKeys
-    .map((key) => key.trim().toUpperCase())
-    .filter((key) => key !== '');
-
-  let jql = 'assignee = currentUser()';
-  if (keys.length > 0) {
-    const inList = keys.map((key) => `"${key}"`).join(', ');
-    jql += ` AND project IN (${inList})`;
-  }
-  return `${jql} ORDER BY created DESC`;
+export interface JiraIssueFetchResult {
+  issues: JiraIssueSummary[];
+  truncated: boolean;
 }
 
-export async function fetchAssignedIssuesForCurrentUser(
+export async function fetchIssuesForFilter(
   client: JiraApi,
   config: JiraConfig,
+  filter: JiraIssueFilter,
   logService?: LoggingService
-): Promise<JiraIssueSummary[]> {
-  const jql = buildAssignedIssuesJql(config.projectKeys);
-  const rawIssues = await searchIssuesWithJql(client, jql, ['summary', 'status', 'created']);
+): Promise<JiraIssueFetchResult> {
+  const jql = buildIssuesJql(filter, config.projectKeys, config.customJql);
+  const { issues: rawIssues, truncated } = await searchIssuesWithJql(client, jql, [
+    'summary',
+    'status',
+    'created',
+  ]);
   const sorted = sortJiraIssuesForPicker(rawIssues.map(mapSearchIssue));
-  logService?.info(`[Jira] Loaded ${sorted.length} issue(s) assigned to current user`);
-  return sorted;
+  logService?.info(`[Jira] Loaded ${sorted.length} issue(s) (${describeJiraIssueFilter(filter, config.projectKeys)})`);
+  return { issues: sorted, truncated };
 }
 
 export async function fetchJiraIssueByKey(
@@ -258,50 +274,40 @@ export async function promptForJiraIssueKey(): Promise<string | undefined> {
   return input?.trim().toUpperCase();
 }
 
-export async function pickJiraIssue(
-  config: JiraConfig,
-  logService: LoggingService
-): Promise<JiraIssueSummary | undefined> {
-  const client = createJiraClient(config, logService);
+type JiraIssuePickerOutcome =
+  | { action: 'select'; issue: JiraIssueSummary }
+  | { action: 'filter' }
+  | { action: 'cancel' };
 
-  if (!client) {
-    logService.warn('[Jira] Not configured; falling back to manual key entry');
-    const key = await promptForJiraIssueKey();
-    if (!key) {
-      return undefined;
-    }
-    return { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
-  }
-
-  let issues: JiraIssueSummary[] = [];
-  try {
-    issues = await fetchAssignedIssuesForCurrentUser(client, config, logService);
-  } catch (e) {
-    logService.warn('[Jira] Failed to fetch assigned issues; falling back to manual key entry', e);
-    const key = await promptForJiraIssueKey();
-    if (!key) {
-      return undefined;
-    }
-    const fetched = await fetchJiraIssueByKey(client, key);
-    return fetched ?? { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
-  }
-
+function showJiraIssueQuickPick(
+  client: JiraApi,
+  issues: JiraIssueSummary[],
+  truncated: boolean,
+  title: string,
+  showFilterButton: boolean
+): Promise<JiraIssuePickerOutcome> {
   return new Promise((resolve) => {
-    const quickPick = vscode.window.createQuickPick<vscode.QuickPickItem & { issue?: JiraIssueSummary }>();
+    const quickPick = vscode.window.createQuickPick<
+      vscode.QuickPickItem & { issue?: JiraIssueSummary; notice?: boolean }
+    >();
     quickPick.ignoreFocusOut = true;
     quickPick.placeholder = 'Select a Jira issue or type a key (e.g. PROJ-123) and press Enter';
     quickPick.matchOnDescription = true;
     quickPick.matchOnDetail = true;
+    quickPick.title = title;
+    if (showFilterButton) {
+      quickPick.buttons = [{ iconPath: new vscode.ThemeIcon('filter'), tooltip: 'Change filter' }];
+    }
 
     let settled = false;
-    const finish = (issue: JiraIssueSummary | undefined) => {
+    const finish = (outcome: JiraIssuePickerOutcome) => {
       if (settled) {
         return;
       }
       settled = true;
       quickPick.hide();
       quickPick.dispose();
-      resolve(issue);
+      resolve(outcome);
     };
 
     const baseItems = issues.map((issue) => ({
@@ -310,6 +316,16 @@ export async function pickJiraIssue(
       detail: issue.summary,
       issue,
     }));
+
+    const noticeItems = truncated
+      ? [
+          {
+            label: `$(warning) Showing first ${issues.length} issues`,
+            detail: 'Narrow the filter or type an issue key to find more',
+            notice: true,
+          },
+        ]
+      : [];
 
     const setItems = (filter: string) => {
       const trimmed = filter.trim();
@@ -334,7 +350,7 @@ export async function pickJiraIssue(
         }
       }
 
-      quickPick.items = filtered;
+      quickPick.items = [...noticeItems, ...filtered];
     };
 
     setItems('');
@@ -343,8 +359,11 @@ export async function pickJiraIssue(
 
     quickPick.onDidAccept(async () => {
       const selected = quickPick.selectedItems[0];
+      if (selected?.notice) {
+        return;
+      }
       if (!selected?.issue) {
-        finish(undefined);
+        finish({ action: 'cancel' });
         return;
       }
 
@@ -355,11 +374,69 @@ export async function pickJiraIssue(
           issue = fetched;
         }
       }
-      finish(issue);
+      finish({ action: 'select', issue });
     });
 
-    quickPick.onDidHide(() => finish(undefined));
+    quickPick.onDidTriggerButton(() => finish({ action: 'filter' }));
+
+    quickPick.onDidHide(() => finish({ action: 'cancel' }));
 
     quickPick.show();
   });
+}
+
+export async function pickJiraIssue(
+  config: JiraConfig,
+  logService: LoggingService,
+  filterStore?: JiraIssueFilterStore
+): Promise<JiraIssueSummary | undefined> {
+  const client = createJiraClient(config, logService);
+
+  if (!client) {
+    logService.warn('[Jira] Not configured; falling back to manual key entry');
+    const key = await promptForJiraIssueKey();
+    if (!key) {
+      return undefined;
+    }
+    return { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
+  }
+
+  let filter = filterStore?.get() ?? DEFAULT_JIRA_ISSUE_FILTER;
+
+  for (;;) {
+    let issues: JiraIssueSummary[];
+    let truncated: boolean;
+    try {
+      const result = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: 'Loading Jira issues…' },
+        () => fetchIssuesForFilter(client, config, filter, logService)
+      );
+      issues = result.issues;
+      truncated = result.truncated;
+    } catch (e) {
+      logService.warn('[Jira] Failed to fetch issues; falling back to manual key entry', e);
+      const key = await promptForJiraIssueKey();
+      if (!key) {
+        return undefined;
+      }
+      const fetched = await fetchJiraIssueByKey(client, key);
+      return fetched ?? { key, summary: '', statusName: '', statusCategoryKey: 'unknown', created: '' };
+    }
+
+    const title = `Jira issues — ${describeJiraIssueFilter(filter, config.projectKeys)}`;
+    const outcome = await showJiraIssueQuickPick(client, issues, truncated, title, Boolean(filterStore));
+
+    if (outcome.action === 'select') {
+      return outcome.issue;
+    }
+    if (outcome.action === 'cancel') {
+      return undefined;
+    }
+
+    const nextFilter = await pickJiraIssueFilter(filter, config, client, logService);
+    if (nextFilter) {
+      filter = nextFilter;
+      await filterStore?.set(filter);
+    }
+  }
 }

@@ -37,7 +37,7 @@ function baseConfig(overrides: {
     tagRemote: 'origin',
     branchTemplate: overrides.branchTemplate ?? '',
     branchTemplates: overrides.branchTemplates ?? [],
-    jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [] },
+    jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [], customJql: '' },
   };
 }
 
@@ -109,7 +109,13 @@ describe('branchTemplateAvailability', () => {
     const visible = await canShowCreateBranchFromTemplateCommand(
       baseConfig({
         branchTemplate: '{jira-title:25:-}',
-        jira: { domain: 'company.atlassian.net', username: 'user@example.com', token: '', projectKeys: [] },
+        jira: {
+          domain: 'company.atlassian.net',
+          username: 'user@example.com',
+          token: '',
+          projectKeys: [],
+          customJql: '',
+        },
       }),
       mockLogService
     );

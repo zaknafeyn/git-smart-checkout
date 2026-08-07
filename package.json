@@ -648,6 +648,11 @@
           "default": [],
           "markdownDescription": "Limit the Jira issue picker to issues from these project keys. For example, `[\"KEY\", \"HOME\"]` shows only issues from those projects (e.g. `KEY-123`, `HOME-341`). Leave empty to show all issues assigned to you."
         },
+        "git-smart-checkout.jira.customJql": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Raw JQL used to populate the Jira issue picker. When set, it **replaces** the assignee/project/status filters chosen from the picker's filter button (`ORDER BY created DESC` is appended automatically if your query has no `ORDER BY`). Example: `project = KEY AND issuetype = Epic`. Leave empty to use the in-picker filters."
+        },
         "git-smart-checkout.pushTagWithoutConfirmation": {
           "type": "boolean",
           "default": false,

@@ -32,6 +32,7 @@ Domain and username are written to settings (and stay editable there); the API t
 | `git-smart-checkout.jira.domain` | Jira Cloud host, e.g. `your-company.atlassian.net` |
 | `git-smart-checkout.jira.username` | Atlassian account username (usually your Atlassian account email) |
 | `git-smart-checkout.jira.projectKeys` | Optional list of project keys to limit the issue picker, e.g. `["KEY", "HOME"]`. Empty (default) shows all issues assigned to you. |
+| `git-smart-checkout.jira.customJql` | Raw JQL that replaces the picker's filter button entirely, e.g. `project = KEY AND issuetype = Epic`. `ORDER BY created DESC` is appended automatically unless your query already has an `ORDER BY`. Leave empty to use the in-picker filters. |
 | `Git Smart Checkout: Set Jira token` | Set or replace just the API token. It is stored in Secret Storage rather than plaintext settings (which can be synced via Settings Sync). Run it with an empty value to remove the stored token. |
 
 > [!NOTE]
@@ -54,7 +55,7 @@ The connection is re-checked on extension activation and when settings change. O
 
 ## Jira Issue Picker
 
-When the template uses Jira tokens, the command loads the issues assigned to you (`assignee = currentUser()`), sorted by creation date with the most recently created issues at the top.
+When the template uses Jira tokens, the command loads issues sorted by creation date with the most recently created issues at the top. By default it shows issues assigned to you (`assignee = currentUser()`).
 
 When `git-smart-checkout.jira.projectKeys` is set, the picker is limited to issues from those projects. For example, `["KEY", "HOME"]` shows only issues such as `KEY-123` and `HOME-341`. Leave it empty to include all your assigned issues.
 
@@ -65,6 +66,18 @@ Each list item shows:
 - **Summary** (detail)
 
 You can type a Jira key manually (e.g. `PROJ-123`) and choose **Use "PROJ-123"** if it is not in the list.
+
+### Filtering the picker
+
+Use the **filter** button (funnel icon) in the picker's title bar to change what it lists — useful for finding issues that aren't assigned to you, such as an epic owned by someone else:
+
+- **Assignee** — Me (default), Anyone, or Unassigned.
+- **Project** — all configured project keys, or narrow to a single one. When `jira.projectKeys` is empty, the available projects are looked up live from Jira.
+- **Status** — Any status (default), To Do, In Progress, or Done.
+
+The chosen filter is remembered per workspace and shown in the picker's title. Results are capped at 500 issues; a broad filter shows a "Showing first 500 issues" notice — narrow the filter or type an issue key directly to reach issues beyond that.
+
+For anything the built-in filters don't cover, set `git-smart-checkout.jira.customJql` to a raw JQL query (e.g. `project = KEY AND issuetype = Epic`); it replaces the filter button entirely while set.
 
 ## Template Tokens
 

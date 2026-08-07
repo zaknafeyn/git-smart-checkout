@@ -8,6 +8,7 @@ import {
   branchTemplateNeedsJira,
   resolveBranchTemplateWithTrace,
 } from '../../services/branchTemplateService';
+import { JiraIssueFilterStore } from '../../services/jiraIssueFilterStore';
 import {
   createJiraClient,
   fetchJiraIssueByKey,
@@ -36,7 +37,8 @@ export class PreviewTemplateCommand extends BaseCommand {
   constructor(
     private readonly configManager: ConfigurationManager,
     logService: LoggingService,
-    private readonly consentStore: ScriptConsentStore = new ScriptConsentStore()
+    private readonly consentStore: ScriptConsentStore = new ScriptConsentStore(),
+    private readonly jiraIssueFilterStore?: JiraIssueFilterStore
   ) {
     super(logService);
   }
@@ -76,7 +78,7 @@ export class PreviewTemplateCommand extends BaseCommand {
     if (kind === 'branch' && branchTemplateNeedsJira(template)) {
       jiraConfigured = isJiraConfigured(cfg.jira);
       if (jiraConfigured) {
-        const issue = await pickJiraIssue(cfg.jira, this.logService);
+        const issue = await pickJiraIssue(cfg.jira, this.logService, this.jiraIssueFilterStore);
         if (!issue) {
           return;
         }
