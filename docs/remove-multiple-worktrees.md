@@ -18,6 +18,9 @@ except the main one, excluding bare and prunable entries. With zero or one
 removable worktree, the single `Remove Worktree...` command is sufficient, so
 this command stays hidden.
 
+The same condition gates the trash icon button in the **Worktrees** panel title
+bar — hover it to see the `Remove Multiple Worktrees...` tooltip.
+
 ## What It Does
 
 1. Determines the project in the current VS Code workspace (prompts you to pick
