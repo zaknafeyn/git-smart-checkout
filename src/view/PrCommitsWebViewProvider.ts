@@ -9,6 +9,7 @@ import { WebviewCommand } from '../types/webviewCommands';
 import { orderSelectedCommits } from '../utils/commitOrder';
 import { getNonce } from '../utils/getNonce';
 import { PrCloneService } from '../services/prCloneService';
+import { buildWebviewHtml } from './webviewHtml';
 
 export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private webviewView?: WebviewView;
@@ -312,32 +313,12 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
     try {
       // Read the built HTML file
-      let html = fs.readFileSync(commitsHtmlPath, 'utf8');
+      const html = fs.readFileSync(commitsHtmlPath, 'utf8');
 
       // Generate a per-load nonce so scripts can be whitelisted without 'unsafe-inline'
       const nonce = getNonce();
 
-      // Replace asset paths with webview URIs
-      html = html.replace(/(href|src)="([^"]+)"/g, (match, attr, assetPath) => {
-        if (assetPath.startsWith('/') || assetPath.startsWith('http')) {
-          return match;
-        }
-        const assetUri = webview.asWebviewUri(
-          Uri.joinPath(extensionUri, 'dist', 'webview', assetPath)
-        );
-        return `${attr}="${assetUri}"`;
-      });
-
-      // Tag every script with the nonce so the CSP permits it
-      html = html.replace(/<script\b/g, `<script nonce="${nonce}"`);
-
-      // Update CSP to allow the webview resources (nonce-based, no 'unsafe-inline' scripts)
-      html = html.replace(
-        /content="[^"]*"/,
-        `content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"`
-      );
-
-      return html;
+      return buildWebviewHtml(html, webview, extensionUri, nonce);
     } catch (error) {
       this.loggingService.error(`Failed to load built commits webview: ${error}`);
 

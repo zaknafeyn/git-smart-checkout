@@ -1,0 +1,15 @@
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 15px;
+  width: 1px;
+  background-color: var(--vscode-panel-border);
+}

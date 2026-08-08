@@ -27,6 +27,8 @@ export interface GitHubPR {
   html_url: string;
   /** PR state as reported by the GitHub REST API. */
   state?: 'open' | 'closed';
+  /** Whether the PR is a draft, as reported by the GitHub REST API. */
+  draft?: boolean;
   labels: GitHubLabel[];
   assignees: GitHubUser[];
   requested_reviewers?: GitHubUser[];

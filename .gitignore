@@ -24,6 +24,7 @@ settings.local.json
 .claude/skills/
 changed-files.jsonl
 plans/
+.claude/
 
 # .agents
 .agents

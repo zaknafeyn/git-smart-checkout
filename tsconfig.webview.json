@@ -34,7 +34,10 @@
   "include": [
     "src/webview/**/*",
     "src/webview/types/**/*",
-    "src/common/vscode/webviewState.ts"
+    "src/common/vscode/webviewState.ts",
+    "src/services/stackModel.ts",
+    "src/services/prStack.ts",
+    "src/types/dataTypes.ts"
   ],
   "exclude": ["node_modules", "dist", "out"]
 }

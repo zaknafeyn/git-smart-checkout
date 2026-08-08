@@ -77,9 +77,12 @@ import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
 import { UpdateNotificationService } from './services/updateNotificationService';
 import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
 import { StackStore } from './services/stackStore';
-import { StackTreeDataProvider } from './view/StackTreeDataProvider';
-import { detectStacks } from './services/stackDetectionService';
-import { buildStackForest, findStackContaining } from './services/stackTopology';
+import { PrStackCache } from './services/prStackCache';
+import { StackService } from './services/stackService';
+import { indicatorBranchesOf, stackInfoMapOf } from './services/stackModel';
+import { StackWebViewProvider } from './view/StackWebViewProvider';
+import { CheckoutBranchCommand } from './commands/checkoutBranchCommand';
+import { FetchBranchCommand } from './commands/fetchBranchCommand';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -138,7 +141,8 @@ export function activate(context: vscode.ExtensionContext) {
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
   const stackStore = new StackStore(context.workspaceState, logService);
-  const stackTreeDataProvider = new StackTreeDataProvider(logService, stackStore, configManager, vscodeGitProvider);
+  const prStackCache = new PrStackCache(context.workspaceState, logService);
+  const stackService = new StackService(configManager, logService, prStackCache, stackStore, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
   commandManager.registerCommand(
@@ -182,77 +186,29 @@ export function activate(context: vscode.ExtensionContext) {
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
   /**
-   * Runs stack detection (GitHub + local ancestry, merged and persisted to
-   * `stackStore` with manual overrides always winning), then refreshes the
-   * Stacks tree view and the status bar indicator for the current branch.
-   * Never throws — detection failures (no GitHub remote/token, git errors)
-   * are swallowed so they can't break activation or command completion.
+   * Refreshes the current branch's PR stack (GitHub PR chains, authoritative;
+   * the local ancestry heuristic only runs as an offline fallback — see
+   * `StackService`) and pushes the result to the Stacks webview and the
+   * status bar indicator. Never throws — detection failures (no GitHub
+   * remote/token, git errors) are swallowed so they can't break activation
+   * or command completion.
    */
   const refreshStacks = async (): Promise<void> => {
     try {
-      const config = configManager.get();
-      if (!config.stacks.enabled) {
-        stackTreeDataProvider.refresh();
-        statusBarManager.setStackIndicator(undefined);
-        return;
-      }
-
-      const folders = vscode.workspace.workspaceFolders ?? [];
-      let indicatorSet = false;
-
-      for (const folder of folders) {
-        try {
-          const repositoryPath = await resolveGitRepositoryRoot(folder.uri.fsPath, logService);
-          const git = new GitExecutor(repositoryPath, logService, vscodeGitProvider);
-
-          let ghClient: GitHubClient | undefined;
-          try {
-            const repoInfo = await git.getRepoInfo(config.githubEnterpriseBaseUrl);
-            if (repoInfo) {
-              ghClient = new GitHubClient(
-                repoInfo.owner,
-                repoInfo.repo,
-                undefined,
-                resolveGitHubHostConfig(repoInfo.host, config.githubEnterpriseBaseUrl)
-              );
-            }
-          } catch {
-            // No GitHub remote — fall back to heuristic-only detection.
-          }
-
-          const detected = await detectStacks(git, ghClient, config.stacks.detection, logService);
-          await stackStore.applyDetection(detected);
-
-          if (!indicatorSet) {
-            const currentBranch = await git.getCurrentBranch().catch(() => undefined);
-            if (currentBranch) {
-              const entries = await stackStore.getAll();
-              const refs = await git.getAllRefListExtended();
-              const liveBranches = new Set(
-                refs.filter((ref) => !ref.remote && !ref.isTag).map((ref) => ref.name)
-              );
-              const forest = buildStackForest(entries, liveBranches);
-              const orderedBranches = findStackContaining(currentBranch, forest);
-              if (orderedBranches) {
-                statusBarManager.setStackIndicator({
-                  orderedBranches,
-                  currentBranch,
-                  info: new Map(),
-                });
-                indicatorSet = true;
+      const result = await stackService.refresh();
+      stackWebViewProvider.setStack(result.view);
+      statusBarManager.setStackIndicator({
+        isDetached: result.isDetached,
+        data:
+          result.view && result.currentBranch
+            ? {
+                orderedBranches: indicatorBranchesOf(result.view),
+                currentBranch: result.currentBranch,
+                target: result.view.target,
+                info: stackInfoMapOf(result.view),
               }
-            }
-          }
-        } catch (error) {
-          logService.warn(`Stack detection failed for ${folder.uri.fsPath}: ${error}`);
-        }
-      }
-
-      if (!indicatorSet) {
-        statusBarManager.setStackIndicator(undefined);
-      }
-
-      stackTreeDataProvider.refresh();
+            : undefined,
+      });
     } catch (error) {
       logService.warn(`Stack detection failed: ${error}`);
     }
@@ -261,6 +217,8 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.stacks.refresh`, {
     execute: async () => refreshStacks(),
   });
+
+  const stackWebViewProvider = new StackWebViewProvider(context, logService, () => void refreshStacks());
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
@@ -307,6 +265,14 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
+
+  // Argument-only: driven by the Stacks webview, deliberately not contributed
+  // to package.json so it doesn't appear in the command palette.
+  const checkoutBranchCommand = new CheckoutBranchCommand(logService, autoStashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.checkoutBranch`, checkoutBranchCommand);
+
+  const fetchBranchCommand = new FetchBranchCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.fetchBranch`, fetchBranchCommand);
 
   const copyBranchNameCommand = new CopyBranchNameCommand(logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.copyBranchName`, copyBranchNameCommand);
@@ -638,8 +604,8 @@ export function activate(context: vscode.ExtensionContext) {
     ),
     vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.worktrees`, worktreeTreeDataProvider),
     worktreeTreeDataProvider,
-    vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.stacks`, stackTreeDataProvider),
-    stackTreeDataProvider
+    stackWebViewProvider,
+    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider)
   );
 
   // Show status bar

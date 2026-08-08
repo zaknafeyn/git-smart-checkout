@@ -36,6 +36,8 @@ export enum AnalyticsEvent {
   BranchStashRestored = 'branch_stash_restored',
   StatusBarMenuOpened = 'status_bar_menu_opened',
   SettingsOpened = 'settings_opened',
+  CheckoutStackBranch = 'checkout_stack_branch',
+  FetchStackBaseBranch = 'fetch_stack_base_branch',
 }
 
 let client: PostHog | null = null;

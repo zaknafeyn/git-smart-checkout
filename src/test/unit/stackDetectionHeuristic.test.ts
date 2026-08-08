@@ -1,11 +1,9 @@
 import * as assert from 'assert';
 
 import {
-  computeGithubParents,
   computeLocalAncestryParents,
-  mergeDetectedParents,
+  heuristicEntriesFrom,
 } from '../../services/stackDetectionService';
-import { GitHubPR } from '../../types/dataTypes';
 
 /**
  * Fixture: a 3-branch chain rooted at trunk.
@@ -98,57 +96,22 @@ describe('computeLocalAncestryParents', () => {
   });
 });
 
-function makePr(overrides: Partial<GitHubPR>): GitHubPR {
-  return {
-    number: 1,
-    title: '',
-    body: '',
-    head: { ref: 'feat/head', sha: 'abc' },
-    base: { ref: 'main' },
-    html_url: '',
-    labels: [],
-    assignees: [],
-    ...overrides,
-  } as GitHubPR;
-}
+describe('heuristicEntriesFrom', () => {
+  it('converts a parent map into StackEntry[] tagged as heuristic', () => {
+    const parents = new Map([
+      ['feat/ui', 'feat/api'],
+      ['feat/docs', 'feat/ui'],
+    ]);
 
-describe('computeGithubParents', () => {
-  it('maps head->base when both are local and base is not trunk', () => {
-    const prs = [
-      makePr({ number: 1, head: { ref: 'feat/ui', sha: 'a' }, base: { ref: 'feat/api' } }),
-    ];
-    const result = computeGithubParents(prs, new Set(['feat/ui', 'feat/api', 'main']), 'main');
-    assert.strictEqual(result.get('feat/ui'), 'feat/api');
-  });
+    const entries = heuristicEntriesFrom(parents);
 
-  it('skips a PR whose base is the trunk branch', () => {
-    const prs = [makePr({ head: { ref: 'feat/ui', sha: 'a' }, base: { ref: 'main' } })];
-    const result = computeGithubParents(prs, new Set(['feat/ui', 'main']), 'main');
-    assert.strictEqual(result.has('feat/ui'), false);
-  });
-
-  it('skips a PR whose head or base is not a local branch', () => {
-    const prs = [
-      makePr({ head: { ref: 'feat/remote-only', sha: 'a' }, base: { ref: 'feat/api' } }),
-    ];
-    const result = computeGithubParents(prs, new Set(['feat/api', 'main']), 'main');
-    assert.strictEqual(result.size, 0);
-  });
-});
-
-describe('mergeDetectedParents', () => {
-  it('prefers github over heuristic for the same branch', () => {
-    const github = new Map([['feat/ui', 'feat/api']]);
-    const heuristic = new Map([['feat/ui', 'main'], ['feat/docs', 'feat/ui']]);
-
-    const entries = mergeDetectedParents(github, heuristic);
-
+    assert.strictEqual(entries.length, 2);
+    assert.ok(entries.every((e) => e.source === 'heuristic'));
     const uiEntry = entries.find((e) => e.branch === 'feat/ui');
     assert.strictEqual(uiEntry?.parent, 'feat/api');
-    assert.strictEqual(uiEntry?.source, 'github');
+  });
 
-    const docsEntry = entries.find((e) => e.branch === 'feat/docs');
-    assert.strictEqual(docsEntry?.parent, 'feat/ui');
-    assert.strictEqual(docsEntry?.source, 'heuristic');
+  it('returns an empty array for an empty map', () => {
+    assert.deepStrictEqual(heuristicEntriesFrom(new Map()), []);
   });
 });

@@ -21,22 +21,32 @@ import {
 import { AnalyticsEvent, capture } from '../analytics/analytics';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { PRReviewWorktreeStore } from '../services/prReviewWorktreeStore';
+import { StackBranchMeta } from '../services/stackModel';
 import {
   gatherWorktreeQuickActionsState,
   WorktreeQuickActionsState,
 } from './quickActionsState';
 
-export interface StackBranchMeta {
-  prNumber?: number;
-  needsRestack?: boolean;
-}
+export type { StackBranchMeta };
 
 /** Data needed to render the status bar stack indicator for the current branch. */
 export interface StackIndicatorData {
-  /** Branches in the current branch's stack, bottom (closest to trunk) to top. */
+  /**
+   * Stack members only (PRs, or heuristic branches), bottom to top —
+   * excludes the target, so "position/size" counts stacked PRs/branches, not
+   * the base they're aimed at.
+   */
   orderedBranches: string[];
   currentBranch: string;
+  /** The branch this stack is ultimately aimed at. */
+  target: string;
   info: Map<string, StackBranchMeta>;
+}
+
+export interface StackIndicatorState {
+  /** Whether HEAD is detached — a real signal now, not derived from `data`. */
+  isDetached: boolean;
+  data?: StackIndicatorData;
 }
 
 export interface StackPosition {
@@ -248,7 +258,7 @@ export class StatusBarManager implements Disposable {
   private vscodeGitProvider?: VscodeGitProvider;
   /** Stack indicator, priority = mode item priority + 1 so it renders immediately to the left. */
   private stackStatusBarItem: StatusBarItem;
-  private stackIndicatorData: StackIndicatorData | undefined;
+  private stackIndicatorState: StackIndicatorState = { isDetached: false };
 
   constructor(
     configManager: ConfigurationManager,
@@ -296,19 +306,19 @@ export class StatusBarManager implements Disposable {
    * when the current branch isn't part of any stack / HEAD is detached).
    * Call after stack detection runs and on branch/HEAD changes.
    */
-  public setStackIndicator(data: StackIndicatorData | undefined): void {
-    this.stackIndicatorData = data;
+  public setStackIndicator(state: StackIndicatorState): void {
+    this.stackIndicatorState = state;
     this.updateStackIndicator();
   }
 
   private updateStackIndicator(): void {
     const config = this.configManager.get();
-    const data = this.stackIndicatorData;
+    const { isDetached, data } = this.stackIndicatorState;
 
     const visible = shouldShowStackIndicator({
       stacksEnabled: config.stacks.enabled,
       showStatusBar: config.showStatusBar,
-      isDetached: !data,
+      isDetached,
       isInStack: !!data,
     });
 
@@ -328,14 +338,14 @@ export class StatusBarManager implements Disposable {
     const tooltipLines = [
       '**Stack**',
       ...[...data.orderedBranches]
-        .reverse() // top-down for the tooltip; orderedBranches is bottom-to-top.
+        .reverse() // top-down for the tooltip; orderedBranches is bottom-to-top, PR/stack branches only (target excluded).
         .map((branch) => {
-          const marker = branch === data.currentBranch ? '→ ' : ' ';
+          const marker = branch === data.currentBranch ? '→ ' : ' ';
           const meta = data.info.get(branch);
-          const prPart = meta?.prNumber ? ` PR #${meta.prNumber}` : '';
-          const restackPart = meta?.needsRestack ? ' • needs restack' : '';
-          return `${marker}${branch}${prPart}${restackPart}`;
+          const prPart = meta?.prNumber ? ` PR #${meta.prNumber}${meta.prTitle ? `: ${meta.prTitle}` : ''}` : '';
+          return `${marker}${branch}${prPart}`;
         }),
+      ` ${data.target} (target)`,
     ];
     this.stackStatusBarItem.tooltip = new MarkdownString(tooltipLines.join('\n\n'));
 
