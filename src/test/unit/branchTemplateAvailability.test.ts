@@ -38,6 +38,7 @@ function baseConfig(overrides: {
     branchTemplate: overrides.branchTemplate ?? '',
     branchTemplates: overrides.branchTemplates ?? [],
     jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [], customJql: '' },
+    stacks: { enabled: true, detection: 'auto' },
   };
 }
 

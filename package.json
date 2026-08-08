@@ -57,6 +57,13 @@
           "when": "git-smart-checkout.hasRepository"
         },
         {
+          "id": "git-smart-checkout.stacks",
+          "name": "Stacks",
+          "type": "webview",
+          "icon": "$(layers)",
+          "when": "git-smart-checkout.hasRepository"
+        },
+        {
           "id": "git-smart-checkout.prClone",
           "name": "PR Clone",
           "type": "webview",
@@ -82,6 +89,12 @@
         "command": "git-smart-checkout.checkoutPrevious",
         "title": "Checkout Previous Branch (With Stash)",
         "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stacks.refresh",
+        "title": "Refresh Stacks",
+        "category": "GSC",
+        "icon": "$(refresh)"
       },
       {
         "command": "git-smart-checkout.copyBranchName",
@@ -341,6 +354,11 @@
           "command": "git-smart-checkout.worktree.refresh",
           "when": "view == git-smart-checkout.worktrees",
           "group": "navigation@3"
+        },
+        {
+          "command": "git-smart-checkout.stacks.refresh",
+          "when": "view == git-smart-checkout.stacks",
+          "group": "navigation@1"
         },
         {
           "command": "git-smart-checkout.prCancelCloneMenu",
@@ -679,6 +697,28 @@
           "type": "boolean",
           "default": true,
           "description": "Enable anonymous telemetry for Git Smart Checkout analytics (respect VS Code's global telemetry settings). This helps improve the extension and never collects personal information."
+        },
+        "git-smart-checkout.stacks.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect and visualize the current branch's PR stack (Stacks view and status bar indicator)."
+        },
+        "git-smart-checkout.stacks.detection": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "github",
+            "local",
+            "manual"
+          ],
+          "markdownEnumDescriptions": [
+            "Use GitHub PR chains when available, falling back to the local ancestry heuristic only when GitHub data is unavailable",
+            "Only use GitHub PR chains (no heuristic fallback)",
+            "Only use the local ancestry heuristic (no GitHub API calls)",
+            "Disable automatic detection; rely entirely on manually-set stack parents"
+          ],
+          "default": "auto",
+          "description": "How stacks are detected."
         }
       }
     }

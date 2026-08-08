@@ -293,6 +293,34 @@ export class GitHubClient {
   }
 
   /**
+   * List all open pull requests for the repository. Used by stack detection
+   * to find PR base-branch chains; returns an empty array (rather than
+   * throwing) on any API failure so detection can fall back to the local
+   * ancestry heuristic without crashing.
+   */
+  public async listOpenPullRequests(): Promise<GitHubPR[]> {
+    try {
+      return await this.listOpenPullRequestsOrThrow();
+    } catch (error) {
+      this.warn('Failed to list open pull requests:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Same as {@link listOpenPullRequests}, but propagates API failures instead
+   * of swallowing them into an empty array. `StackService` needs this
+   * distinction: an empty list because there genuinely are no open PRs must
+   * not be conflated with a 401/rate-limit failure, which should instead fall
+   * back to a cached PR list (or the heuristic) rather than silently
+   * reporting "not stacked".
+   */
+  public async listOpenPullRequestsOrThrow(): Promise<GitHubPR[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/pulls?state=open`;
+    return await this.makePaginatedRequest<GitHubPR>(endpoint);
+  }
+
+  /**
    * Fetch all commits for a pull request
    */
   public async fetchPullRequestCommits(prNumber: number): Promise<GitHubCommit[]> {

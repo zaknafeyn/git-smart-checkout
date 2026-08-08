@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { AUTO_STASH_IGNORE } from './constants';
 import { BranchItemAction, buildRefActionButtons } from './branchActionButtons';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { getFullRefname } from '../../common/git/refName';
@@ -14,6 +13,7 @@ import { getRepoId } from '../../utils/getRepoId';
 import { UserCancelledError } from '../../utils/userCancelledError';
 import { BaseCommand } from '../command';
 import { validateBranchName } from '../createBranchFromTemplateCommand/validateBranchName';
+import { checkoutRefWithStash } from '../utils/checkoutWithStashTail';
 import { attachLazyEnrichment } from '../utils/enrichOnActive';
 import { prepareInitialRefDetails, refreshRemainingRefDetails } from '../utils/refDetailsPrefetch';
 import { getMergedBranchLists } from '../utils/getMergedBranchLists';
@@ -68,37 +68,12 @@ export class CheckoutToCommand extends BaseCommand {
       }
 
       if (!isNewBranch) {
-        const conflictWorktree = await findWorktreeForBranch(git, newBranch.name);
-        if (conflictWorktree) {
-          const result = await handleWorktreeBranchConflict(newBranch.fullName, conflictWorktree.path);
-          if (result.action === 'createBranch') {
-            try {
-              await git.createBranch(result.newBranchName, newBranch.fullName);
-              capture(AnalyticsEvent.BranchCreated);
-            } catch (e) {
-              captureException(e);
-              const msg = e instanceof Error ? e.message : String(e);
-              await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
-            }
-          }
-          return;
-        }
-
-        const isDirty = await git.isWorkdirHasChanges();
-        const autoStashMode = isDirty
-          ? await this.autoStashService.getAutoStashMode()
-          : AUTO_STASH_IGNORE;
-
-        if (!autoStashMode) {
-          return;
-        }
-
-        await this.autoStashService.checkoutAndStashChanges(
+        await checkoutRefWithStash({
           git,
           currentBranch,
-          newBranch,
-          autoStashMode
-        );
+          targetRef: newBranch,
+          autoStashService: this.autoStashService,
+        });
       }
     } catch (error) {
       if (error instanceof UserCancelledError) {

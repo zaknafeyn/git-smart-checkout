@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 
 import { GitHubClient, resolveGitHubHostConfig } from '../../common/api/ghClient';
-import { AUTO_STASH_IGNORE } from '../checkoutToCommand/constants';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
@@ -9,12 +8,12 @@ import { AutoStashService } from '../../services/autoStashService';
 import { IGitRef } from '../../common/git/types';
 import { BaseCommand } from '../command';
 import { AnalyticsEvent, capture, captureException } from '../../analytics/analytics';
+import { checkoutRefWithStash } from '../utils/checkoutWithStashTail';
 import {
   getRepositoryMismatchMessage,
   INVALID_PR_INPUT_MESSAGE,
   parsePRInput,
 } from '../utils/parsePRInput';
-import { findWorktreeForBranch, handleWorktreeBranchConflict } from '../utils/worktreeBranchConflict';
 import { resolveGitHubRemoteInteractive } from '../../utils/remoteSelection';
 
 export class CheckoutByPRCommand extends BaseCommand {
@@ -115,14 +114,6 @@ export class CheckoutByPRCommand extends BaseCommand {
         return;
       }
 
-      const isDirty = await git.isWorkdirHasChanges();
-      const autoStashMode = isDirty
-        ? await this.autoStashService.getAutoStashMode()
-        : AUTO_STASH_IGNORE;
-      if (!autoStashMode) {
-        return;
-      }
-
       const prBranch: IGitRef = {
         name: headRef,
         fullName: fetchedFromRemote ? `${fetchedFromRemote}/${headRef}` : headRef,
@@ -131,24 +122,13 @@ export class CheckoutByPRCommand extends BaseCommand {
         comment: pr.title,
       };
 
-      const conflictWorktree = await findWorktreeForBranch(git, prBranch.name);
-      if (conflictWorktree) {
-        const result = await handleWorktreeBranchConflict(prBranch.fullName, conflictWorktree.path);
-        if (result.action === 'createBranch') {
-          try {
-            await git.createBranch(result.newBranchName, prBranch.fullName);
-            capture(AnalyticsEvent.BranchCreated);
-          } catch (e) {
-            captureException(e);
-            const msg = e instanceof Error ? e.message : String(e);
-            await vscode.window.showErrorMessage(`Failed to create the new branch: ${msg}`, 'OK');
-          }
-        }
-        return;
-      }
-
-      const outcome = await this.autoStashService.checkoutAndStashChanges(git, currentBranch, prBranch, autoStashMode);
-      if (outcome === 'cancelled') {
+      const { outcome, autoStashMode } = await checkoutRefWithStash({
+        git,
+        currentBranch,
+        targetRef: prBranch,
+        autoStashService: this.autoStashService,
+      });
+      if (outcome !== 'completed' && outcome !== 'rescued') {
         return;
       }
 
