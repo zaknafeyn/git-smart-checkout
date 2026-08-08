@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 import { ContextMenu, ContextMenuItem } from '@/components/ContextMenu';
-import { Link } from '@/components/Link';
 
 import { StackViewBranch } from '../../../services/stackModel';
 
@@ -29,10 +28,10 @@ export const StackRow: React.FC<StackRowProps> = ({ branch, onCheckout, onOpenPr
     }
   };
 
-  const dotClass = !branch.pr ? styles.none : branch.pr.draft ? styles.draft : styles.open;
+  const dotClass = branch.pr.draft ? styles.draft : styles.open;
 
   const menuItems: ContextMenuItem[] = [
-    ...(branch.pr ? [{ label: 'Open PR in Browser', onSelect: () => onOpenPr(branch.pr!.number) }] : []),
+    { label: 'Open PR in Browser', onSelect: () => onOpenPr(branch.pr.number) },
     { label: 'Checkout branch', onSelect: () => onCheckout(branch.branch) },
     { label: 'Copy branch name', onSelect: () => onCopyBranchName(branch.branch) },
   ];
@@ -50,27 +49,26 @@ export const StackRow: React.FC<StackRowProps> = ({ branch, onCheckout, onOpenPr
         <span className={[styles.dot, dotClass].filter(Boolean).join(' ')} />
       </span>
       <div className={styles.content}>
-        {branch.pr ? (
-          <>
-            <div className={styles.title}>{branch.pr.title}</div>
-            <div className={styles.meta}>
-              <span>
-                #{branch.pr.number} · {branch.branch}
-              </span>
-              {branch.pr.draft && <span className={styles.draftBadge}>Draft</span>}
-            </div>
-          </>
-        ) : (
-          <div className={styles.title}>{branch.branch}</div>
-        )}
+        <div className={styles.title}>{branch.pr.title}</div>
+        <div className={styles.meta}>
+          <span>
+            #{branch.pr.number} · {branch.branch}
+          </span>
+          {branch.pr.draft && <span className={styles.draftBadge}>Draft</span>}
+        </div>
       </div>
-      {branch.pr && (
-        <span className={styles.openPr} onClick={(event) => event.stopPropagation()}>
-          <Link url={branch.pr.url} tooltipText="Open PR in browser">
-            ↗
-          </Link>
-        </span>
-      )}
+      <button
+        type="button"
+        className={styles.openPr}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenPr(branch.pr.number);
+        }}
+        title="Open PR in browser"
+        aria-label="Open PR in browser"
+      >
+        ↗
+      </button>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />}
     </div>
   );

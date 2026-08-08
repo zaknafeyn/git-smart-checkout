@@ -3,32 +3,9 @@ import * as assert from 'assert';
 import { GitHubClient } from '../../common/api/ghClient';
 import { GitExecutor } from '../../common/git/gitExecutor';
 import { ConfigurationManager } from '../../configuration/configurationManager';
-import { PrStackCache } from '../../services/prStackCache';
 import { StackService } from '../../services/stackService';
-import { StackStore } from '../../services/stackStore';
 import { GitHubPR, GitHubStack } from '../../types/dataTypes';
 import { mockLogService } from '../e2e/helpers/mockLogService';
-
-function makeMemento() {
-  const data = new Map<string, unknown>();
-  return {
-    get: <T>(key: string) => data.get(key) as T,
-    update: async (key: string, value: unknown) => {
-      data.set(key, value);
-    },
-  };
-}
-
-/**
- * `computeLocalAncestryParents` picks the closest ancestor by commit count,
- * and ties are decided by iteration order (trunk first) — so a stub that
- * returns the same distance for every pair makes every non-trunk candidate
- * lose to trunk, flattening any chain. Order the branches root-to-tip so
- * distance grows with chain depth, matching real repo history.
- */
-function chainDistance(order: string[]): (a: string, b: string) => Promise<number> {
-  return async (a, b) => order.indexOf(b) - order.indexOf(a);
-}
 
 function pr(number: number, head: string, base: string): GitHubPR {
   return {
@@ -64,10 +41,10 @@ function githubStack(target: string, entries: Array<{ number: number; head: stri
   };
 }
 
-function makeConfigManager(detection: string, enabled = true): ConfigurationManager {
+function makeConfigManager(enabled = true): ConfigurationManager {
   return {
     get: () => ({
-      stacks: { enabled, detection },
+      stacks: { enabled },
       githubEnterpriseBaseUrl: '',
     }),
   } as unknown as ConfigurationManager;
@@ -75,10 +52,7 @@ function makeConfigManager(detection: string, enabled = true): ConfigurationMana
 
 interface GitStubOptions {
   currentBranch?: string | (() => Promise<string>);
-  trunk?: string;
   repoInfo?: { owner: string; repo: string; host: string } | null;
-  isAncestor?: (a: string, b: string) => Promise<boolean>;
-  revListCount?: (a: string, b: string) => Promise<number>;
   refs?: Array<{ name: string; remote?: string; isTag?: boolean; parsedUpstreamTrack?: [number, number] }>;
 }
 
@@ -91,21 +65,12 @@ function makeGitStub(options: GitStubOptions = {}): GitExecutor {
       }
       return options.currentBranch ?? 'feat/mid';
     },
-    getDefaultBranch: async () => options.trunk ?? 'main',
     getRepoInfo: async () => (options.repoInfo === undefined ? { owner: 'org', repo: 'repo', host: 'github.com' } : options.repoInfo),
     getAllRefListExtended: async () => options.refs ?? [],
-    isAncestor: options.isAncestor ?? (async () => false),
-    revListCount: options.revListCount ?? (async () => 0),
   } as unknown as GitExecutor;
 }
 
-/**
- * Stubs both GitHub calls `StackService` makes: the open-PR list (title/url
- * enrichment) and the native Stacks API (structure/order/target). Tests that
- * don't care about stack matching can omit `stacksImpl` — it defaults to "no
- * stacks", which is enough whenever the assertion only cares that the
- * heuristic wasn't consulted.
- */
+/** Stubs both GitHub calls `StackService` makes: the open-PR list and the native Stacks API. */
 function stubGithubClient(
   prsImpl: () => Promise<GitHubPR[]>,
   stacksImpl: () => Promise<GitHubStack[]> = async () => []
@@ -121,7 +86,7 @@ function stubGithubClient(
 }
 
 describe('StackService.refreshForRepo', () => {
-  it('calls listOpenPullRequestsOrThrow and listPullRequestStacksOrThrow exactly once per refresh', async () => {
+  it('fetches the open-PR list and the stack list exactly once and builds a view for a matching stack', async () => {
     let prCalls = 0;
     let stackCalls = 0;
     const restore = stubGithubClient(
@@ -135,12 +100,7 @@ describe('StackService.refreshForRepo', () => {
       }
     );
     try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
+      const service = new StackService(makeConfigManager(), mockLogService);
       const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/mid' }));
 
       assert.strictEqual(prCalls, 1);
@@ -151,204 +111,82 @@ describe('StackService.refreshForRepo', () => {
     }
   });
 
-  it('never consults the heuristic when GitHub PR data is available', async () => {
-    let isAncestorCalls = 0;
-    const restore = stubGithubClient(async () => [pr(1, 'feat/a', 'main')]);
-    try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/a',
-          isAncestor: async () => {
-            isAncestorCalls++;
-            return false;
-          },
-        })
-      );
-
-      assert.strictEqual(isAncestorCalls, 0);
-    } finally {
-      restore();
-    }
-  });
-
-  it('falls back to the heuristic source when the repo has no GitHub remote', async () => {
-    let ghCalls = 0;
-    const restore = stubGithubClient(async () => {
-      ghCalls++;
-      return [];
-    });
-    try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      const result = await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/ui',
-          repoInfo: null,
-          refs: [{ name: 'feat/api' }, { name: 'feat/ui' }, { name: 'main' }],
-          isAncestor: async (a: string, b: string) => {
-            const chain: Record<string, string[]> = { 'feat/ui': ['main', 'feat/api'], 'feat/api': ['main'] };
-            return (chain[b] ?? []).includes(a);
-          },
-          revListCount: chainDistance(['main', 'feat/api', 'feat/ui']),
-        })
-      );
-
-      assert.strictEqual(ghCalls, 0);
-      assert.strictEqual(result.view?.source, 'heuristic');
-    } finally {
-      restore();
-    }
-  });
-
-  it('uses a fresh cached PR list when the API call throws', async () => {
-    const cache = new PrStackCache(makeMemento(), mockLogService, 5 * 60_000);
-    await cache.set('/repo', [pr(1, 'feat/a', 'target')]);
-
+  it('reports no view when the current branch is not part of any GitHub stack', async () => {
     const restore = stubGithubClient(
-      async () => {
-        throw new Error('rate limited');
-      },
-      async () => [githubStack('target', [{ number: 1, head: 'feat/a' }])]
+      async () => [pr(1, 'feat/a', 'main')],
+      async () => [githubStack('main', [{ number: 1, head: 'feat/a' }])]
     );
     try {
-      const service = new StackService(makeConfigManager('auto'), mockLogService, cache, new StackStore(makeMemento(), mockLogService));
-      const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/a' }));
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/unrelated' }));
 
-      assert.strictEqual(result.view?.source, 'github');
-    } finally {
-      restore();
-    }
-  });
-
-  it('falls back to the heuristic when the API call throws and the cache is stale', async () => {
-    const staleCache = new PrStackCache(makeMemento(), mockLogService, -1);
-    await staleCache.set('/repo', [pr(1, 'feat/a', 'main')]);
-
-    const restore = stubGithubClient(async () => {
-      throw new Error('rate limited');
-    });
-    try {
-      const service = new StackService(makeConfigManager('auto'), mockLogService, staleCache, new StackStore(makeMemento(), mockLogService));
-      const result = await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/ui',
-          refs: [{ name: 'feat/api' }, { name: 'feat/ui' }, { name: 'main' }],
-          isAncestor: async (a: string, b: string) => {
-            const chain: Record<string, string[]> = { 'feat/ui': ['main', 'feat/api'], 'feat/api': ['main'] };
-            return (chain[b] ?? []).includes(a);
-          },
-          revListCount: chainDistance(['main', 'feat/api', 'feat/ui']),
-        })
-      );
-
-      assert.strictEqual(result.view?.source, 'heuristic');
-    } finally {
-      restore();
-    }
-  });
-
-  it('mode "github" never runs the heuristic, even without GitHub data', async () => {
-    let isAncestorCalls = 0;
-    const restore = stubGithubClient(async () => []);
-    try {
-      const service = new StackService(
-        makeConfigManager('github'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/a',
-          repoInfo: null,
-          isAncestor: async () => {
-            isAncestorCalls++;
-            return false;
-          },
-        })
-      );
-
-      assert.strictEqual(isAncestorCalls, 0);
-    } finally {
-      restore();
-    }
-  });
-
-  it('mode "local" never calls the GitHub API', async () => {
-    let ghCalls = 0;
-    const restore = stubGithubClient(async () => {
-      ghCalls++;
-      return [];
-    });
-    try {
-      const service = new StackService(
-        makeConfigManager('local'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/a' }));
-
-      assert.strictEqual(ghCalls, 0);
-    } finally {
-      restore();
-    }
-  });
-
-  it('mode "manual" runs no automatic detection at all', async () => {
-    let ghCalls = 0;
-    let isAncestorCalls = 0;
-    const restore = stubGithubClient(async () => {
-      ghCalls++;
-      return [];
-    });
-    try {
-      const service = new StackService(
-        makeConfigManager('manual'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      const result = await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/a',
-          isAncestor: async () => {
-            isAncestorCalls++;
-            return false;
-          },
-        })
-      );
-
-      assert.strictEqual(ghCalls, 0);
-      assert.strictEqual(isAncestorCalls, 0);
       assert.strictEqual(result.view, undefined);
     } finally {
       restore();
     }
   });
 
-  it('attaches the target branch ahead/behind for a GitHub-sourced stack', async () => {
+  it('reports no view when the repo has no GitHub remote', async () => {
+    let stackCalls = 0;
+    const restore = stubGithubClient(
+      async () => [],
+      async () => {
+        stackCalls++;
+        return [];
+      }
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(makeGitStub({ repoInfo: null }));
+
+      assert.strictEqual(stackCalls, 0);
+      assert.strictEqual(result.view, undefined);
+    } finally {
+      restore();
+    }
+  });
+
+  it('still finds the stack when the open-PR list call fails (title/url fall back to a placeholder)', async () => {
+    const restore = stubGithubClient(
+      async () => {
+        throw new Error('rate limited');
+      },
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/mid' }));
+
+      assert.strictEqual(result.view?.branches[0]?.pr.title, 'PR #12');
+    } finally {
+      restore();
+    }
+  });
+
+  it('reports no view when the stacks API call fails', async () => {
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target')],
+      async () => {
+        throw new Error('rate limited');
+      }
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/mid' }));
+
+      assert.strictEqual(result.view, undefined);
+    } finally {
+      restore();
+    }
+  });
+
+  it('attaches the target branch ahead/behind for a matched stack', async () => {
     const restore = stubGithubClient(
       async () => [pr(12, 'feat/mid', 'target')],
       async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
     );
     try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
+      const service = new StackService(makeConfigManager(), mockLogService);
       const result = await service.refreshForRepo(
         makeGitStub({
           currentBranch: 'feat/mid',
@@ -368,12 +206,7 @@ describe('StackService.refreshForRepo', () => {
       async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
     );
     try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
+      const service = new StackService(makeConfigManager(), mockLogService);
       const result = await service.refreshForRepo(
         makeGitStub({ currentBranch: 'feat/mid', refs: [{ name: 'target' }] })
       );
@@ -384,46 +217,8 @@ describe('StackService.refreshForRepo', () => {
     }
   });
 
-  it('attaches the target (trunk) ahead/behind for a heuristic-sourced stack', async () => {
-    const restore = stubGithubClient(async () => []);
-    try {
-      const service = new StackService(
-        makeConfigManager('auto'),
-        mockLogService,
-        new PrStackCache(makeMemento(), mockLogService),
-        new StackStore(makeMemento(), mockLogService)
-      );
-      const result = await service.refreshForRepo(
-        makeGitStub({
-          currentBranch: 'feat/ui',
-          repoInfo: null,
-          refs: [
-            { name: 'feat/api' },
-            { name: 'feat/ui' },
-            { name: 'main', parsedUpstreamTrack: [0, 5] },
-          ],
-          isAncestor: async (a: string, b: string) => {
-            const chain: Record<string, string[]> = { 'feat/ui': ['main', 'feat/api'], 'feat/api': ['main'] };
-            return (chain[b] ?? []).includes(a);
-          },
-          revListCount: chainDistance(['main', 'feat/api', 'feat/ui']),
-        })
-      );
-
-      assert.strictEqual(result.view?.source, 'heuristic');
-      assert.deepStrictEqual(result.view?.targetAheadBehind, { ahead: 0, behind: 5 });
-    } finally {
-      restore();
-    }
-  });
-
   it('reports isDetached when the current branch cannot be resolved', async () => {
-    const service = new StackService(
-      makeConfigManager('auto'),
-      mockLogService,
-      new PrStackCache(makeMemento(), mockLogService),
-      new StackStore(makeMemento(), mockLogService)
-    );
+    const service = new StackService(makeConfigManager(), mockLogService);
     const result = await service.refreshForRepo(
       makeGitStub({
         currentBranch: () => Promise.reject(new Error('detached HEAD')),
@@ -437,12 +232,7 @@ describe('StackService.refreshForRepo', () => {
 
 describe('StackService.refresh', () => {
   it('returns an empty result when stacks are disabled', async () => {
-    const service = new StackService(
-      makeConfigManager('auto', false),
-      mockLogService,
-      new PrStackCache(makeMemento(), mockLogService),
-      new StackStore(makeMemento(), mockLogService)
-    );
+    const service = new StackService(makeConfigManager(false), mockLogService);
     const result = await service.refresh();
     assert.strictEqual(result.view, undefined);
     assert.strictEqual(result.isDetached, false);

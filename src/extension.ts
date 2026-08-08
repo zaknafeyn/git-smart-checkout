@@ -76,8 +76,6 @@ import { UserCancelledError } from './utils/userCancelledError';
 import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
 import { UpdateNotificationService } from './services/updateNotificationService';
 import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
-import { StackStore } from './services/stackStore';
-import { PrStackCache } from './services/prStackCache';
 import { StackService } from './services/stackService';
 import { indicatorBranchesOf, stackInfoMapOf } from './services/stackModel';
 import { StackWebViewProvider } from './view/StackWebViewProvider';
@@ -140,9 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
-  const stackStore = new StackStore(context.workspaceState, logService);
-  const prStackCache = new PrStackCache(context.workspaceState, logService);
-  const stackService = new StackService(configManager, logService, prStackCache, stackStore, vscodeGitProvider);
+  const stackService = new StackService(configManager, logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
   commandManager.registerCommand(

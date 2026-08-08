@@ -472,35 +472,6 @@ export class GitExecutor {
     return stdout.trim();
   }
 
-  /**
-   * Whether `ancestor` is an ancestor of (or equal to) `descendant`. Used by
-   * the stack-detection local ancestry heuristic and by the tree view's
-   * needs-restack check. Never throws — a non-ancestor relationship (or any
-   * git error, e.g. an unrelated history) resolves to `false`.
-   */
-  async isAncestor(ancestor: string, descendant: string): Promise<boolean> {
-    try {
-      await this.#execGitCommand(['merge-base', '--is-ancestor', ancestor, descendant]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Number of commits reachable from `to` but not from `from` (`git rev-list
-   * --count from..to`). Returns 0 on any error rather than throwing.
-   */
-  async revListCount(from: string, to: string): Promise<number> {
-    try {
-      const { stdout } = await this.#execGitCommand(['rev-list', '--count', `${from}..${to}`]);
-      const count = parseInt(stdout.trim(), 10);
-      return Number.isFinite(count) ? count : 0;
-    } catch {
-      return 0;
-    }
-  }
-
   async discardAllWorktreeChanges() {
     await this.#execGitCommand(['reset', '--hard']);
     await this.#execGitCommand(['clean', '-fd']);

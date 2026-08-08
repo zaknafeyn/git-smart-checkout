@@ -23,24 +23,16 @@ Shows the stack containing the **current branch**, top PR first, target branch a
 - **Click a row (or the target chip)** to check out that branch, using whichever [stash mode](switch-mode.md) is currently active — including the manual prompt if that's what's configured.
 - **Right-click a row** (or use the inline external-link icon) for "Open PR in Browser".
 - The target chip shows **⇡N ⇣N** (commits waiting to be pushed / commits to pull), read directly from the branch's upstream tracking info — the same convention as the Worktrees view — whenever the target branch has an upstream configured. Next to it, a **fetch icon (⟳, "Fetch latest changes")** fetches the target branch from its remote (updating the remote-tracking ref only, no checkout, no merge) and refreshes the indicator.
+- The **refresh icon (⟳)** in the view's title bar re-fetches the current branch's stack status from GitHub on demand — useful right after a stack changes on GitHub (a PR merged, or the stack was reordered/dissolved), since nothing is cached locally.
 - When the current branch isn't part of any stack, the view shows an empty state with a Refresh button.
 
 ## Status Bar Indicator
 
-`$(layers) <position>/<size>` appears immediately to the left of the stash-mode item, but **only** while the current branch is part of a detected stack — it's hidden when stacks are disabled, the extension's status bar is off, HEAD is detached, or the branch simply isn't stacked. The count is of **stacked PRs (or heuristic branches) only** — the target branch doesn't count toward `<size>`, so sitting on the target itself shows no position (there's no PR there). Its tooltip lists the chain top-to-bottom with PR numbers/titles, plus the target branch on its own line. Click it to reveal the Stacks view.
+`$(layers) <position>/<size>` appears immediately to the left of the stash-mode item, but **only** while the current branch is part of a detected stack — it's hidden when stacks are disabled, the extension's status bar is off, HEAD is detached, or the branch simply isn't stacked. The count is of **stacked PRs only** — the target branch doesn't count toward `<size>`, so sitting on the target itself shows no position (there's no PR there). Its tooltip lists the chain top-to-bottom with PR numbers/titles, plus the target branch on its own line. Click it to reveal the Stacks view.
 
-## Detection Sources
+## Detection
 
-Controlled by `git-smart-checkout.stacks.detection`:
-
-| Value | Behavior |
-| --- | --- |
-| `auto` (default) | GitHub's native Stacks API; falls back to the local ancestry heuristic only when GitHub data is genuinely unavailable (no GitHub remote/token, or the API call fails with no usable cache). |
-| `github` | GitHub's Stacks API only — no heuristic fallback. |
-| `local` | Local ancestry heuristic only (no GitHub API calls); useful offline or without a GitHub remote. |
-| `manual` | No automatic detection. |
-
-GitHub's Stacks API is **authoritative** — the two sources are never merged into one stack. The heuristic (closest ancestor branch by commit distance) is a fallback for when there's no usable GitHub data at all, so it never grafts extra branches onto a genuine stack.
+Detection is automatic and always on for GitHub repositories, with no configuration knob: whenever the current branch is the target or a stacked PR's head in one of the repository's stacks (as reported live by `GET /repos/{owner}/{repo}/stacks`), it shows up. Nothing is cached — a stack can be reordered or dissolved on GitHub at any time, so every refresh re-fetches live rather than risking a stale view.
 
 Disable everything with:
 

@@ -1,5 +1,5 @@
 import { ConfigurationTarget, Disposable, SecretStorage, workspace } from 'vscode';
-import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, NamedTemplate, PreferredRefsMap, PreferredRefsRepo, PULL_AFTER_CHECKOUT_FF_ONLY, STACKS_DETECTION_AUTO, TStacksDetectionMode } from './extensionConfig';
+import { AUTO_STASH_MODE_MANUAL, ExtensionConfig, NamedTemplate, PreferredRefsMap, PreferredRefsRepo, PULL_AFTER_CHECKOUT_FF_ONLY } from './extensionConfig';
 import { EXTENSION_NAME } from '../const';
 import { IGitRef } from '../common/git/types';
 import { JIRA_TOKEN_SECRET_KEY, migrateJiraTokenSetting } from './jiraTokenStore';
@@ -127,7 +127,6 @@ export class ConfigurationManager {
       jira: this.readJiraConfig(vscodeConfig),
       stacks: {
         enabled: vscodeConfig.get('stacks.enabled', true),
-        detection: vscodeConfig.get<TStacksDetectionMode>('stacks.detection', STACKS_DETECTION_AUTO),
       },
     };
   }

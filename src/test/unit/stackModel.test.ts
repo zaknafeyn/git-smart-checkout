@@ -1,12 +1,7 @@
 import * as assert from 'assert';
 
 import { PrStack } from '../../services/prStack';
-import {
-  indicatorBranchesOf,
-  stackInfoMapOf,
-  stackViewFromForest,
-  stackViewFromPrStack,
-} from '../../services/stackModel';
+import { indicatorBranchesOf, stackInfoMapOf, stackViewFromPrStack } from '../../services/stackModel';
 
 /** Builds a `PrStack` fixture directly — order/target come from GitHub's Stacks API, not a local walk. */
 function makeStack(
@@ -40,11 +35,10 @@ describe('stackViewFromPrStack', () => {
 
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo');
 
-    assert.strictEqual(view.source, 'github');
     assert.strictEqual(view.target, 'target');
     assert.strictEqual(view.targetIsCurrent, false);
     assert.deepStrictEqual(
-      view.branches.map((b) => [b.branch, b.isCurrent, b.pr?.number]),
+      view.branches.map((b) => [b.branch, b.isCurrent, b.pr.number]),
       [
         ['feat/mid', true, 12],
         ['feat/top', false, 52],
@@ -78,41 +72,8 @@ describe('stackViewFromPrStack', () => {
   });
 });
 
-describe('stackViewFromForest', () => {
-  it('builds a heuristic view with trunk as the target and no PR metadata', () => {
-    const view = stackViewFromForest(['feat/a', 'feat/b'], 'main', 'feat/b', '/repo');
-
-    assert.strictEqual(view.source, 'heuristic');
-    assert.strictEqual(view.target, 'main');
-    assert.strictEqual(view.targetIsCurrent, false);
-    assert.deepStrictEqual(
-      view.branches.map((b) => [b.branch, b.isCurrent, b.pr]),
-      [
-        ['feat/a', false, undefined],
-        ['feat/b', true, undefined],
-      ]
-    );
-  });
-
-  it('carries the target ahead/behind through when provided', () => {
-    const view = stackViewFromForest(['feat/a', 'feat/b'], 'main', 'feat/b', '/repo', { ahead: 0, behind: 2 });
-    assert.deepStrictEqual(view.targetAheadBehind, { ahead: 0, behind: 2 });
-  });
-});
-
 describe('indicatorBranchesOf', () => {
-  it('excludes the target, counting only stack members bottom-to-top', () => {
-    const view = stackViewFromForest(['feat/a', 'feat/b'], 'main', 'feat/a', '/repo');
-    assert.deepStrictEqual(indicatorBranchesOf(view), ['feat/a', 'feat/b']);
-  });
-
-  it('does not include the target even when the target is the current branch', () => {
-    const view = stackViewFromForest(['feat/a', 'feat/b'], 'main', 'main', '/repo');
-    const branches = indicatorBranchesOf(view);
-    assert.strictEqual(branches.includes('main'), false);
-  });
-
-  it('counts only PRs for a GitHub-sourced stack, not the target branch', () => {
+  it('excludes the target, counting only stacked PRs bottom-to-top', () => {
     const stack = makeStack(
       [
         { branch: 'feat/mid', prNumber: 12, title: 'Title 12' },
@@ -128,7 +89,7 @@ describe('indicatorBranchesOf', () => {
 });
 
 describe('stackInfoMapOf', () => {
-  it('maps only branches carrying PR metadata', () => {
+  it('maps every branch to its PR metadata', () => {
     const stack = makeStack(
       [
         { branch: 'feat/mid', prNumber: 12, title: 'Title 12' },
@@ -144,10 +105,5 @@ describe('stackInfoMapOf', () => {
     assert.strictEqual(info.size, 2);
     assert.strictEqual(info.get('feat/mid')?.prNumber, 12);
     assert.strictEqual(info.get('feat/top')?.prTitle, 'Title 52');
-  });
-
-  it('is empty for a heuristic view (no PR metadata)', () => {
-    const view = stackViewFromForest(['feat/a'], 'main', 'feat/a', '/repo');
-    assert.strictEqual(stackInfoMapOf(view).size, 0);
   });
 });

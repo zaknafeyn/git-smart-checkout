@@ -38,11 +38,6 @@
   background-color: var(--vscode-descriptionForeground);
 }
 
-.dot.none {
-  background-color: var(--vscode-descriptionForeground);
-  opacity: 0.5;
-}
-
 .content {
   flex: 1;
   min-width: 0;
@@ -77,10 +72,13 @@
 }
 
 .openPr {
+  all: unset;
   display: flex;
   align-items: center;
   padding-top: 4px;
   opacity: 0.7;
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
 }
 
 .openPr:hover {

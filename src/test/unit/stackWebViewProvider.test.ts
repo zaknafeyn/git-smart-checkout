@@ -40,7 +40,6 @@ function sampleView(): StackView {
     ],
     target: 'target-branch',
     targetIsCurrent: false,
-    source: 'github',
     repositoryPath: '/repo',
   };
 }

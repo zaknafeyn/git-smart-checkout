@@ -701,24 +701,7 @@
         "git-smart-checkout.stacks.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Detect and visualize the current branch's PR stack (Stacks view and status bar indicator)."
-        },
-        "git-smart-checkout.stacks.detection": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "github",
-            "local",
-            "manual"
-          ],
-          "markdownEnumDescriptions": [
-            "Use GitHub's native Stacks API when available, falling back to the local ancestry heuristic only when GitHub data is unavailable",
-            "Only use GitHub's native Stacks API (no heuristic fallback)",
-            "Only use the local ancestry heuristic (no GitHub API calls)",
-            "Disable automatic detection; rely entirely on manually-set stack parents"
-          ],
-          "default": "auto",
-          "description": "How stacks are detected."
+          "description": "Detect and visualize the current branch's GitHub-native PR stack (Stacks view and status bar indicator)."
         }
       }
     }
