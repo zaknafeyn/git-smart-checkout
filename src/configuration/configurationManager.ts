@@ -125,6 +125,9 @@ export class ConfigurationManager {
       branchTemplate: vscodeConfig.get('branchTemplate', ''),
       branchTemplates: vscodeConfig.get<NamedTemplate[]>('branchTemplates', []),
       jira: this.readJiraConfig(vscodeConfig),
+      stacks: {
+        enabled: vscodeConfig.get('stacks.enabled', true),
+      },
     };
   }
 

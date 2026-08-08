@@ -15,6 +15,10 @@ export enum WebviewCommand {
   DESELECT_ALL_COMMITS = 'deselectAllCommits',
   COPY_COMMITS_TO_CLIPBOARD = 'copyCommitsToClipboard',
   WEBVIEW_READY = 'webviewReady',
+  STACK_CHECKOUT_BRANCH = 'stackCheckoutBranch',
+  STACK_OPEN_PR = 'stackOpenPr',
+  STACK_REFRESH = 'stackRefresh',
+  STACK_FETCH_TARGET = 'stackFetchTarget',
 
   // Commands sent from extension to webview
   SHOW_PR_DATA = 'showPRData',
@@ -25,4 +29,5 @@ export enum WebviewCommand {
   UPDATE_SELECTED_COMMITS = 'updateSelectedCommits',
   UPDATE_COMMITS = 'updateCommits',
   UPDATE_REPO_INFO = 'updateRepoInfo',
+  UPDATE_STACK = 'updateStack',
 }

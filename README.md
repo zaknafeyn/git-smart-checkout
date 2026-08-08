@@ -40,6 +40,7 @@ All commands are grouped under the `GSC:` prefix in the Command Palette.
 | Open a terminal in a selected worktree's directory | `GSC: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Remove several Git worktrees at once with a single confirmation | `GSC: Remove Multiple Worktrees...` | [Remove multiple worktrees](docs/remove-multiple-worktrees.md) |
 | Browse all worktrees for the open repositories in a dedicated "Worktrees" view (activity bar), with dirty/ahead-behind/PR-review status and inline Open/Terminal/Copy WIP/Remove actions | *(tree view — right-click an item for Add to Workspace, Copy Path, Reveal in Finder/Explorer)* | — |
+| Detect the GitHub-native [stacked PR](https://docs.github.com/en/rest/pulls/stacks) chain the current branch belongs to, and browse it in a dedicated "Stacks" view (activity bar) showing each PR's title and branch plus the branch the stack is ultimately targeting. Click a row (or its target chip) to check it out using the currently selected checkout/stash strategy; right-click for "Open PR in Browser". Nothing is cached — an in-view refresh icon re-checks live at any time. A status bar indicator (`$(layers) <position>/<size>`) appears only while the current branch is part of a stack; click it to reveal the Stacks view. | `GSC: Refresh Stacks` | [Stacks](docs/stacks.md) |
 | Create a new PR from selected commits in another GitHub PR | `GSC: Clone Pull Request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `GSC: Create Tag from Template...` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `GSC: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
@@ -82,6 +83,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
+| ⚙️ [`git-smart-checkout.stacks.enabled`](vscode://settings/git-smart-checkout.stacks.enabled) (Stacks enabled) | `boolean` | Detects and visualizes the current branch's GitHub-native PR stack (Stacks view and status bar indicator). Default `true`. |
 
 ## Telemetry
 

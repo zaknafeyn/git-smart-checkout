@@ -76,6 +76,11 @@ import { UserCancelledError } from './utils/userCancelledError';
 import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
 import { UpdateNotificationService } from './services/updateNotificationService';
 import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
+import { StackService } from './services/stackService';
+import { indicatorBranchesOf, stackInfoMapOf } from './services/stackModel';
+import { StackWebViewProvider } from './view/StackWebViewProvider';
+import { CheckoutBranchCommand } from './commands/checkoutBranchCommand';
+import { FetchBranchCommand } from './commands/fetchBranchCommand';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -133,6 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
   const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
+  const stackService = new StackService(configManager, logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
   commandManager.registerCommand(
@@ -174,6 +180,41 @@ export function activate(context: vscode.ExtensionContext) {
     updateNotificationService.recordStashCarryingCheckoutSuccess(context)
   );
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
+
+  /**
+   * Refreshes the current branch's PR stack (GitHub PR chains, authoritative;
+   * the local ancestry heuristic only runs as an offline fallback — see
+   * `StackService`) and pushes the result to the Stacks webview and the
+   * status bar indicator. Never throws — detection failures (no GitHub
+   * remote/token, git errors) are swallowed so they can't break activation
+   * or command completion.
+   */
+  const refreshStacks = async (): Promise<void> => {
+    try {
+      const result = await stackService.refresh();
+      stackWebViewProvider.setStack(result.view);
+      statusBarManager.setStackIndicator({
+        isDetached: result.isDetached,
+        data:
+          result.view && result.currentBranch
+            ? {
+                orderedBranches: indicatorBranchesOf(result.view),
+                currentBranch: result.currentBranch,
+                target: result.view.target,
+                info: stackInfoMapOf(result.view),
+              }
+            : undefined,
+      });
+    } catch (error) {
+      logService.warn(`Stack detection failed: ${error}`);
+    }
+  };
+
+  commandManager.registerCommand(`${EXTENSION_NAME}.stacks.refresh`, {
+    execute: async () => refreshStacks(),
+  });
+
+  const stackWebViewProvider = new StackWebViewProvider(context, logService, () => void refreshStacks());
 
   logService.info(`Extension "${EXTENSION_NAME}" is now active!`);
 
@@ -220,6 +261,14 @@ export function activate(context: vscode.ExtensionContext) {
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutTo`, checkoutToCommand);
 
   commandManager.registerCommand(`${EXTENSION_NAME}.checkoutPrevious`, checkoutPreviousCommand);
+
+  // Argument-only: driven by the Stacks webview, deliberately not contributed
+  // to package.json so it doesn't appear in the command palette.
+  const checkoutBranchCommand = new CheckoutBranchCommand(logService, autoStashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.checkoutBranch`, checkoutBranchCommand);
+
+  const fetchBranchCommand = new FetchBranchCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.fetchBranch`, fetchBranchCommand);
 
   const copyBranchNameCommand = new CopyBranchNameCommand(logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.copyBranchName`, copyBranchNameCommand);
@@ -497,8 +546,21 @@ export function activate(context: vscode.ExtensionContext) {
   // Keep the tree in sync with checkouts/commits/stash operations performed
   // outside this extension (VS Code's built-in Source Control view, terminal
   // git commands, etc.) by listening to vscode.git repository state changes.
+  // Debounce stack re-detection too — it's a HEAD/branch change signal, same
+  // as the worktree tree's refresh trigger.
+  let stackRefreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  const refreshStacksDebounced = (delayMs = 2000) => {
+    if (stackRefreshDebounceTimer) {
+      clearTimeout(stackRefreshDebounceTimer);
+    }
+    stackRefreshDebounceTimer = setTimeout(() => {
+      stackRefreshDebounceTimer = undefined;
+      void refreshStacks();
+    }, delayMs);
+  };
   const gitStateListener = vscodeGitProvider?.onDidChangeAnyRepositoryState(() => {
     worktreeTreeDataProvider.refreshDebounced();
+    refreshStacksDebounced();
   });
 
   // Listen for configuration changes
@@ -508,6 +570,7 @@ export function activate(context: vscode.ExtensionContext) {
       statusBarManager.onConfigurationChanged();
       updateTelemetryState();
       refreshBranchTemplateCommandVisibility();
+      void refreshStacks();
     }
   });
 
@@ -536,11 +599,17 @@ export function activate(context: vscode.ExtensionContext) {
       prCommitsWebViewProvider
     ),
     vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.worktrees`, worktreeTreeDataProvider),
-    worktreeTreeDataProvider
+    worktreeTreeDataProvider,
+    stackWebViewProvider,
+    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider)
   );
 
   // Show status bar
   statusBarManager.show();
+
+  // Run stack detection once on activation so the Stacks view and status
+  // bar indicator aren't empty until the first HEAD/branch change fires.
+  void refreshStacks();
 
   // `context` and `updateNotificationService` are exposed alongside `commandManager` so
   // e2e tests can exercise the exact activation-time notification logic (seeding

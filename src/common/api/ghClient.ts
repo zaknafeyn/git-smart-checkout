@@ -2,7 +2,7 @@ import * as https from 'https';
 import { authentication } from 'vscode';
 
 import { EXTENSION_NAME } from '../../const';
-import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubUser } from '../../types/dataTypes';
+import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubStack, GitHubUser } from '../../types/dataTypes';
 import { detectProvider } from './prProvider';
 
 /**
@@ -290,6 +290,51 @@ export class GitHubClient {
   public async fetchPullRequest(prNumber: number): Promise<GitHubPR> {
     const endpoint = `/repos/${this.owner}/${this.repo}/pulls/${prNumber}`;
     return this.makeRequest<GitHubPR>(endpoint);
+  }
+
+  /**
+   * List all open pull requests for the repository. Used by stack detection
+   * to find PR base-branch chains; returns an empty array (rather than
+   * throwing) on any API failure so detection can fall back to the local
+   * ancestry heuristic without crashing.
+   */
+  public async listOpenPullRequests(): Promise<GitHubPR[]> {
+    try {
+      return await this.listOpenPullRequestsOrThrow();
+    } catch (error) {
+      this.warn('Failed to list open pull requests:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Same as {@link listOpenPullRequests}, but propagates API failures instead
+   * of swallowing them into an empty array. `StackService` needs this
+   * distinction: an empty list because there genuinely are no open PRs must
+   * not be conflated with a 401/rate-limit failure, which should instead fall
+   * back to a cached PR list (or the heuristic) rather than silently
+   * reporting "not stacked".
+   */
+  public async listOpenPullRequestsOrThrow(): Promise<GitHubPR[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/pulls?state=open`;
+    return await this.makePaginatedRequest<GitHubPR>(endpoint);
+  }
+
+  /**
+   * List all GitHub-native pull request stacks for the repository. Stack
+   * membership, order, and target are whatever GitHub itself recorded when
+   * the stack was created — this is the authoritative source for "is this
+   * branch part of a stack", replacing any local head/base-ref walking.
+   * @see https://docs.github.com/en/rest/pulls/stacks
+   */
+  public async listPullRequestStacksOrThrow(): Promise<GitHubStack[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/stacks`;
+    return await this.makePaginatedRequest<GitHubStack>(endpoint);
+  }
+
+  /** Direct web URL for a pull request, for stack members without a matching entry in the open-PR list. */
+  public pullRequestUrl(prNumber: number): string {
+    return `${this.webBaseUrl}/${this.owner}/${this.repo}/pull/${prNumber}`;
   }
 
   /**

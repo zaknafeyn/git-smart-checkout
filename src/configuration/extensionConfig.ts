@@ -44,6 +44,10 @@ export interface NamedTemplate {
   template: string;
 }
 
+export interface StacksConfig {
+  enabled: boolean;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -77,6 +81,7 @@ export interface ExtensionConfig {
   branchTemplate: string;
   branchTemplates: NamedTemplate[];
   jira: JiraConfig;
+  stacks: StacksConfig;
 }
 
 export interface IAutoStashMode {
