@@ -1,6 +1,7 @@
 import {
   commands,
   Disposable,
+  MarkdownString,
   QuickPickItem,
   QuickPickItemKind,
   StatusBarAlignment,
@@ -24,6 +25,64 @@ import {
   gatherWorktreeQuickActionsState,
   WorktreeQuickActionsState,
 } from './quickActionsState';
+
+export interface StackBranchMeta {
+  prNumber?: number;
+  needsRestack?: boolean;
+}
+
+/** Data needed to render the status bar stack indicator for the current branch. */
+export interface StackIndicatorData {
+  /** Branches in the current branch's stack, bottom (closest to trunk) to top. */
+  orderedBranches: string[];
+  currentBranch: string;
+  info: Map<string, StackBranchMeta>;
+}
+
+export interface StackPosition {
+  /** 1-based position, bottom of the stack = 1. */
+  position: number;
+  size: number;
+}
+
+/**
+ * Computes the current branch's 1-based position within its stack
+ * (bottom = 1) and the stack's total size, from a bottom-to-top ordered
+ * branch list. Returns undefined when the branch isn't in the list. Pure
+ * and unit-testable.
+ */
+export function computeStackPosition(
+  currentBranch: string,
+  orderedBottomToTop: string[]
+): StackPosition | undefined {
+  const index = orderedBottomToTop.indexOf(currentBranch);
+  if (index === -1) {
+    return undefined;
+  }
+  return { position: index + 1, size: orderedBottomToTop.length };
+}
+
+/** Formats a stack position as e.g. "2/3". Pure. */
+export function formatStackPosition(position: number, size: number): string {
+  return `${position}/${size}`;
+}
+
+export interface StackIndicatorVisibilityInputs {
+  stacksEnabled: boolean;
+  showStatusBar: boolean;
+  isDetached: boolean;
+  isInStack: boolean;
+}
+
+/**
+ * Whether the stack status bar indicator should be shown: stacks must be
+ * enabled, the extension's status bar must be enabled, HEAD must not be
+ * detached, and the current branch must actually be a member of a stack.
+ * Pure and unit-testable.
+ */
+export function shouldShowStackIndicator(inputs: StackIndicatorVisibilityInputs): boolean {
+  return inputs.stacksEnabled && inputs.showStatusBar && !inputs.isDetached && inputs.isInStack;
+}
 
 interface QuickActionItem extends QuickPickItem {
   commandId?: string;
@@ -187,6 +246,9 @@ export class StatusBarManager implements Disposable {
   private loggingService: LoggingService;
   private prReviewWorktreeStore: PRReviewWorktreeStore;
   private vscodeGitProvider?: VscodeGitProvider;
+  /** Stack indicator, priority = mode item priority + 1 so it renders immediately to the left. */
+  private stackStatusBarItem: StatusBarItem;
+  private stackIndicatorData: StackIndicatorData | undefined;
 
   constructor(
     configManager: ConfigurationManager,
@@ -202,7 +264,14 @@ export class StatusBarManager implements Disposable {
     this.statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
 
     this.statusBarItem.command = `${EXTENSION_NAME}.showStatusBarMenu`;
+
+    // Higher priority renders further left for items on the same alignment
+    // side, so 101 lands immediately to the left of the mode item (100).
+    this.stackStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 101);
+    this.stackStatusBarItem.command = `${EXTENSION_NAME}.stacks.focus`;
+
     this.updateStatusBar();
+    this.updateStackIndicator();
   }
 
   private updateStatusBar(): void {
@@ -220,6 +289,57 @@ export class StatusBarManager implements Disposable {
     } else {
       this.statusBarItem.hide();
     }
+  }
+
+  /**
+   * Updates the stack indicator from freshly-computed data (or `undefined`
+   * when the current branch isn't part of any stack / HEAD is detached).
+   * Call after stack detection runs and on branch/HEAD changes.
+   */
+  public setStackIndicator(data: StackIndicatorData | undefined): void {
+    this.stackIndicatorData = data;
+    this.updateStackIndicator();
+  }
+
+  private updateStackIndicator(): void {
+    const config = this.configManager.get();
+    const data = this.stackIndicatorData;
+
+    const visible = shouldShowStackIndicator({
+      stacksEnabled: config.stacks.enabled,
+      showStatusBar: config.showStatusBar,
+      isDetached: !data,
+      isInStack: !!data,
+    });
+
+    if (!visible || !data) {
+      this.stackStatusBarItem.hide();
+      return;
+    }
+
+    const position = computeStackPosition(data.currentBranch, data.orderedBranches);
+    if (!position) {
+      this.stackStatusBarItem.hide();
+      return;
+    }
+
+    this.stackStatusBarItem.text = `$(layers) ${formatStackPosition(position.position, position.size)}`;
+
+    const tooltipLines = [
+      '**Stack**',
+      ...[...data.orderedBranches]
+        .reverse() // top-down for the tooltip; orderedBranches is bottom-to-top.
+        .map((branch) => {
+          const marker = branch === data.currentBranch ? '→ ' : ' ';
+          const meta = data.info.get(branch);
+          const prPart = meta?.prNumber ? ` PR #${meta.prNumber}` : '';
+          const restackPart = meta?.needsRestack ? ' • needs restack' : '';
+          return `${marker}${branch}${prPart}${restackPart}`;
+        }),
+    ];
+    this.stackStatusBarItem.tooltip = new MarkdownString(tooltipLines.join('\n\n'));
+
+    this.stackStatusBarItem.show();
   }
 
   public async showModeQuickPick(): Promise<void> {
@@ -297,13 +417,16 @@ export class StatusBarManager implements Disposable {
 
   public hide(): void {
     this.statusBarItem.hide();
+    this.stackStatusBarItem.hide();
   }
 
   public onConfigurationChanged(): void {
     this.updateStatusBar();
+    this.updateStackIndicator();
   }
 
   public dispose(): void {
     this.statusBarItem.dispose();
+    this.stackStatusBarItem.dispose();
   }
 }

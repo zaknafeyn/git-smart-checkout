@@ -57,6 +57,13 @@
           "when": "git-smart-checkout.hasRepository"
         },
         {
+          "id": "git-smart-checkout.stacks",
+          "name": "Stacks",
+          "type": "tree",
+          "icon": "$(layers)",
+          "when": "git-smart-checkout.hasRepository"
+        },
+        {
           "id": "git-smart-checkout.prClone",
           "name": "PR Clone",
           "type": "webview",
@@ -662,6 +669,28 @@
           "type": "boolean",
           "default": true,
           "description": "Enable anonymous telemetry for Git Smart Checkout analytics (respect VS Code's global telemetry settings). This helps improve the extension and never collects personal information."
+        },
+        "git-smart-checkout.stacks.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect and visualize stacks of dependent branches (Stacks tree view and status bar indicator)."
+        },
+        "git-smart-checkout.stacks.detection": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "github",
+            "local",
+            "manual"
+          ],
+          "markdownEnumDescriptions": [
+            "Use GitHub PR base chains when available, falling back to the local ancestry heuristic",
+            "Only use GitHub PR base chains",
+            "Only use the local ancestry heuristic (no GitHub API calls)",
+            "Disable automatic detection; rely entirely on manually-set stack parents"
+          ],
+          "default": "auto",
+          "description": "How stacks are detected."
         }
       }
     }

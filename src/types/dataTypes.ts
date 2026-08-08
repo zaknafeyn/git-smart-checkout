@@ -25,6 +25,8 @@ export interface GitHubPR {
     };
   };
   html_url: string;
+  /** PR state as reported by the GitHub REST API. */
+  state?: 'open' | 'closed';
   labels: GitHubLabel[];
   assignees: GitHubUser[];
   requested_reviewers?: GitHubUser[];

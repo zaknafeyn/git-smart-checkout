@@ -40,6 +40,7 @@ All commands are grouped under the `GSC:` prefix in the Command Palette.
 | Open a terminal in a selected worktree's directory | `GSC: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Remove several Git worktrees at once with a single confirmation | `GSC: Remove Multiple Worktrees...` | [Remove multiple worktrees](docs/remove-multiple-worktrees.md) |
 | Browse all worktrees for the open repositories in a dedicated "Worktrees" view (activity bar), with dirty/ahead-behind/PR-review status and inline Open/Terminal/Copy WIP/Remove actions | *(tree view — right-click an item for Add to Workspace, Copy Path, Reveal in Finder/Explorer)* | — |
+| Detect chains of dependent local branches ("stacks") from GitHub PR base chains and/or local ancestry, and browse them in a dedicated "Stacks" view (activity bar) with PR number, ahead/behind, and needs-restack status per branch. A status bar indicator (`$(layers) <position>/<size>`) shows where the current branch sits in its stack; click it to reveal the Stacks view. | *(tree view — passive, zero-config)* | — |
 | Create a new PR from selected commits in another GitHub PR | `GSC: Clone Pull Request...` | [GitHub PR clone](docs/github-pr-clone.md) |
 | Generate and optionally push a tag from a reusable template | `GSC: Create Tag from Template...` | [Create tag from template](docs/create-tag-from-template.md) |
 | Create and check out a branch from a template (Jira, file, regex, scripts) | `GSC: Create Branch from Template...` | [Create branch from template](docs/create-branch-from-template.md) |
@@ -81,6 +82,8 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.pushTagWithoutConfirmation`](vscode://settings/git-smart-checkout.pushTagWithoutConfirmation) (Push tag without confirmation) | `boolean` | Pushes the created Git tag to the remote without asking for confirmation. |
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
+| ⚙️ [`git-smart-checkout.stacks.enabled`](vscode://settings/git-smart-checkout.stacks.enabled) (Stacks enabled) | `boolean` | Detects and visualizes stacks of dependent branches (Stacks view and status bar indicator). Default `true`. |
+| ⚙️ [`git-smart-checkout.stacks.detection`](vscode://settings/git-smart-checkout.stacks.detection) (Stacks detection mode) | `string` | How stacks are detected. Available values: `auto` (default; GitHub PR base chains, falling back to the local ancestry heuristic), `github` (PR base chains only), `local` (local ancestry heuristic only, no GitHub API calls), `manual` (no automatic detection). |
 
 ## Telemetry
 

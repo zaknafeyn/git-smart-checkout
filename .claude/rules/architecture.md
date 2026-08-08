@@ -26,6 +26,9 @@ Business logic decoupled from VS Code UI:
 - `JiraService` — fetches Jira issue data via REST API using stored token
 - `RefDetailsCache` — caches ref→commit lookups to avoid redundant git calls
 - `PRReviewWorktreeStore` — persists active PR-review worktree paths across sessions
+- `StackStore` — Memento wrapper over `context.workspaceState` persisting the detected stack forest (`{ branch, parent, source }`); manual entries always win over `github`/`heuristic` detection on merge (`mergeStackEntries`)
+- `stackDetectionService` — detects chains of dependent branches ("stacks") from two sources, merged: GitHub PR base chains (authoritative, via `GitHubClient.listOpenPullRequests`) and a local ancestry heuristic (`git merge-base --is-ancestor` / `git rev-list --count`, offline fallback). Pure functions (`computeLocalAncestryParents`, `computeGithubParents`, `mergeDetectedParents`) are unit-tested against fixtures; `detectStacks` is the async orchestrator
+- `stackTopology` — pure forest/tree helpers (`buildStackForest`, `topoOrder`, `findStackContaining`) shared by `StackTreeDataProvider` and the status bar indicator
 
 ## Git Integration (`src/common/git/`)
 
@@ -44,6 +47,12 @@ Two distinct abstractions — don't conflate them:
 | `autoStashForBranch` | Stash stays on originating branch |
 | `autoStashAndPop` | Stash is popped onto target branch (destructive) |
 | `autoStashAndApply` | Stash applied to target branch, original preserved |
+
+## Stacks Tree View & Status Bar Indicator
+
+`StackTreeDataProvider` (`src/view/`, view id `git-smart-checkout.stacks`, same activity-bar container as Worktrees) follows the two-phase render pattern from `WorktreeTreeDataProvider`: fast phase 1 builds the forest topology from `StackStore` alone, phase 2 asynchronously enriches each branch with PR number/state, ahead/behind vs. parent, and a needs-restack flag (`NOT git merge-base --is-ancestor <parent-tip> <branch-tip>`). Detection itself is driven externally from `extension.ts` (`refreshStacks`, debounced on git state/config changes), not by the provider.
+
+`StatusBarManager` owns a second status bar item (priority = mode item's priority + 1, so it renders immediately to its left) showing `$(layers) <position>/<size>` for the current branch's stack, gated by `shouldShowStackIndicator` (pure, unit-tested) — hidden when stacks are disabled, the status bar is off, HEAD is detached, or the branch isn't stacked.
 
 ## WebView Integration
 

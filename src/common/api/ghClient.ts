@@ -293,6 +293,22 @@ export class GitHubClient {
   }
 
   /**
+   * List all open pull requests for the repository. Used by stack detection
+   * to find PR base-branch chains among local branches; returns an empty
+   * array (rather than throwing) on any API failure so detection can fall
+   * back to the local ancestry heuristic without crashing.
+   */
+  public async listOpenPullRequests(): Promise<GitHubPR[]> {
+    try {
+      const endpoint = `/repos/${this.owner}/${this.repo}/pulls?state=open`;
+      return await this.makePaginatedRequest<GitHubPR>(endpoint);
+    } catch (error) {
+      this.warn('Failed to list open pull requests:', error);
+      return [];
+    }
+  }
+
+  /**
    * Fetch all commits for a pull request
    */
   public async fetchPullRequestCommits(prNumber: number): Promise<GitHubCommit[]> {

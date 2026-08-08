@@ -43,6 +43,22 @@ export interface NamedTemplate {
   template: string;
 }
 
+export const STACKS_DETECTION_AUTO = 'auto';
+export const STACKS_DETECTION_GITHUB = 'github';
+export const STACKS_DETECTION_LOCAL = 'local';
+export const STACKS_DETECTION_MANUAL = 'manual';
+
+export type TStacksDetectionMode =
+  | typeof STACKS_DETECTION_AUTO
+  | typeof STACKS_DETECTION_GITHUB
+  | typeof STACKS_DETECTION_LOCAL
+  | typeof STACKS_DETECTION_MANUAL;
+
+export interface StacksConfig {
+  enabled: boolean;
+  detection: TStacksDetectionMode;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -76,6 +92,7 @@ export interface ExtensionConfig {
   branchTemplate: string;
   branchTemplates: NamedTemplate[];
   jira: JiraConfig;
+  stacks: StacksConfig;
 }
 
 export interface IAutoStashMode {
