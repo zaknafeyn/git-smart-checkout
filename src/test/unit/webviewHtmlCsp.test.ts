@@ -48,7 +48,7 @@ describe('buildWebviewHtml', () => {
 
   it('tags every <script> with the nonce', () => {
     const html = buildWebviewHtml(TEMPLATE_HTML, makeFakeWebview(), extensionUri, 'nonce123');
-    const scriptTags = html.match(/<script\b[^>]*>/g) ?? [];
+    const scriptTags = html.match(/<script\b[^>]*>/gi) ?? [];
     assert.ok(scriptTags.length > 0);
     for (const tag of scriptTags) {
       assert.match(tag, /nonce="nonce123"/);
