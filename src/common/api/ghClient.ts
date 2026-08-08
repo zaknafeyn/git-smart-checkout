@@ -2,7 +2,7 @@ import * as https from 'https';
 import { authentication } from 'vscode';
 
 import { EXTENSION_NAME } from '../../const';
-import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubUser } from '../../types/dataTypes';
+import { GitHubCommit, GitHubCommitFile, GitHubLabel, GitHubPR, GitHubStack, GitHubUser } from '../../types/dataTypes';
 import { detectProvider } from './prProvider';
 
 /**
@@ -318,6 +318,23 @@ export class GitHubClient {
   public async listOpenPullRequestsOrThrow(): Promise<GitHubPR[]> {
     const endpoint = `/repos/${this.owner}/${this.repo}/pulls?state=open`;
     return await this.makePaginatedRequest<GitHubPR>(endpoint);
+  }
+
+  /**
+   * List all GitHub-native pull request stacks for the repository. Stack
+   * membership, order, and target are whatever GitHub itself recorded when
+   * the stack was created — this is the authoritative source for "is this
+   * branch part of a stack", replacing any local head/base-ref walking.
+   * @see https://docs.github.com/en/rest/pulls/stacks
+   */
+  public async listPullRequestStacksOrThrow(): Promise<GitHubStack[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/stacks`;
+    return await this.makePaginatedRequest<GitHubStack>(endpoint);
+  }
+
+  /** Direct web URL for a pull request, for stack members without a matching entry in the open-PR list. */
+  public pullRequestUrl(prNumber: number): string {
+    return `${this.webBaseUrl}/${this.owner}/${this.repo}/pull/${prNumber}`;
   }
 
   /**

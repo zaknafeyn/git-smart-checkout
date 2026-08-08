@@ -2,24 +2,19 @@
 
 Command: `Git Smart Checkout: Refresh Stacks`
 
-Detects the chain of open GitHub pull requests the current branch belongs to (a "stack") and shows it in the "Stacks" view (Git Smart Checkout activity bar container), alongside a status bar indicator.
+Detects the GitHub-native [stacked pull request](https://docs.github.com/en/rest/pulls/stacks) chain the current branch belongs to and shows it in the "Stacks" view (Git Smart Checkout activity bar container), alongside a status bar indicator.
 
 ## What Counts as a Stack
 
-A stack is a chain of open PRs linked `head -> base`, ending at a **target** branch that has no open PR of its own (often `main`, but it can be any branch — a release branch, another feature branch, etc.). For example:
+A stack is whatever GitHub's Stacks API says it is: `GET /repos/{owner}/{repo}/stacks` returns each stack's member PRs (bottom -> top, already ordered by GitHub) and its **target** branch (`base.ref`) — the branch the stack is ultimately aimed at, which has no open PR of its own (often `main`, but it can be any branch — a release branch, another feature branch, etc.). For example:
 
 ```
-PR #52  vradchuk/feature-1-for-release-v1.1   (head -> base: test/feature-1-for-release-v1)
-PR #12  test/feature-1-for-release-v1          (head -> base: test/fake-release-v1)
+PR #52  vradchuk/feature-1-for-release-v1.1
+PR #12  test/feature-1-for-release-v1
         test/fake-release-v1                   <- target (no open PR)
 ```
 
-Rules:
-
-- A single PR onto the default branch (trunk) is **not** a stack — that's just an ordinary PR.
-- A single PR onto any other branch **is** a stack (the target chip is the point).
-- Sitting on trunk itself never shows a stack.
-- If a branch is the base of more than one open PR (a fork in the stack), the PR with the lowest number is followed; the others aren't shown.
+Whether a single PR onto trunk counts as a stack, how forks in history are resolved, and stack member order are all decisions GitHub itself made when the stack was created — this extension doesn't second-guess them by walking PR `head`/`base` refs locally.
 
 ## The Stacks View
 
@@ -40,12 +35,12 @@ Controlled by `git-smart-checkout.stacks.detection`:
 
 | Value | Behavior |
 | --- | --- |
-| `auto` (default) | GitHub PR chains; falls back to the local ancestry heuristic only when GitHub data is genuinely unavailable (no GitHub remote/token, or the API call fails with no usable cache). |
-| `github` | GitHub PR chains only — no heuristic fallback. |
+| `auto` (default) | GitHub's native Stacks API; falls back to the local ancestry heuristic only when GitHub data is genuinely unavailable (no GitHub remote/token, or the API call fails with no usable cache). |
+| `github` | GitHub's Stacks API only — no heuristic fallback. |
 | `local` | Local ancestry heuristic only (no GitHub API calls); useful offline or without a GitHub remote. |
 | `manual` | No automatic detection. |
 
-GitHub PR chains are **authoritative** — the two sources are never merged into one stack. The heuristic (closest ancestor branch by commit distance) is a fallback for when there's no usable PR data at all, so it never grafts extra branches onto a genuine PR stack.
+GitHub's Stacks API is **authoritative** — the two sources are never merged into one stack. The heuristic (closest ancestor branch by commit distance) is a fallback for when there's no usable GitHub data at all, so it never grafts extra branches onto a genuine stack.
 
 Disable everything with:
 

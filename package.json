@@ -712,8 +712,8 @@
             "manual"
           ],
           "markdownEnumDescriptions": [
-            "Use GitHub PR chains when available, falling back to the local ancestry heuristic only when GitHub data is unavailable",
-            "Only use GitHub PR chains (no heuristic fallback)",
+            "Use GitHub's native Stacks API when available, falling back to the local ancestry heuristic only when GitHub data is unavailable",
+            "Only use GitHub's native Stacks API (no heuristic fallback)",
             "Only use the local ancestry heuristic (no GitHub API calls)",
             "Disable automatic detection; rely entirely on manually-set stack parents"
           ],

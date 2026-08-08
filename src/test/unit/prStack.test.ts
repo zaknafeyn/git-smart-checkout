@@ -1,160 +1,126 @@
 import * as assert from 'assert';
 
-import { buildPrStack } from '../../services/prStack';
-import { GitHubPR } from '../../types/dataTypes';
+import { findGithubStackForBranch, prStackFromGithubStack } from '../../services/prStack';
+import { GitHubPR, GitHubStack, GitHubStackPr } from '../../types/dataTypes';
 
-let nextNumber = 1;
-
-function pr(
-  head: string,
-  base: string,
-  opts: Partial<GitHubPR> = {}
-): GitHubPR {
-  const number = opts.number ?? nextNumber++;
+function stackPr(number: number, head: string, opts: Partial<GitHubStackPr> = {}): GitHubStackPr {
   return {
     number,
-    title: opts.title ?? `PR for ${head}`,
-    body: '',
-    head: { ref: head, sha: 'sha', repo: { full_name: 'org/repo', clone_url: '' } },
-    base: { ref: base, repo: { full_name: 'org/repo' } },
-    html_url: `https://github.com/org/repo/pull/${number}`,
-    state: opts.state ?? 'open',
-    labels: [],
-    assignees: [],
+    state: 'open',
+    draft: false,
+    merged_at: null,
+    head: { ref: head, sha: `sha-${number}` },
     ...opts,
   };
 }
 
-beforeEach(() => {
-  nextNumber = 1;
-});
-
-// gh-mindsight fixture: #12 test/feature-1-for-release-v1 -> test/fake-release-v1
-//                        #52 vradchuk/feature-1-for-release-v1.1 -> test/feature-1-for-release-v1
-function ghMindsightChain(): GitHubPR[] {
-  return [
-    pr('test/feature-1-for-release-v1', 'test/fake-release-v1', { number: 12 }),
-    pr('vradchuk/feature-1-for-release-v1.1', 'test/feature-1-for-release-v1', { number: 52 }),
-  ];
+function stack(target: string, pull_requests: GitHubStackPr[], overrides: Partial<GitHubStack> = {}): GitHubStack {
+  return {
+    id: 1,
+    number: 1,
+    node_id: 'node-1',
+    url: 'https://api.github.com/repos/org/repo/stacks/1',
+    base: { ref: target },
+    open: true,
+    created_at: '2026-01-01T00:00:00Z',
+    pull_requests,
+    ...overrides,
+  };
 }
 
-describe('buildPrStack', () => {
-  it('builds the chain from the middle branch (currentIndex 0)', () => {
-    const stack = buildPrStack(ghMindsightChain(), 'test/feature-1-for-release-v1');
-    assert.ok(stack);
-    assert.deepStrictEqual(
-      stack!.nodes.map((n) => n.prNumber),
-      [12, 52]
-    );
-    assert.strictEqual(stack!.target, 'test/fake-release-v1');
-    assert.strictEqual(stack!.currentIndex, 0);
+function pr(number: number, title: string): GitHubPR {
+  return {
+    number,
+    title,
+    body: '',
+    head: { ref: `head-${number}`, sha: 'sha' },
+    base: { ref: 'target' },
+    html_url: `https://github.com/org/repo/pull/${number}`,
+    state: 'open',
+    labels: [],
+    assignees: [],
+  };
+}
+
+const resolveUrl = (n: number): string => `https://github.com/org/repo/pull/${n}`;
+
+describe('findGithubStackForBranch', () => {
+  it('finds the stack a branch belongs to as a stacked PR head', () => {
+    const stacks = [stack('target', [stackPr(12, 'feat/mid'), stackPr(52, 'feat/top')])];
+
+    assert.strictEqual(findGithubStackForBranch(stacks, 'feat/top'), stacks[0]);
   });
 
-  it('builds the same chain from the top branch (currentIndex 1)', () => {
-    const stack = buildPrStack(ghMindsightChain(), 'vradchuk/feature-1-for-release-v1.1');
-    assert.ok(stack);
-    assert.deepStrictEqual(
-      stack!.nodes.map((n) => n.prNumber),
-      [12, 52]
-    );
-    assert.strictEqual(stack!.target, 'test/fake-release-v1');
-    assert.strictEqual(stack!.currentIndex, 1);
+  it('finds the stack when the branch is the target itself', () => {
+    const stacks = [stack('target', [stackPr(12, 'feat/mid')])];
+
+    assert.strictEqual(findGithubStackForBranch(stacks, 'target'), stacks[0]);
   });
 
-  it('builds the same chain from the target branch itself (currentIndex -1, no PR of its own)', () => {
-    const stack = buildPrStack(ghMindsightChain(), 'test/fake-release-v1');
-    assert.ok(stack);
-    assert.deepStrictEqual(
-      stack!.nodes.map((n) => n.prNumber),
-      [12, 52]
-    );
-    assert.strictEqual(stack!.target, 'test/fake-release-v1');
-    assert.strictEqual(stack!.currentIndex, -1);
+  it('returns undefined when the branch is part of no stack', () => {
+    const stacks = [stack('target', [stackPr(12, 'feat/mid')])];
+
+    assert.strictEqual(findGithubStackForBranch(stacks, 'feat/unrelated'), undefined);
   });
 
-  it('does not require any chain member to be a known local branch (remote-only branches survive)', () => {
-    // No localBranches concept exists at all — this is the regression test.
-    const stack = buildPrStack(ghMindsightChain(), 'test/feature-1-for-release-v1', { trunk: 'main' });
-    assert.ok(stack);
-    assert.strictEqual(stack!.nodes.length, 2);
-  });
-
-  it('does not truncate a chain whose bottom PR targets trunk', () => {
-    const chain = [pr('feat/a', 'main', { number: 10 }), pr('feat/b', 'feat/a', { number: 11 })];
-    const stack = buildPrStack(chain, 'feat/a', { trunk: 'main' });
-    assert.ok(stack);
-    assert.strictEqual(stack!.nodes.length, 2);
-    assert.strictEqual(stack!.target, 'main');
-  });
-
-  it('treats a single PR onto trunk as not a stack', () => {
-    const stack = buildPrStack([pr('feat/a', 'main', { number: 1 })], 'feat/a', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
-  });
-
-  it('treats a single PR onto a non-trunk base as a stack', () => {
-    const stack = buildPrStack([pr('feat/a', 'release/1.0', { number: 1 })], 'feat/a', { trunk: 'main' });
-    assert.ok(stack);
-    assert.strictEqual(stack!.nodes.length, 1);
-    assert.strictEqual(stack!.target, 'release/1.0');
-  });
-
-  it('returns undefined when the current branch is trunk', () => {
-    const stack = buildPrStack(ghMindsightChain(), 'main', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
-  });
-
-  it('returns undefined when there are no PRs involving the current branch', () => {
-    const stack = buildPrStack(ghMindsightChain(), 'unrelated-branch', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
-  });
-
-  it('resolves a fork (two PRs sharing a base) deterministically by lowest PR number', () => {
-    const base = [
-      pr('feat/base', 'main', { number: 1 }),
-      pr('feat/child-b', 'feat/base', { number: 30 }),
-      pr('feat/child-a', 'feat/base', { number: 20 }),
+  it('picks the correct stack among several', () => {
+    const stacks = [
+      stack('main', [stackPr(1, 'feat/a')]),
+      stack('release', [stackPr(2, 'feat/b')]),
     ];
-    const stack = buildPrStack(base, 'feat/base', { trunk: 'main' });
-    assert.ok(stack);
-    assert.deepStrictEqual(stack!.forkedAt, ['feat/base']);
-    assert.strictEqual(stack!.nodes[stack!.nodes.length - 1].branch, 'feat/child-a');
 
-    // Stable across shuffled input order.
-    const shuffled = [base[2], base[0], base[1]];
-    const stackShuffled = buildPrStack(shuffled, 'feat/base', { trunk: 'main' });
-    assert.strictEqual(stackShuffled!.nodes[stackShuffled!.nodes.length - 1].branch, 'feat/child-a');
+    assert.strictEqual(findGithubStackForBranch(stacks, 'feat/b'), stacks[1]);
+  });
+});
+
+describe('prStackFromGithubStack', () => {
+  it('builds nodes in the API-given bottom-to-top order, enriched with PR title/url', () => {
+    const githubStack = stack('target', [stackPr(12, 'feat/mid'), stackPr(52, 'feat/top')]);
+    const prs = [pr(12, 'Mid feature'), pr(52, 'Top feature')];
+
+    const result = prStackFromGithubStack(githubStack, prs, 'feat/mid', resolveUrl);
+
+    assert.strictEqual(result.target, 'target');
+    assert.deepStrictEqual(
+      result.nodes.map((n) => [n.branch, n.prNumber, n.title, n.url]),
+      [
+        ['feat/mid', 12, 'Mid feature', 'https://github.com/org/repo/pull/12'],
+        ['feat/top', 52, 'Top feature', 'https://github.com/org/repo/pull/52'],
+      ]
+    );
   });
 
-  it('terminates on a cycle without duplicating nodes', () => {
-    const cyclePrs = [pr('a', 'b', { number: 1 }), pr('b', 'a', { number: 2 })];
-    const stack = buildPrStack(cyclePrs, 'a');
-    assert.ok(stack);
-    const branchNames = stack!.nodes.map((n) => n.branch);
-    assert.strictEqual(new Set(branchNames).size, branchNames.length, 'no duplicate nodes');
+  it('falls back to a placeholder title/url when a stack member has no matching open PR', () => {
+    const githubStack = stack('target', [stackPr(12, 'feat/mid')]);
+
+    const result = prStackFromGithubStack(githubStack, [], 'feat/mid', resolveUrl);
+
+    assert.strictEqual(result.nodes[0].title, 'PR #12');
+    assert.strictEqual(result.nodes[0].url, 'https://github.com/org/repo/pull/12');
   });
 
-  it('skips malformed PRs (missing head/base ref, head === base)', () => {
-    const malformed = [
-      { ...pr('feat/a', 'main', { number: 1 }), head: { ref: '', sha: '' } } as GitHubPR,
-      pr('feat/same', 'feat/same', { number: 2 }),
-    ];
-    const stack = buildPrStack(malformed, 'feat/a', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
+  it('carries state/draft straight from the stack member, not the open-PR list', () => {
+    const githubStack = stack('target', [stackPr(12, 'feat/mid', { draft: true })]);
+
+    const result = prStackFromGithubStack(githubStack, [pr(12, 'Mid feature')], 'feat/mid', resolveUrl);
+
+    assert.strictEqual(result.nodes[0].draft, true);
+    assert.strictEqual(result.nodes[0].state, 'open');
   });
 
-  it('skips closed PRs', () => {
-    const stack = buildPrStack([pr('feat/a', 'main', { number: 1, state: 'closed' })], 'feat/a', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
+  it('sets currentIndex to the matching node', () => {
+    const githubStack = stack('target', [stackPr(12, 'feat/mid'), stackPr(52, 'feat/top')]);
+
+    const result = prStackFromGithubStack(githubStack, [], 'feat/top', resolveUrl);
+
+    assert.strictEqual(result.currentIndex, 1);
   });
 
-  it('skips cross-fork PRs (head repo differs from base repo)', () => {
-    const forkPr: GitHubPR = {
-      ...pr('feat/a', 'main', { number: 1 }),
-      head: { ref: 'feat/a', sha: 'sha', repo: { full_name: 'someoneelse/repo', clone_url: '' } },
-      base: { ref: 'main', repo: { full_name: 'org/repo' } },
-    };
-    const stack = buildPrStack([forkPr], 'feat/a', { trunk: 'main' });
-    assert.strictEqual(stack, undefined);
+  it('sets currentIndex to -1 when the current branch is the target', () => {
+    const githubStack = stack('target', [stackPr(12, 'feat/mid')]);
+
+    const result = prStackFromGithubStack(githubStack, [], 'target', resolveUrl);
+
+    assert.strictEqual(result.currentIndex, -1);
   });
 });

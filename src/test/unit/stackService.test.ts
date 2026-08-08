@@ -6,7 +6,7 @@ import { ConfigurationManager } from '../../configuration/configurationManager';
 import { PrStackCache } from '../../services/prStackCache';
 import { StackService } from '../../services/stackService';
 import { StackStore } from '../../services/stackStore';
-import { GitHubPR } from '../../types/dataTypes';
+import { GitHubPR, GitHubStack } from '../../types/dataTypes';
 import { mockLogService } from '../e2e/helpers/mockLogService';
 
 function makeMemento() {
@@ -41,6 +41,26 @@ function pr(number: number, head: string, base: string): GitHubPR {
     state: 'open',
     labels: [],
     assignees: [],
+  };
+}
+
+/** A GitHub-native stack fixture: `entries` bottom -> top, matching the Stacks API's own ordering. */
+function githubStack(target: string, entries: Array<{ number: number; head: string }>): GitHubStack {
+  return {
+    id: 1,
+    number: 1,
+    node_id: 'node-1',
+    url: 'https://api.github.com/repos/org/repo/stacks/1',
+    base: { ref: target },
+    open: true,
+    created_at: '2026-01-01T00:00:00Z',
+    pull_requests: entries.map((e) => ({
+      number: e.number,
+      state: 'open',
+      draft: false,
+      merged_at: null,
+      head: { ref: e.head, sha: 'sha' },
+    })),
   };
 }
 
@@ -79,21 +99,41 @@ function makeGitStub(options: GitStubOptions = {}): GitExecutor {
   } as unknown as GitExecutor;
 }
 
-function stubGithubClient(impl: () => Promise<GitHubPR[]>): () => void {
-  const original = GitHubClient.prototype.listOpenPullRequestsOrThrow;
-  GitHubClient.prototype.listOpenPullRequestsOrThrow = impl;
+/**
+ * Stubs both GitHub calls `StackService` makes: the open-PR list (title/url
+ * enrichment) and the native Stacks API (structure/order/target). Tests that
+ * don't care about stack matching can omit `stacksImpl` — it defaults to "no
+ * stacks", which is enough whenever the assertion only cares that the
+ * heuristic wasn't consulted.
+ */
+function stubGithubClient(
+  prsImpl: () => Promise<GitHubPR[]>,
+  stacksImpl: () => Promise<GitHubStack[]> = async () => []
+): () => void {
+  const originalPrs = GitHubClient.prototype.listOpenPullRequestsOrThrow;
+  const originalStacks = GitHubClient.prototype.listPullRequestStacksOrThrow;
+  GitHubClient.prototype.listOpenPullRequestsOrThrow = prsImpl;
+  GitHubClient.prototype.listPullRequestStacksOrThrow = stacksImpl;
   return () => {
-    GitHubClient.prototype.listOpenPullRequestsOrThrow = original;
+    GitHubClient.prototype.listOpenPullRequestsOrThrow = originalPrs;
+    GitHubClient.prototype.listPullRequestStacksOrThrow = originalStacks;
   };
 }
 
 describe('StackService.refreshForRepo', () => {
-  it('calls listOpenPullRequestsOrThrow exactly once per refresh for a multi-branch chain', async () => {
-    let callCount = 0;
-    const restore = stubGithubClient(async () => {
-      callCount++;
-      return [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')];
-    });
+  it('calls listOpenPullRequestsOrThrow and listPullRequestStacksOrThrow exactly once per refresh', async () => {
+    let prCalls = 0;
+    let stackCalls = 0;
+    const restore = stubGithubClient(
+      async () => {
+        prCalls++;
+        return [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')];
+      },
+      async () => {
+        stackCalls++;
+        return [githubStack('target', [{ number: 12, head: 'feat/mid' }, { number: 52, head: 'feat/top' }])];
+      }
+    );
     try {
       const service = new StackService(
         makeConfigManager('auto'),
@@ -103,7 +143,8 @@ describe('StackService.refreshForRepo', () => {
       );
       const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/mid' }));
 
-      assert.strictEqual(callCount, 1);
+      assert.strictEqual(prCalls, 1);
+      assert.strictEqual(stackCalls, 1);
       assert.strictEqual(result.view?.branches.length, 2);
     } finally {
       restore();
@@ -171,13 +212,14 @@ describe('StackService.refreshForRepo', () => {
 
   it('uses a fresh cached PR list when the API call throws', async () => {
     const cache = new PrStackCache(makeMemento(), mockLogService, 5 * 60_000);
-    // Base is a non-trunk branch: a single PR onto trunk isn't a stack, which
-    // would make `view` undefined regardless of source and defeat the assertion.
     await cache.set('/repo', [pr(1, 'feat/a', 'target')]);
 
-    const restore = stubGithubClient(async () => {
-      throw new Error('rate limited');
-    });
+    const restore = stubGithubClient(
+      async () => {
+        throw new Error('rate limited');
+      },
+      async () => [githubStack('target', [{ number: 1, head: 'feat/a' }])]
+    );
     try {
       const service = new StackService(makeConfigManager('auto'), mockLogService, cache, new StackStore(makeMemento(), mockLogService));
       const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'feat/a' }));
@@ -296,7 +338,10 @@ describe('StackService.refreshForRepo', () => {
   });
 
   it('attaches the target branch ahead/behind for a GitHub-sourced stack', async () => {
-    const restore = stubGithubClient(async () => [pr(12, 'feat/mid', 'target')]);
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target')],
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
+    );
     try {
       const service = new StackService(
         makeConfigManager('auto'),
@@ -318,7 +363,10 @@ describe('StackService.refreshForRepo', () => {
   });
 
   it('leaves the target ahead/behind undefined when the target has no upstream', async () => {
-    const restore = stubGithubClient(async () => [pr(12, 'feat/mid', 'target')]);
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target')],
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
+    );
     try {
       const service = new StackService(
         makeConfigManager('auto'),

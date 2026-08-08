@@ -12,9 +12,9 @@ import {
   STACKS_DETECTION_MANUAL,
 } from '../configuration/extensionConfig';
 import { LoggingService } from '../logging/loggingService';
-import { GitHubPR } from '../types/dataTypes';
+import { GitHubPR, GitHubStack } from '../types/dataTypes';
 import { resolveGitRepositoryRoot } from '../utils/getGitExecutor';
-import { buildPrStack } from './prStack';
+import { findGithubStackForBranch, prStackFromGithubStack } from './prStack';
 import { PrStackCache } from './prStackCache';
 import { heuristicEntriesFrom, detectLocalAncestryStacks } from './stackDetectionService';
 import { StackAheadBehind, StackView, stackViewFromForest, stackViewFromPrStack } from './stackModel';
@@ -28,15 +28,18 @@ export interface StackRefreshResult {
 }
 
 /**
- * Orchestrates a stacks refresh: PR chains (GitHub) are authoritative and
+ * Orchestrates a stacks refresh: GitHub's native Stacks API
+ * (https://docs.github.com/en/rest/pulls/stacks) is authoritative and
  * consulted first; the local ancestry heuristic only runs as an offline
  * fallback when GitHub data is genuinely unusable (no GitHub remote, or the
- * API call failed with no fresh cache) — the two sources are never merged
- * into one view, unlike the tree-view-era `detectStacks`.
+ * open-PR list call failed with no fresh cache) — the two sources are never
+ * merged into one view. Stack membership, order, and target come directly
+ * from GitHub; no local head/base-ref walking is involved.
  *
- * Fetches the open-PR list at most once per repository per refresh (cached
- * in `PrStackCache`), shared by both the Stacks webview and the status bar
- * indicator, instead of once per branch.
+ * Fetches the open-PR list and the stack list at most once each per
+ * repository per refresh (the PR list cached in `PrStackCache`), shared by
+ * both the Stacks webview and the status bar indicator, instead of once per
+ * branch.
  */
 export class StackService {
   constructor(
@@ -91,20 +94,25 @@ export class StackService {
     const useLocal = mode === STACKS_DETECTION_AUTO || mode === STACKS_DETECTION_LOCAL;
 
     if (useGithub) {
-      const prs = await this.fetchPrs(git, config.githubEnterpriseBaseUrl);
-      if (prs !== undefined) {
-        // GitHub data is authoritative once available — never fall back to
-        // the heuristic just because this branch isn't part of a PR chain.
-        const stack = buildPrStack(prs, currentBranch, { trunk });
-        const view = stack
-          ? stackViewFromPrStack(
-              stack,
-              currentBranch,
-              git.repositoryPath,
-              await this.aheadBehindFor(git, stack.target)
-            )
-          : undefined;
-        return { view, currentBranch, isDetached: false };
+      const ghClient = await this.buildGithubClient(git, config.githubEnterpriseBaseUrl);
+      if (ghClient) {
+        const repoKey = git.repositoryPath;
+        const prs = await this.fetchPrs(ghClient, repoKey);
+        if (prs !== undefined) {
+          // GitHub data is authoritative once available — never fall back to
+          // the heuristic just because this branch isn't part of a stack.
+          const stacks = await this.fetchStacks(ghClient, repoKey);
+          const githubStack = findGithubStackForBranch(stacks, currentBranch);
+          const view = githubStack
+            ? stackViewFromPrStack(
+                prStackFromGithubStack(githubStack, prs, currentBranch, (n) => ghClient.pullRequestUrl(n)),
+                currentBranch,
+                git.repositoryPath,
+                await this.aheadBehindFor(git, githubStack.base.ref)
+              )
+            : undefined;
+          return { view, currentBranch, isDetached: false };
+        }
       }
     }
 
@@ -116,25 +124,27 @@ export class StackService {
     return { currentBranch, isDetached: false };
   }
 
-  /**
-   * Fetches the open-PR list for `git`'s repository, exactly once. Returns
-   * `undefined` when GitHub data cannot be used at all: not a GitHub repo,
-   * or the API call failed and no fresh cached list is available.
-   */
-  private async fetchPrs(git: GitExecutor, enterpriseBaseUrl: string): Promise<GitHubPR[] | undefined> {
+  /** Builds a `GitHubClient` for `git`'s repository, or `undefined` when it's not a GitHub repo. */
+  private async buildGithubClient(git: GitExecutor, enterpriseBaseUrl: string): Promise<GitHubClient | undefined> {
     const repoInfo = await git.getRepoInfo(enterpriseBaseUrl).catch(() => null);
     if (!repoInfo) {
       return undefined;
     }
-
-    const repoKey = git.repositoryPath;
-    const ghClient = new GitHubClient(
+    return new GitHubClient(
       repoInfo.owner,
       repoInfo.repo,
       undefined,
       resolveGitHubHostConfig(repoInfo.host, enterpriseBaseUrl)
     );
+  }
 
+  /**
+   * Fetches the open-PR list, exactly once — used to enrich stack members
+   * with title/URL. Returns `undefined` only when the API call failed and no
+   * fresh cached list is available; that's the sole "GitHub data is
+   * genuinely unusable" signal that triggers the heuristic fallback.
+   */
+  private async fetchPrs(ghClient: GitHubClient, repoKey: string): Promise<GitHubPR[] | undefined> {
     try {
       const prs = await ghClient.listOpenPullRequestsOrThrow();
       await this.cache.set(repoKey, prs);
@@ -145,6 +155,21 @@ export class StackService {
         return this.cache.get(repoKey)?.prs;
       }
       return undefined;
+    }
+  }
+
+  /**
+   * Fetches the GitHub-native stack list, exactly once. A failure here means
+   * "no stack found" rather than "GitHub is unusable" — `fetchPrs` already
+   * proved the API/auth/repo are usable, so this doesn't trigger the
+   * heuristic fallback.
+   */
+  private async fetchStacks(ghClient: GitHubClient, repoKey: string): Promise<GitHubStack[]> {
+    try {
+      return await ghClient.listPullRequestStacksOrThrow();
+    } catch (error) {
+      this.logService.warn(`Stack GitHub stacks fetch failed for ${repoKey}: ${error}`);
+      return [];
     }
   }
 

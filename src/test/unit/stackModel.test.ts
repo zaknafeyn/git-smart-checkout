@@ -1,32 +1,42 @@
 import * as assert from 'assert';
 
-import { buildPrStack } from '../../services/prStack';
+import { PrStack } from '../../services/prStack';
 import {
   indicatorBranchesOf,
   stackInfoMapOf,
   stackViewFromForest,
   stackViewFromPrStack,
 } from '../../services/stackModel';
-import { GitHubPR } from '../../types/dataTypes';
 
-function pr(number: number, head: string, base: string): GitHubPR {
+/** Builds a `PrStack` fixture directly — order/target come from GitHub's Stacks API, not a local walk. */
+function makeStack(
+  entries: Array<{ branch: string; prNumber: number; title: string }>,
+  target: string,
+  currentBranch: string
+): PrStack {
   return {
-    number,
-    title: `Title ${number}`,
-    body: '',
-    head: { ref: head, sha: 'sha', repo: { full_name: 'org/repo', clone_url: '' } },
-    base: { ref: base, repo: { full_name: 'org/repo' } },
-    html_url: `https://github.com/org/repo/pull/${number}`,
-    state: 'open',
-    labels: [],
-    assignees: [],
+    nodes: entries.map((e) => ({
+      branch: e.branch,
+      prNumber: e.prNumber,
+      title: e.title,
+      url: `https://github.com/org/repo/pull/${e.prNumber}`,
+      state: 'open',
+    })),
+    target,
+    currentIndex: entries.findIndex((e) => e.branch === currentBranch),
   };
 }
 
 describe('stackViewFromPrStack', () => {
   it('marks the current branch and carries PR metadata per branch', () => {
-    const prs = [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')];
-    const stack = buildPrStack(prs, 'feat/mid')!;
+    const stack = makeStack(
+      [
+        { branch: 'feat/mid', prNumber: 12, title: 'Title 12' },
+        { branch: 'feat/top', prNumber: 52, title: 'Title 52' },
+      ],
+      'target',
+      'feat/mid'
+    );
 
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo');
 
@@ -43,8 +53,7 @@ describe('stackViewFromPrStack', () => {
   });
 
   it('marks the target as current when the current branch has no PR of its own', () => {
-    const prs = [pr(12, 'feat/mid', 'target')];
-    const stack = buildPrStack(prs, 'target')!;
+    const stack = makeStack([{ branch: 'feat/mid', prNumber: 12, title: 'Title 12' }], 'target', 'target');
 
     const view = stackViewFromPrStack(stack, 'target', '/repo');
 
@@ -53,8 +62,7 @@ describe('stackViewFromPrStack', () => {
   });
 
   it('carries the target ahead/behind through when provided', () => {
-    const prs = [pr(12, 'feat/mid', 'target')];
-    const stack = buildPrStack(prs, 'feat/mid')!;
+    const stack = makeStack([{ branch: 'feat/mid', prNumber: 12, title: 'Title 12' }], 'target', 'feat/mid');
 
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo', { ahead: 1, behind: 3 });
 
@@ -62,8 +70,7 @@ describe('stackViewFromPrStack', () => {
   });
 
   it('leaves the target ahead/behind undefined when omitted', () => {
-    const prs = [pr(12, 'feat/mid', 'target')];
-    const stack = buildPrStack(prs, 'feat/mid')!;
+    const stack = makeStack([{ branch: 'feat/mid', prNumber: 12, title: 'Title 12' }], 'target', 'feat/mid');
 
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo');
 
@@ -106,8 +113,14 @@ describe('indicatorBranchesOf', () => {
   });
 
   it('counts only PRs for a GitHub-sourced stack, not the target branch', () => {
-    const prs = [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')];
-    const stack = buildPrStack(prs, 'feat/mid')!;
+    const stack = makeStack(
+      [
+        { branch: 'feat/mid', prNumber: 12, title: 'Title 12' },
+        { branch: 'feat/top', prNumber: 52, title: 'Title 52' },
+      ],
+      'target',
+      'feat/mid'
+    );
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo');
 
     assert.deepStrictEqual(indicatorBranchesOf(view), ['feat/mid', 'feat/top']);
@@ -116,8 +129,14 @@ describe('indicatorBranchesOf', () => {
 
 describe('stackInfoMapOf', () => {
   it('maps only branches carrying PR metadata', () => {
-    const prs = [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')];
-    const stack = buildPrStack(prs, 'feat/mid')!;
+    const stack = makeStack(
+      [
+        { branch: 'feat/mid', prNumber: 12, title: 'Title 12' },
+        { branch: 'feat/top', prNumber: 52, title: 'Title 52' },
+      ],
+      'target',
+      'feat/mid'
+    );
     const view = stackViewFromPrStack(stack, 'feat/mid', '/repo');
 
     const info = stackInfoMapOf(view);

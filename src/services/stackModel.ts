@@ -39,7 +39,7 @@ export interface StackBranchMeta {
   prState?: string;
 }
 
-/** Builds the view model for a PR-chain-derived stack (the authoritative path). */
+/** Builds the view model for a GitHub-Stacks-API-derived stack (the authoritative path). */
 export function stackViewFromPrStack(
   stack: PrStack,
   currentBranch: string,
