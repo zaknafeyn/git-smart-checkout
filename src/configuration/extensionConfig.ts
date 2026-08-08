@@ -36,6 +36,7 @@ export interface JiraConfig {
   username: string;
   token: string;
   projectKeys: string[];
+  customJql: string;
 }
 
 export interface NamedTemplate {

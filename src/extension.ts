@@ -50,6 +50,7 @@ import {
   canShowCreateBranchFromTemplateCommand,
   canShowPreviewTemplateCommand,
 } from './services/branchTemplateAvailability';
+import { JiraIssueFilterStore } from './services/jiraIssueFilterStore';
 import { ScriptConsentStore } from './services/scriptConsentStore';
 import {
   setContextCanCreateBranchFromTemplate,
@@ -347,7 +348,12 @@ export function activate(context: vscode.ExtensionContext) {
   const createTagFromTemplateCommand = new CreateTagFromTemplateCommand(configManager, logService);
   commandManager.registerCommand(`${EXTENSION_NAME}.createTagFromTemplate`, createTagFromTemplateCommand);
 
-  const createBranchFromTemplateCommand = new CreateBranchFromTemplateCommand(configManager, logService);
+  const jiraIssueFilterStore = new JiraIssueFilterStore(context.workspaceState);
+  const createBranchFromTemplateCommand = new CreateBranchFromTemplateCommand(
+    configManager,
+    logService,
+    jiraIssueFilterStore
+  );
   commandManager.registerCommand(
     `${EXTENSION_NAME}.createBranchFromTemplate`,
     createBranchFromTemplateCommand
@@ -355,7 +361,7 @@ export function activate(context: vscode.ExtensionContext) {
   const scriptConsentStore = new ScriptConsentStore(context.workspaceState);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.previewTemplate`,
-    new PreviewTemplateCommand(configManager, logService, scriptConsentStore)
+    new PreviewTemplateCommand(configManager, logService, scriptConsentStore, jiraIssueFilterStore)
   );
 
   const setJiraTokenCommand = new SetJiraTokenCommand(configManager, logService);

@@ -1,3 +1,12 @@
+## [0.16.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.16.0...v0.16.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* add video media for pull with stash feature ([1551dc4](https://github.com/zaknafeyn/git-smart-checkout/commit/1551dc4a26e18c6e669aadb69c9b310cc880b08f))
+* **jira:** add assignee/project/status filters to the issue picker ([#180](https://github.com/zaknafeyn/git-smart-checkout/issues/180)) ([51725ac](https://github.com/zaknafeyn/git-smart-checkout/commit/51725acbac99a948fc8c8dd36d813111964b4241)), closes [#178](https://github.com/zaknafeyn/git-smart-checkout/issues/178)
+* **worktrees:** move panel actions into title bar as icon buttons + fix test harness ([#179](https://github.com/zaknafeyn/git-smart-checkout/issues/179)) ([c3c2354](https://github.com/zaknafeyn/git-smart-checkout/commit/c3c2354c7279fcf438ddc684d555cd10c4c73b54))
+
 # [0.16.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.15.1...v0.16.0) (2026-07-27)
 
 

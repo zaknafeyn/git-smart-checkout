@@ -1,8 +1,10 @@
 import { LoggingService } from '../../logging/loggingService';
-import { AutoStashService } from '../../services/autoStashService';
+import { AutoStashService, TPullWithStashStrategy } from '../../services/autoStashService';
 import { BaseCommand } from '../command';
 
-export class PullWithStashCommand extends BaseCommand {
+abstract class BasePullWithStashCommand extends BaseCommand {
+  protected abstract readonly pullMode: TPullWithStashStrategy;
+
   constructor(logService: LoggingService, private autoStashService: AutoStashService) {
     super(logService);
   }
@@ -11,19 +13,14 @@ export class PullWithStashCommand extends BaseCommand {
     const git = await this.getGitExecutor();
     const currentBranch = await git.getCurrentBranch();
 
-    await this.autoStashService.pullAndStashChanges(git, currentBranch, 'merge');
+    await this.autoStashService.pullAndStashChanges(git, currentBranch, this.pullMode);
   }
 }
 
-export class PullRebaseWithStashCommand extends BaseCommand {
-  constructor(logService: LoggingService, private autoStashService: AutoStashService) {
-    super(logService);
-  }
+export class PullWithStashCommand extends BasePullWithStashCommand {
+  protected readonly pullMode: TPullWithStashStrategy = 'merge';
+}
 
-  async execute(): Promise<void> {
-    const git = await this.getGitExecutor();
-    const currentBranch = await git.getCurrentBranch();
-
-    await this.autoStashService.pullAndStashChanges(git, currentBranch, 'rebase');
-  }
+export class PullRebaseWithStashCommand extends BasePullWithStashCommand {
+  protected readonly pullMode: TPullWithStashStrategy = 'rebase';
 }

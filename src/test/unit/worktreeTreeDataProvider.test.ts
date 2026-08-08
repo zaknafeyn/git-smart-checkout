@@ -1,7 +1,6 @@
 import * as assert from 'assert';
 import * as os from 'os';
 import {
-  WorktreeActionTreeItem,
   WorktreeRepositoryTreeItem,
   WorktreeTreeDataProvider,
   WorktreeTreeItem,
@@ -87,24 +86,30 @@ describe('WorktreeRepositoryTreeItem', () => {
   });
 });
 
-describe('WorktreeTreeDataProvider.getChildren action rows', () => {
+describe('WorktreeTreeDataProvider.getChildren', () => {
   function makeProvider() {
     const store = { getForRepository: async () => [] } as unknown as PRReviewWorktreeStore;
     return new WorktreeTreeDataProvider(mockLogService, store);
   }
 
-  it('lists a "Move to New Worktree" action row before any worktrees, with no "Remove Multiple" row when there are none to remove', async () => {
+  it('returns only worktree nodes — the move/remove actions live in the view/title toolbar, not the tree', async () => {
     const provider = makeProvider();
     const children = await provider.getChildren();
 
-    const actionRows = children.filter((child) => child instanceof WorktreeActionTreeItem);
-    assert.strictEqual(actionRows.length, 1);
-    assert.strictEqual(actionRows[0].label, 'Move to New Worktree…');
-    assert.strictEqual(
-      (actionRows[0].command as { command: string }).command,
-      'git-smart-checkout.moveToNewWorktree'
+    // No workspace folders in the unit-test host, so there is nothing to list. Previously
+    // this returned synthetic "Move to New Worktree…"/"Remove Multiple Worktrees…" rows.
+    assert.deepStrictEqual(children, []);
+  });
+
+  it('exposes every node as a worktree or repository item', async () => {
+    const provider = makeProvider();
+    const children = await provider.getChildren();
+
+    assert.ok(
+      children.every(
+        (child) => child instanceof WorktreeTreeItem || child instanceof WorktreeRepositoryTreeItem
+      )
     );
-    assert.ok(!/\bworktree\b/.test(String(actionRows[0].contextValue)));
   });
 });
 
