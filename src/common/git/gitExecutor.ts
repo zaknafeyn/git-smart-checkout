@@ -173,10 +173,14 @@ export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
 
 /**
  * Parses Git's `%(upstream:track)` output into `[ahead, behind]` counts.
- * Missing directions are treated as zero; missing or gone upstreams have no counts.
+ * Missing directions are treated as zero; a deleted upstream reports `'gone'`
+ * (distinct from `undefined`, which means no upstream was ever configured).
  */
 export function parseUpstreamTrack(upstreamTrack: string): TUpstreamTrack {
-  if (!upstreamTrack || upstreamTrack === '[gone]') {
+  if (upstreamTrack === '[gone]') {
+    return 'gone';
+  }
+  if (!upstreamTrack) {
     return;
   }
 
@@ -693,6 +697,17 @@ export class GitExecutor {
     const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
     const trimmed = stdout.trim();
     return trimmed.length === 0 ? 0 : trimmed.split('\n').length;
+  }
+
+  /** Subject and committer-timestamp (unix seconds) of `ref`'s tip commit. */
+  async getLastCommitInfo(ref: string): Promise<{ subject: string; timestamp: number } | undefined> {
+    const { stdout } = await this.#execGitCommand(['log', '-1', '--format=%s%x00%ct', ref]);
+    const trimmed = stdout.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const [subject, timestamp] = trimmed.split('\x00');
+    return { subject, timestamp: Number(timestamp) };
   }
 
   /**

@@ -15,8 +15,11 @@ describe('parseUpstreamTrack', () => {
     assert.deepStrictEqual(parseUpstreamTrack('[behind 2]'), [0, 2]);
   });
 
-  it('returns undefined when the upstream is gone or absent', () => {
-    assert.strictEqual(parseUpstreamTrack('[gone]'), undefined);
+  it("returns 'gone' when the upstream branch was deleted", () => {
+    assert.strictEqual(parseUpstreamTrack('[gone]'), 'gone');
+  });
+
+  it('returns undefined when there is no upstream configured', () => {
     assert.strictEqual(parseUpstreamTrack(''), undefined);
   });
 });

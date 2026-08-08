@@ -270,6 +270,12 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.worktree.removeGone",
+        "title": "Remove (branch merged/deleted upstream)",
+        "icon": "$(trash)",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.worktree.addToWorkspace",
         "title": "Add to Workspace",
         "category": "GSC"
@@ -320,7 +326,12 @@
         },
         {
           "command": "git-smart-checkout.worktree.remove",
-          "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/ && viewItem =~ /\\blinked\\b/",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /^(?=.*\\bworktree\\b)(?=.*\\blinked\\b)(?!.*\\bgone\\b).*$/",
+          "group": "inline@4"
+        },
+        {
+          "command": "git-smart-checkout.worktree.removeGone",
+          "when": "view == git-smart-checkout.worktrees && viewItem =~ /^(?=.*\\bworktree\\b)(?=.*\\blinked\\b)(?=.*\\bgone\\b).*$/",
           "group": "inline@4"
         },
         {

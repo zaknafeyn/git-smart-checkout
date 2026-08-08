@@ -64,6 +64,53 @@ describe('WorktreeTreeItem', () => {
     assert.ok(String(item.tooltip).includes('Detached HEAD'));
   });
 
+  it('flags a worktree whose upstream branch was deleted', () => {
+    const item = new WorktreeTreeItem(
+      { path: '/repo/gone', branch: 'refs/heads/old-feature', head: 'abcdef123456' },
+      '/repo',
+      false
+    );
+
+    item.applyEnrichment({ isDirty: false, dirtyFileCount: 0, track: 'gone', isPrReview: false });
+
+    assert.strictEqual(item.description, '/repo/gone ⚑ upstream gone');
+    assert.strictEqual(item.contextValue, 'worktree linked clean gone');
+    assert.ok(String(item.tooltip).includes('Upstream: gone (remote branch deleted)'));
+  });
+
+  it('includes the last commit subject and relative age once enriched', () => {
+    const item = new WorktreeTreeItem(
+      { path: '/repo/main', branch: 'refs/heads/main', head: 'abcdef123456' },
+      '/repo',
+      true
+    );
+    const timestamp = Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60;
+
+    item.applyEnrichment({
+      isDirty: false,
+      dirtyFileCount: 0,
+      isPrReview: false,
+      lastCommit: { subject: 'Fix flaky test', timestamp },
+    });
+
+    assert.ok(String(item.tooltip).includes('Last commit: Fix flaky test ('));
+    assert.ok(String(item.description).includes('3 days'));
+  });
+
+  it('marks a worktree holding an auto-stash', () => {
+    const item = new WorktreeTreeItem(
+      { path: '/repo/stashed', branch: 'refs/heads/feature', head: 'abcdef123456' },
+      '/repo',
+      false
+    );
+    const timestamp = Math.floor(Date.now() / 1000) - 60 * 60;
+
+    item.applyEnrichment({ isDirty: false, dirtyFileCount: 0, isPrReview: false, autoStashTimestamp: timestamp });
+
+    assert.ok(String(item.description).includes('$(archive)'));
+    assert.ok(String(item.tooltip).includes('Auto-stash waiting (from'));
+  });
+
   it('shortens a home-directory path with a tilde', () => {
     const home = os.homedir();
     const item = new WorktreeTreeItem(

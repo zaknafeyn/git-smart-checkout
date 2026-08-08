@@ -137,7 +137,20 @@ export function activate(context: vscode.ExtensionContext) {
   const worktreeSetupService = new WorktreeSetupService(configManager, logService, context.workspaceState);
   const vscodeGitProvider = VscodeGitProvider.tryCreate(logService);
   const prReviewWorktreeStore = new PRReviewWorktreeStore(context.globalState, logService);
-  const worktreeTreeDataProvider = new WorktreeTreeDataProvider(logService, prReviewWorktreeStore, vscodeGitProvider);
+  let worktreeTreeView: vscode.TreeView<unknown> | undefined;
+  const worktreeTreeDataProvider = new WorktreeTreeDataProvider(
+    logService,
+    prReviewWorktreeStore,
+    vscodeGitProvider,
+    (dirtyWorktreeCount) => {
+      if (worktreeTreeView) {
+        worktreeTreeView.badge =
+          dirtyWorktreeCount > 0
+            ? { value: dirtyWorktreeCount, tooltip: 'worktrees with uncommitted changes' }
+            : undefined;
+      }
+    }
+  );
   const stackService = new StackService(configManager, logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.open`, new WorktreeTreeActionCommand('open', logService, vscodeGitProvider));
   commandManager.registerCommand(`${EXTENSION_NAME}.worktree.terminal`, new WorktreeTreeActionCommand('terminal', logService, vscodeGitProvider));
@@ -148,6 +161,13 @@ export function activate(context: vscode.ExtensionContext) {
   );
   commandManager.registerCommand(
     `${EXTENSION_NAME}.worktree.remove`,
+    new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider),
+    { mutatesWorktrees: true }
+  );
+  // Same underlying action as worktree.remove; a distinct command id lets the
+  // "gone" (upstream deleted) row show a more specific inline-action title.
+  commandManager.registerCommand(
+    `${EXTENSION_NAME}.worktree.removeGone`,
     new WorktreeTreeActionCommand('remove', logService, vscodeGitProvider),
     { mutatesWorktrees: true }
   );
@@ -576,6 +596,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   const telemetryChangeListener = vscode.env.onDidChangeTelemetryEnabled(() => updateTelemetryState());
 
+  worktreeTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.worktrees`, {
+    treeDataProvider: worktreeTreeDataProvider,
+  });
+
   // Add to context subscriptions
   context.subscriptions.push(
     configChangeListener,
@@ -598,7 +622,7 @@ export function activate(context: vscode.ExtensionContext) {
       `${EXTENSION_NAME}.prCommits`,
       prCommitsWebViewProvider
     ),
-    vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.worktrees`, worktreeTreeDataProvider),
+    worktreeTreeView,
     worktreeTreeDataProvider,
     stackWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider)

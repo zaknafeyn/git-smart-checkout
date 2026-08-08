@@ -1,4 +1,4 @@
-export type TUpstreamTrack = [ahead: number, behind: number] | undefined;
+export type TUpstreamTrack = [ahead: number, behind: number] | 'gone' | undefined;
 
 export interface IGitRef {
   authorName: string;

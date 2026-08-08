@@ -37,7 +37,8 @@ export function buildRefActionButtons(ref: IGitRef, isPreferred: boolean): Branc
   buttons.push({ iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete branch', action: 'delete' });
   buttons.push({ iconPath: new vscode.ThemeIcon('edit'), tooltip: 'Rename branch', action: 'rename' });
 
-  const canPush = !ref.upstreamTrack || Boolean(ref.parsedUpstreamTrack?.[0]);
+  const canPush =
+    !ref.upstreamTrack || (Array.isArray(ref.parsedUpstreamTrack) && Boolean(ref.parsedUpstreamTrack[0]));
   if (canPush) {
     buttons.push({ iconPath: new vscode.ThemeIcon('cloud-upload'), tooltip: 'Publish branch', action: 'push' });
   }
