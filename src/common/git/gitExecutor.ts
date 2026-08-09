@@ -637,6 +637,23 @@ export class GitExecutor {
     } catch { return undefined; }
   }
 
+  /** Short upstream branch name (remote prefix stripped) for the current HEAD, or undefined when there is none. */
+  async getUpstreamRef(): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand([
+        'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}',
+      ]);
+      const upstream = stdout.trim();
+      if (!upstream) {
+        return undefined;
+      }
+      const slashIndex = upstream.indexOf('/');
+      return slashIndex === -1 ? upstream : upstream.slice(slashIndex + 1);
+    } catch {
+      return undefined;
+    }
+  }
+
   async pullFromRemoteBranch(options: { rebase?: boolean } = {}) {
     await this.#execGitCommand(['pull', ...(options.rebase ? ['--rebase'] : [])]);
   }

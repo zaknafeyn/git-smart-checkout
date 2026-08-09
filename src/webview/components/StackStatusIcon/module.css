@@ -1,0 +1,26 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.open {
+  color: var(--vscode-charts-green);
+}
+
+.draft {
+  color: var(--vscode-descriptionForeground);
+}
+
+.merged {
+  color: var(--vscode-charts-purple);
+}
+
+.closed {
+  color: var(--vscode-charts-red);
+}
+
+.blocked {
+  color: var(--vscode-editorWarning-foreground);
+}

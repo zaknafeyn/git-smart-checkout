@@ -1,4 +1,4 @@
-import { PrStack } from './prStack';
+import { PrStack, StackCheckoutIdentity, StackMemberStatus } from './prStack';
 
 export interface StackViewBranchPr {
   number: number;
@@ -6,6 +6,8 @@ export interface StackViewBranchPr {
   url: string;
   state: 'open' | 'closed';
   draft?: boolean;
+  status: StackMemberStatus;
+  blockedDownstack: boolean;
 }
 
 export interface StackViewBranch {
@@ -26,6 +28,8 @@ export interface StackView {
   /** The branch this stack is ultimately aimed at (may be trunk or any other branch). */
   target: string;
   targetIsCurrent: boolean;
+  /** Index into `branches` of the current checkout; -1 when it isn't a stack member. */
+  currentIndex: number;
   /** Undefined when the target has no upstream (nothing to compare against). */
   targetAheadBehind?: StackAheadBehind;
   repositoryPath: string;
@@ -40,7 +44,7 @@ export interface StackBranchMeta {
 /** Builds the view model for a GitHub-Stacks-API-derived stack. */
 export function stackViewFromPrStack(
   stack: PrStack,
-  currentBranch: string,
+  identity: StackCheckoutIdentity,
   repositoryPath: string,
   targetAheadBehind?: StackAheadBehind
 ): StackView {
@@ -48,10 +52,19 @@ export function stackViewFromPrStack(
     branches: stack.nodes.map((node, index) => ({
       branch: node.branch,
       isCurrent: index === stack.currentIndex,
-      pr: { number: node.prNumber, title: node.title, url: node.url, state: node.state, draft: node.draft },
+      pr: {
+        number: node.prNumber,
+        title: node.title,
+        url: node.url,
+        state: node.state,
+        draft: node.draft,
+        status: node.status,
+        blockedDownstack: node.blockedDownstack,
+      },
     })),
     target: stack.target,
-    targetIsCurrent: stack.currentIndex === -1 && stack.target === currentBranch,
+    targetIsCurrent: stack.currentIndex === -1 && stack.target === identity.branch,
+    currentIndex: stack.currentIndex,
     targetAheadBehind,
     repositoryPath,
   };

@@ -8,15 +8,13 @@ import {
 
 describe('computeStackPosition', () => {
   it('returns 1-based bottom-up position and stack size', () => {
-    const ordered = ['feat/api', 'feat/ui', 'feat/docs'];
-
-    assert.deepStrictEqual(computeStackPosition('feat/api', ordered), { position: 1, size: 3 });
-    assert.deepStrictEqual(computeStackPosition('feat/ui', ordered), { position: 2, size: 3 });
-    assert.deepStrictEqual(computeStackPosition('feat/docs', ordered), { position: 3, size: 3 });
+    assert.deepStrictEqual(computeStackPosition(0, 3), { position: 1, size: 3 });
+    assert.deepStrictEqual(computeStackPosition(1, 3), { position: 2, size: 3 });
+    assert.deepStrictEqual(computeStackPosition(2, 3), { position: 3, size: 3 });
   });
 
-  it('returns undefined when the branch is not in the stack', () => {
-    assert.strictEqual(computeStackPosition('feat/other', ['feat/api', 'feat/ui']), undefined);
+  it('returns undefined when currentIndex is -1 (not a stack member)', () => {
+    assert.strictEqual(computeStackPosition(-1, 2), undefined);
   });
 });
 
@@ -45,11 +43,15 @@ describe('shouldShowStackIndicator', () => {
     assert.strictEqual(shouldShowStackIndicator({ ...base, showStatusBar: false }), false);
   });
 
-  it('hides when HEAD is detached', () => {
-    assert.strictEqual(shouldShowStackIndicator({ ...base, isDetached: true }), false);
+  it('still shows on a detached HEAD matched to a stack member by commit sha', () => {
+    assert.strictEqual(shouldShowStackIndicator({ ...base, isDetached: true }), true);
   });
 
   it('hides when the current branch is not part of any stack', () => {
     assert.strictEqual(shouldShowStackIndicator({ ...base, isInStack: false }), false);
+  });
+
+  it('hides on a detached HEAD that matches no stack', () => {
+    assert.strictEqual(shouldShowStackIndicator({ ...base, isDetached: true, isInStack: false }), false);
   });
 });
