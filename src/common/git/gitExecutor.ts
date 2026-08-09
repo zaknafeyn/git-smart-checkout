@@ -142,23 +142,35 @@ export function parseStashNameStatusOutput(
 }
 
 /**
- * Parses `git status --porcelain` (v1) output into the changed/untracked paths it reports.
- * Each line is `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the
- * destination. Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the
- * surrounding quotes and the escapes git adds for `"` and `\` are undone so the path reads
- * naturally in UI.
+ * Parses `git status --porcelain` (v1) output into `{ status, path }` entries. Each line is
+ * `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the destination.
+ * Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the surrounding
+ * quotes and the escapes git adds for `"` and `\` are undone so the path reads naturally in UI.
  */
-export function parseStatusPorcelainPaths(output: string): string[] {
+export function parseStatusPorcelainEntries(output: string): Array<{ status: string; path: string }> {
   return output
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => {
+      const status = line.slice(0, 2);
       const pathPart = line.slice(3).trimEnd();
       const arrowIndex = pathPart.lastIndexOf(' -> ');
-      return unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+      const path = unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+      return { status, path };
     })
-    .filter((path) => path.length > 0);
+    .filter((entry) => entry.path.length > 0);
 }
+
+/** Paths of the changed/untracked files reported by `git status --porcelain`. */
+export function parseStatusPorcelainPaths(output: string): string[] {
+  return parseStatusPorcelainEntries(output).map((entry) => entry.path);
+}
+
+/**
+ * `git status --porcelain` XY status codes that indicate an unmerged/conflicted path: either
+ * side is `U`, or both sides agree on an add/add or delete/delete conflict.
+ */
+const UNMERGED_STATUS_CODES = new Set(['UU', 'AA', 'DD', 'AU', 'UA', 'UD', 'DU']);
 
 function unquoteStatusPath(path: string): string {
   if (!path.startsWith('"') || !path.endsWith('"') || path.length < 2) {
@@ -974,6 +986,29 @@ export class GitExecutor {
   async hasConflicts(): Promise<boolean> {
     const conflictedFiles = await this.getConflictedFiles();
     return conflictedFiles.length > 0;
+  }
+
+  /**
+   * Paths of files still unmerged per `git status --porcelain`'s XY status code (`UU`, `AA`,
+   * `DD`, `AU`, `UA`, `UD`, `DU` — either side `U`, or both `A`/both `D`). Used to distinguish a
+   * real unresolved conflict from a conflict the user resolved down to an empty diff, which
+   * `isWorkdirHasChanges()` alone cannot tell apart (see issue #207).
+   */
+  async getUnresolvedConflicts(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
+    return parseStatusPorcelainEntries(stdout)
+      .filter(({ status }) => UNMERGED_STATUS_CODES.has(status))
+      .map(({ path }) => path);
+  }
+
+  /**
+   * Finishes an in-progress cherry-pick (`CHERRY_PICK_HEAD` set) whose conflict resolution
+   * collapsed to no diff against HEAD, by committing an intentionally empty commit with the
+   * original commit message. Equivalent to `cherry-pick --continue` for that case, which would
+   * otherwise fail with "previous cherry-pick is now empty".
+   */
+  async commitAllowEmpty(): Promise<void> {
+    await this.#execGitCommand(['commit', '--allow-empty', '--no-edit']);
   }
 
   async cherryPick(
