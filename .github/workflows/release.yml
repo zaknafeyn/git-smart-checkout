@@ -42,3 +42,4 @@ jobs:
           OPEN_VSX_PAT: ${{ secrets.OPEN_VSX_PAT }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
+          RELEASE_CHANNEL: stable

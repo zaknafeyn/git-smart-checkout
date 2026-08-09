@@ -45,6 +45,8 @@ HMR: run `yarn dev`, then launch extension (F5). The extension detects `context.
 - `yarn build-vsix-dev` - Dev VSIX without bundled dependencies
 - `yarn publish` - Publish to VS Code marketplace
 
+Actual Marketplace/Open VSX releases run through `semantic-release` via the `Release` and `Pre-release` GitHub Actions workflows, not these local scripts — see @docs/releasing.md for the stable/pre-release channel strategy.
+
 ## Architecture
 
 See @.claude/rules/architecture.md for full architecture details.
