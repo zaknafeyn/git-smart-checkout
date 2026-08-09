@@ -39,6 +39,7 @@ function baseConfig(overrides: {
     branchTemplates: overrides.branchTemplates ?? [],
     jira: overrides.jira ?? { domain: '', username: '', token: '', projectKeys: [], customJql: '' },
     stacks: { enabled: true },
+    cleanupBranches: { detectSquashMerged: true },
   };
 }
 

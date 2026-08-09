@@ -48,6 +48,10 @@ export interface StacksConfig {
   enabled: boolean;
 }
 
+export interface CleanupBranchesConfig {
+  detectSquashMerged: boolean;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -82,6 +86,7 @@ export interface ExtensionConfig {
   branchTemplates: NamedTemplate[];
   jira: JiraConfig;
   stacks: StacksConfig;
+  cleanupBranches: CleanupBranchesConfig;
 }
 
 export interface IAutoStashMode {

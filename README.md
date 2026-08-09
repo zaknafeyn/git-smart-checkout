@@ -84,6 +84,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
 | ⚙️ [`git-smart-checkout.stacks.enabled`](vscode://settings/git-smart-checkout.stacks.enabled) (Stacks enabled) | `boolean` | Detects and visualizes the current branch's GitHub-native PR stack (Stacks view and status bar indicator). Default `true`. |
+| ⚙️ [`git-smart-checkout.cleanupBranches.detectSquashMerged`](vscode://settings/git-smart-checkout.cleanupBranches.detectSquashMerged) (Detect squash-merged branches) | `boolean` | When running **Delete Merged Branches**, also detects squash- or rebase-merged branches that `git branch --merged` can't see: offline patch-equivalence (three local `git` plumbing calls per candidate) and, when the repo has a GitHub remote, PR merge state. Default `true`. |
 
 ## Telemetry
 

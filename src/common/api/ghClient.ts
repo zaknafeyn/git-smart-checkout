@@ -321,6 +321,18 @@ export class GitHubClient {
   }
 
   /**
+   * List all closed pull requests (merged or otherwise) for the repository.
+   * Used by branch cleanup to detect squash-merged branches: a closed PR with
+   * a non-null `merged_at` whose `head.ref` matches a local branch means that
+   * branch's content is already in the base branch, even though `git branch
+   * --merged` can't see it (squash/rebase merges rewrite history).
+   */
+  public async listClosedPullRequestsOrThrow(): Promise<GitHubPR[]> {
+    const endpoint = `/repos/${this.owner}/${this.repo}/pulls?state=closed`;
+    return await this.makePaginatedRequest<GitHubPR>(endpoint);
+  }
+
+  /**
    * List all GitHub-native pull request stacks for the repository. Stack
    * membership, order, and target are whatever GitHub itself recorded when
    * the stack was created — this is the authoritative source for "is this
