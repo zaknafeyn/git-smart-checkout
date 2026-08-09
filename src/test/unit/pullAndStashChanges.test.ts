@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as vscode from 'vscode';
 
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { GitExecutor } from '../../common/git/gitExecutor';
@@ -7,12 +8,16 @@ import { mockLogService } from '../e2e/helpers/mockLogService';
 
 function makeGitStub(overrides: Partial<GitExecutor> = {}): GitExecutor {
   return {
+    repositoryPath: '/repo',
     isWorkdirHasChanges: async () => true,
     createStash: async () => {},
     hasUpstreamBranch: async () => true,
     pullFromRemoteBranch: async () => {},
     popStash: async () => {},
     resetLocalChanges: async () => {},
+    getConflictedFiles: async () => [],
+    isMergeInProgress: async () => false,
+    isCherryPickInProgress: async () => false,
     ...overrides,
   } as unknown as GitExecutor;
 }
@@ -101,5 +106,50 @@ describe('AutoStashService.pullAndStashChanges', () => {
     );
 
     assert.deepStrictEqual(popCalls, []);
+  });
+
+  it('does not discard post-pull tracked changes: pops the stash directly without resetting the working tree', async () => {
+    const resetCalls: number[] = [];
+    const popCalls: string[] = [];
+    const git = makeGitStub({
+      // Dirty both before the stash and after a successful pull (e.g. renormalization,
+      // merge side effects) — this must NOT be wiped via `git restore .` before popping.
+      isWorkdirHasChanges: async () => true,
+      resetLocalChanges: (async () => {
+        resetCalls.push(1);
+      }) as unknown as GitExecutor['resetLocalChanges'],
+      popStash: (async (msg: string) => {
+        popCalls.push(msg);
+      }) as unknown as GitExecutor['popStash'],
+    });
+
+    const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+
+    await service.pullAndStashChanges(git, 'feature-x', 'merge');
+
+    assert.deepStrictEqual(resetCalls, []);
+    assert.strictEqual(popCalls.length, 1);
+  });
+
+  it('routes a conflicted post-pull stash pop to the rescue flow instead of failing silently', async () => {
+    const originalShowWarningMessage = vscode.window.showWarningMessage;
+    (vscode.window as any).showWarningMessage = async () => undefined;
+    try {
+      const git = makeGitStub({
+        isWorkdirHasChanges: async () => true,
+        popStash: async () => {
+          throw new Error('CONFLICT (content): Merge conflict in file.ts');
+        },
+        getConflictedFiles: async () => ['file.ts'],
+      });
+
+      const service = new AutoStashService({} as ConfigurationManager, mockLogService);
+
+      // Must resolve (not throw) — the pull already succeeded, only the pop conflicted,
+      // and git leaves the stash intact on a conflicted `stash pop`.
+      await service.pullAndStashChanges(git, 'feature-x', 'merge');
+    } finally {
+      (vscode.window as any).showWarningMessage = originalShowWarningMessage;
+    }
   });
 });
