@@ -52,8 +52,14 @@ export const getRefDescription = (ref: IGitRef) => {
     .join(' • ');
 };
 
+const SHORT_HASH_LENGTH = 7;
+
+/** Truncates a full-length SHA to a short, compact form for display. */
+const shortenHash = (hash: string | undefined): string | undefined =>
+  hash ? hash.slice(0, SHORT_HASH_LENGTH) : hash;
+
 export const getRefDetails = (ref: IGitRef) => {
-  return [ref.authorName, ref.hash, ref.comment]
+  return [ref.authorName, shortenHash(ref.hash), ref.comment]
     .filter((part): part is string => !!part && part.trim().length > 0)
     .join(' • ');
 };

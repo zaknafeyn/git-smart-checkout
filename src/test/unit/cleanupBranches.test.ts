@@ -121,7 +121,10 @@ describe('buildCleanupQuickPickItems', () => {
     const gone = items.find((item) => item.candidate?.ref.name === 'orphan');
 
     assert.ok(gone?.description?.includes('not merged — force delete'));
-    assert.ok(gone?.description?.includes('orphan-sha'));
+    // The QuickPick description shows a truncated (7-char) SHA for compact
+    // display; the full SHA is still used for the recovery document (see
+    // buildRecoveryDocument tests below).
+    assert.ok(gone?.description?.includes('orphan-'.slice(0, 7)));
   });
 
   it('omits a group separator entirely when that group has no candidates', () => {

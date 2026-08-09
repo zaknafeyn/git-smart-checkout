@@ -47,7 +47,7 @@ function describeCandidate(candidate: ICleanupCandidate): string {
   const relativeDate = ref.committerDate
     ? formatDistanceToNow(Number(ref.committerDate) * 1000, { addSuffix: true })
     : undefined;
-  const sha = ref.hash;
+  const sha = ref.hash ? ref.hash.slice(0, 7) : ref.hash;
   const parts = [relativeDate, sha].filter((part): part is string => !!part && part.length > 0);
 
   if (group === 'gone') {
