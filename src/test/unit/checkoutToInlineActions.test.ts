@@ -33,7 +33,8 @@ class TestableCheckoutToCommand extends CheckoutToCommand {
   infoMessages: string[] = [];
 
   constructor() {
-    super({} as ConfigurationManager, mockLogService, {} as AutoStashService);
+    const configManager = { get: () => ({ defaultRemote: undefined }) } as unknown as ConfigurationManager;
+    super(configManager, mockLogService, {} as AutoStashService);
   }
 
   // Avoid popping a real (blocking) notification during tests — just record it.

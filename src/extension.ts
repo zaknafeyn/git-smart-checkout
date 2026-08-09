@@ -470,7 +470,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const manageAutoStashesCommand = new ManageAutoStashesCommand(logService, stashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.manageAutoStashes`, manageAutoStashesCommand);
-  commandManager.registerCommand(`${EXTENSION_NAME}.cleanupBranches`, new CleanupBranchesCommand(logService, vscodeGitProvider));
+  commandManager.registerCommand(`${EXTENSION_NAME}.cleanupBranches`, new CleanupBranchesCommand(logService, configManager, vscodeGitProvider));
 
   const removePRReviewInWorktreeCommand = new RemovePRReviewInWorktreeCommand(
     logService,
