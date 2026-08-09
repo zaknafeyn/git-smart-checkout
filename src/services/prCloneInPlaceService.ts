@@ -21,6 +21,10 @@ import { PrCloneReportedError } from './prCloneError';
 
 interface IServiceStore {
   originalBranch?: string;
+  /** Ref to restore on cleanup: the original branch name, or the original commit SHA when HEAD was detached. */
+  originalRef?: string;
+  /** True when the clone was started from a detached HEAD (so `originalRef` is a SHA, not a branch). */
+  isDetached?: boolean;
   createdBranchName?: string;
   stashMessage?: string;
   originalPrData?: PrCloneData;
@@ -37,6 +41,10 @@ export const PR_CLONE_IN_PLACE_STATE_KEY = 'gitSmartCheckout.prCloneInPlaceOpera
 export interface IPersistedCloneOperation {
   repoPath: string;
   originalBranch: string;
+  /** Ref to restore on cleanup: the original branch name, or the original commit SHA when HEAD was detached. */
+  originalRef: string;
+  /** True when the clone was started from a detached HEAD (so `originalRef` is a SHA, not a branch). */
+  isDetached: boolean;
   createdBranchName: string;
   stashMessage?: string;
   /** Shas that still need to land, including the one that may currently be mid-conflict. */
@@ -192,7 +200,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // A service for an inactive clone mode can be disposed without ever
       // touching the repository. Do not reset that repository during cleanup.
-      if (!this.serviceStore.originalBranch) {
+      const restoreRef = this.serviceStore.originalBranch || this.serviceStore.originalRef;
+      if (!restoreRef) {
         return;
       }
 
@@ -224,12 +233,15 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       let restoredOriginalBranch = false;
       if (!stayOnClonedBranch) {
         try {
-          await this.git.checkout(this.serviceStore.originalBranch);
+          if (this.serviceStore.isDetached) {
+            // Detached HEAD has no branch to restore — check out the captured SHA directly.
+            await this.git.checkout(restoreRef);
+          } else {
+            await this.git.checkout(this.serviceStore.originalBranch || restoreRef);
+          }
           restoredOriginalBranch = true;
         } catch (error) {
-          this.loggingService.warn(
-            `Failed to restore original branch '${this.serviceStore.originalBranch}': ${error}`
-          );
+          this.loggingService.warn(`Failed to restore original ref '${restoreRef}': ${error}`);
         }
 
         if (restoredOriginalBranch && this.serviceStore.stashMessage) {
@@ -299,6 +311,15 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();
+      if (!this.serviceStore.originalBranch) {
+        // Detached HEAD: capture the commit SHA so cleanup can still restore the original
+        // state instead of silently leaving the clone's branch/stash/commits behind.
+        this.serviceStore.originalRef = await this.git.getHeadCommit();
+        this.serviceStore.isDetached = true;
+      } else {
+        this.serviceStore.originalRef = this.serviceStore.originalBranch;
+        this.serviceStore.isDetached = false;
+      }
       updateProgress.report({ message: 'Checking for uncommitted changes...' });
 
       const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
@@ -455,14 +476,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       return;
     }
 
-    const { originalBranch, createdBranchName, stashMessage, originalPrData } = this.serviceStore;
-    if (!originalBranch || !createdBranchName || !originalPrData) {
+    const { originalBranch, originalRef, isDetached, createdBranchName, stashMessage, originalPrData } =
+      this.serviceStore;
+    if ((!originalBranch && !originalRef) || !createdBranchName || !originalPrData) {
       return;
     }
 
     const record: IPersistedCloneOperation = {
       repoPath: this.git.repositoryPath,
-      originalBranch,
+      originalBranch: originalBranch ?? '',
+      originalRef: originalRef ?? originalBranch ?? '',
+      isDetached: isDetached ?? false,
       createdBranchName,
       stashMessage,
       remainingShas: [...this.remainingShas],
@@ -488,6 +512,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
   private restoreServiceStoreFromRecord(record: IPersistedCloneOperation): void {
     this.serviceStore = {
       originalBranch: record.originalBranch,
+      originalRef: record.originalRef,
+      isDetached: record.isDetached,
       createdBranchName: record.createdBranchName,
       stashMessage: record.stashMessage,
       originalPrData: {
