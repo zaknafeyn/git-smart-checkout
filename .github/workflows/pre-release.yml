@@ -18,6 +18,18 @@ jobs:
       pull-requests: write
 
     steps:
+      # A re-run replays the original commit SHA. If that SHA already pushed a
+      # version commit + tag (i.e. it failed after `prepare` but during
+      # `publish`), the replayed SHA is now behind main, semantic-release
+      # refuses to release, and the job exits 0 -- a false-positive success
+      # that published nothing. This is exactly what happened to 0.17.0.
+      - name: Reject workflow re-runs
+        if: github.run_attempt != '1'
+        run: |
+          echo "::error::This is attempt #${{ github.run_attempt }}. Re-running a semantic-release job is unsafe: it replays the original commit, which is now behind main if the previous attempt already pushed a version commit/tag before failing. semantic-release then sees 'branch is behind' and exits 0 without publishing anything."
+          echo "::error::Dispatch a fresh Pre-release run instead. If a previous run tagged a version but didn't finish publishing, use the Republish workflow to resume it."
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v6
         with:
@@ -26,8 +38,21 @@ jobs:
 
       - name: Check for new commits since the last tag
         id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           last_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+          echo "last-tag=$last_tag" >> "$GITHUB_OUTPUT"
+
+          # A tag with no matching GitHub release means a previous run tagged
+          # a version and then failed mid-publish -- treat that as broken
+          # state, not as "nothing to do".
+          if [ -n "$last_tag" ] && ! gh release view "$last_tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::error::$last_tag is tagged but has no matching GitHub release -- a previous release run failed mid-publish and never finished."
+            echo "::error::Run the Republish workflow for $last_tag before starting a new release."
+            exit 1
+          fi
+
           if [ "${{ inputs.force }}" = "true" ] || [ -z "$last_tag" ]; then
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           elif [ -z "$(git log "$last_tag"..HEAD --oneline)" ]; then
@@ -58,7 +83,9 @@ jobs:
 
       - name: Pre-release
         if: steps.guard.outputs.should-release == 'true'
-        run: yarn semantic-release
+        run: |
+          set -o pipefail
+          yarn semantic-release 2>&1 | tee semantic-release.log
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           VSCODE_PAT: ${{ secrets.VSCODE_PAT }}
@@ -66,3 +93,29 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
           RELEASE_CHANNEL: pre
+
+      - name: Assert a release happened
+        if: steps.guard.outputs.should-release == 'true'
+        id: assert
+        run: |
+          if grep -q "is behind the remote one" semantic-release.log; then
+            echo "::error::semantic-release refused to release because main had already moved past this run's commit (the exact 0.17.0 incident signature) -- failing instead of letting this report as a silent success."
+            exit 1
+          fi
+
+          new_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+          if [ "$new_tag" = "${{ steps.guard.outputs.last-tag }}" ]; then
+            # Unlike the stable lane, the pre-release lane's analyzeCommitsCmd
+            # (scripts/nextReleaseType.mjs) always returns a non-empty bump for
+            # channel 'pre', so reaching should-release=true guarantees a
+            # release was expected -- "no new tag" here is always a bug, never
+            # a legitimate no-op.
+            echo "::error::semantic-release exited successfully but produced no new tag (still $new_tag) -- nothing was published."
+            exit 1
+          fi
+          echo "New pre-release tag: $new_tag"
+          echo "version=${new_tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify published
+        if: steps.guard.outputs.should-release == 'true'
+        run: node scripts/verifyPublished.mjs "${{ steps.assert.outputs.version }}" --pre-release

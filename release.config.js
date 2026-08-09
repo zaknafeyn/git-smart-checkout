@@ -27,12 +27,12 @@ module.exports = {
       // package.json version is already updated by @semantic-release/npm above,
       // so vsce package will embed the correct version in the VSIX filename.
       prepareCmd: `yarn build-all && yarn vsce package --yarn${isPre ? ' --pre-release' : ''}`,
-      publishCmd:
-        `yarn vsce publish --pat \${process.env.VSCODE_PAT} --packagePath git-smart-checkout-\${nextRelease.version}.vsix${isPre ? ' --pre-release' : ''}` +
-        // ovsx ignores/warns on --pre-release for a prepackaged vsix -- the
-        // Microsoft.VisualStudio.Code.PreRelease marker baked in by `vsce package
-        // --pre-release` above is what Open VSX actually reads.
-        ' && yarn ovsx publish --pat ${process.env.OPEN_VSX_PAT} --packagePath git-smart-checkout-${nextRelease.version}.vsix',
+      // Publishes both registries independently with retry via
+      // scripts/publishVsix.mjs -- a transient failure on one registry (e.g. a
+      // Marketplace gallery timeout) must never prevent the other from being
+      // attempted, and the script is idempotent so it's safe to re-run against
+      // a partially-published version (see the Republish workflow).
+      publishCmd: `node scripts/publishVsix.mjs git-smart-checkout-\${nextRelease.version}.vsix${isPre ? ' --pre-release' : ''}`,
       // semantic-release/github has no `prerelease` option and only infers it from
       // its own prerelease-branch mode, which this single-branch design doesn't use.
       ...(isPre && {

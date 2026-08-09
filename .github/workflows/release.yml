@@ -12,11 +12,26 @@ jobs:
       pull-requests: write
 
     steps:
+      # See pre-release.yml for the full rationale: a re-run replays a stale
+      # SHA if the previous attempt already pushed a version commit/tag before
+      # failing, causing semantic-release to silently exit 0 having published
+      # nothing.
+      - name: Reject workflow re-runs
+        if: github.run_attempt != '1'
+        run: |
+          echo "::error::This is attempt #${{ github.run_attempt }}. Re-running a semantic-release job is unsafe: it replays the original commit, which is now behind main if the previous attempt already pushed a version commit/tag before failing. semantic-release then sees 'branch is behind' and exits 0 without publishing anything."
+          echo "::error::Dispatch a fresh Release run instead. If a previous run tagged a version but didn't finish publishing, use the Republish workflow to resume it."
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Record last tag
+        id: before
+        run: echo "tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -35,7 +50,9 @@ jobs:
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
       - name: Release
-        run: yarn semantic-release
+        run: |
+          set -o pipefail
+          yarn semantic-release 2>&1 | tee semantic-release.log
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           VSCODE_PAT: ${{ secrets.VSCODE_PAT }}
@@ -43,3 +60,33 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
           RELEASE_CHANNEL: stable
+
+      # Unlike pre-release.yml, "no new tag" is not by itself a failure here --
+      # the stable lane defers to @semantic-release/commit-analyzer, so a
+      # dispatch with only chore/docs commits since the last tag correctly
+      # produces no release. What must never happen silently is the specific
+      # re-run bug from the 0.17.0 incident: semantic-release refusing to
+      # release because main had already moved past the checked-out commit.
+      - name: Detect stale-branch false success
+        run: |
+          if grep -q "is behind the remote one" semantic-release.log; then
+            echo "::error::semantic-release refused to release because main had already moved past this run's commit (the exact 0.17.0 incident signature) -- failing instead of letting this report as a silent success."
+            exit 1
+          fi
+
+      - name: Determine whether a new version was released
+        id: after
+        run: |
+          new_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+          if [ "$new_tag" != "${{ steps.before.outputs.tag }}" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${new_tag#v}" >> "$GITHUB_OUTPUT"
+            echo "Released $new_tag."
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "No new tag -- no releasable commits since $new_tag. Nothing to verify."
+          fi
+
+      - name: Verify published
+        if: steps.after.outputs.released == 'true'
+        run: node scripts/verifyPublished.mjs "${{ steps.after.outputs.version }}"

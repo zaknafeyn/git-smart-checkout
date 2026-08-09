@@ -61,7 +61,53 @@ release — hotfix or not — jumps to `0.20.0` and carries everything merged to
 
 Neither workflow requires manual version bumping — `semantic-release` computes
 the next version, updates `package.json`/`CHANGELOG.md`, tags, packages the
-VSIX, and publishes to both registries in one run.
+VSIX, and publishes to both registries in one run (`scripts/publishVsix.mjs`,
+independently per registry with retry — see below).
+
+## If a release workflow fails
+
+**Never use "Re-run failed jobs" on Release or Pre-release.** Both workflows
+reject a re-run outright (`github.run_attempt != 1`) for a specific reason: by
+the time `publish` runs, `prepare` has already committed the version bump and
+pushed the `v${version}` tag. A re-run replays the *original* commit SHA, which
+is now behind `main` — semantic-release sees "branch is behind" and exits `0`
+having published nothing, reporting a false-positive green run. This is
+exactly what happened to `v0.17.0` (details below).
+
+Instead, check where it failed:
+
+- **Failed before the tag was pushed** (no new tag on `main`) — nothing
+  happened. Dispatch a fresh run.
+- **Failed after the tag was pushed** — the version is committed and tagged
+  but not (fully) published. **Dispatch Republish** (`.github/workflows/publish.yml`,
+  `workflow_dispatch`, inputs `tag` and `pre_release`) **with that tag.** It
+  re-packages the VSIX and calls the same `scripts/publishVsix.mjs` used by
+  the main lanes, which is idempotent per registry — a registry that already
+  has the version is skipped, so it's safe to run against a partially
+  published tag.
+
+Both `release.yml` and `pre-release.yml` also refuse to start a new release
+if the last tag has no matching GitHub release — that state means a previous
+run tagged a version and then failed mid-publish, so a new release must not
+be layered on top until the previous one is finished via Republish.
+
+Every release run ends with `scripts/verifyPublished.mjs`, which polls both
+registries and fails the job if the version isn't actually there — the
+detail that let `v0.17.0` go unnoticed for a while.
+
+### If a version was skipped entirely
+
+Don't try to reclaim it. Both registries serve one increasing version line
+and VS Code always installs the highest version available on a client's
+channel, so a version below the current one is permanently unreachable once
+a later one is published. Move forward — the next pre-release/stable version
+picks up from wherever the sequence actually is.
+
+This section exists because `v0.17.0` hit exactly this: it was tagged and
+committed but never reached either registry — the Marketplace publish hit a
+transient gallery timeout, and the old `vsce publish && ovsx publish` chain
+meant Open VSX was never even attempted as a result. `v0.17.0` was abandoned;
+the next pre-release picked up from `0.19.0`.
 
 ## Opting in to pre-releases
 

@@ -1,17 +1,41 @@
-name: Deploy VS Code Extension (Deprecated)
+name: Republish (recovery)
 
-# Emergency manual release only — semantic-release (release.yml) handles normal releases.
-# Triggered by tag.yml (workflow_dispatch) when a manual override is needed.
+# Recovery path for when Release or Pre-release already pushed a version
+# commit + tag (via @semantic-release/git, which runs before publishing) but
+# failed before finishing the publish step -- see docs/releasing.md, "If a
+# release workflow fails". Idempotent: scripts/publishVsix.mjs skips a
+# registry that already has the version, so it's safe to run against a tag
+# that partially published.
+#
+# Also reachable from tag.yml (Create and Push Tag, deprecated manual path)
+# via workflow_call, which needs the same package/publish/release steps for a
+# tag it created directly (without semantic-release ever touching
+# package.json).
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish/republish (e.g. v1.2.3)'
+        required: true
+        type: string
+      pre_release:
+        description: 'Mark this release as a pre-release'
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       tag:
-        description: 'Tag to publish (e.g. v1.2.3)'
+        description: 'Tag to publish/republish (e.g. v1.2.3)'
         required: true
         type: string
+      pre_release:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  deploy:
+  republish:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -23,7 +47,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -34,35 +58,30 @@ jobs:
       - name: Extract version from tag
         id: get_version
         run: |
-          REF="${{ inputs.tag || github.ref }}"
-          TAG="${REF#refs/tags/}"
-          VERSION="${REF#refs/tags/v}"
-          VERSION="${VERSION#v}"
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing tag: $TAG"
-          echo "Extracted version: $VERSION"
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Republishing tag: $TAG (version $VERSION, pre-release: ${{ inputs.pre_release }})"
 
-      - name: Update package.json version
+      - name: Sync package.json version with tag (if needed)
         run: |
-          yarn version --new-version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
-          echo "Updated package.json version to ${{ steps.get_version.outputs.VERSION }}"
+          CURRENT=$(node -p "require('./package.json').version")
+          TARGET="${{ steps.get_version.outputs.VERSION }}"
+          if [ "$CURRENT" = "$TARGET" ]; then
+            echo "package.json is already at $TARGET -- no bump needed (this tag came from semantic-release)."
+          else
+            yarn version --new-version "$TARGET" --no-git-tag-version
+            echo "Bumped package.json from $CURRENT to $TARGET."
+          fi
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
-      # - name: Run linting
-      #   run: yarn lint
-
-      # - name: Run tests
-      #   run: yarn test
-      #   continue-on-error: true # Continue if tests fail (optional)
 
       - name: Build extension
         run: yarn build-all
 
       - name: Create VSIX package
-        run: yarn build-vsix
+        run: yarn vsce package --yarn${{ inputs.pre_release && ' --pre-release' || '' }}
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v7
@@ -71,29 +90,28 @@ jobs:
           path: '*.vsix'
           retention-days: 30
 
-      - name: Publish to VS Code Marketplace
-        run: yarn vsce publish --yarn --pat ${{ secrets.VSCODE_PAT }}
+      - name: Publish to both registries
+        run: node scripts/publishVsix.mjs git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix${{ inputs.pre_release && ' --pre-release' || '' }}
         env:
-          VSCE_PAT: ${{ secrets.VSCODE_PAT }}
+          VSCODE_PAT: ${{ secrets.VSCODE_PAT }}
+          OPEN_VSX_PAT: ${{ secrets.OPEN_VSX_PAT }}
 
-      - name: Publish to Open VSX Registry
-        run: yarn ovsx publish --yarn --pat ${{ secrets.OPEN_VSX_PAT }}
+      - name: Create GitHub release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists -- leaving it as-is."
+          else
+            ARGS=(--title "Release ${{ steps.get_version.outputs.VERSION }}" \
+              --notes "Republished from tag $TAG via the recovery workflow." \
+              --verify-tag)
+            if [ "${{ inputs.pre_release }}" = "true" ]; then
+              ARGS+=(--prerelease --latest=false)
+            fi
+            gh release create "$TAG" "git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix#VS Code Extension" "${ARGS[@]}"
+          fi
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.get_version.outputs.TAG }}
-          name: Release ${{ steps.get_version.outputs.VERSION }}
-          body: |
-            ## Changes in v${{ steps.get_version.outputs.VERSION }}
-
-            - Automated release from tag ${{ steps.get_version.outputs.TAG }}
-            - Built and published to VS Code Marketplace
-
-            ### Installation
-            You can install this extension from:
-            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=vradchuk.git-smart-checkout)
-            - Download the VSIX file from this release and install manually
-          draft: false
-          prerelease: false
-          files: ./git-smart-checkout-${{ steps.get_version.outputs.VERSION }}.vsix
+      - name: Verify published
+        run: node scripts/verifyPublished.mjs "${{ steps.get_version.outputs.VERSION }}"${{ inputs.pre_release && ' --pre-release' || '' }}
