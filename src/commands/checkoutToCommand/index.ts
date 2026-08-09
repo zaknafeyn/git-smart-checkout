@@ -564,11 +564,13 @@ export class CheckoutToCommand extends BaseCommand {
       return undefined;
     }
 
+    let stashedMessage: string | undefined;
     try {
       const dirty = await git.isWorkdirHasChanges();
       const stashName = `smart-checkout-new-branch-${Date.now()}`;
       if (dirty) {
         await git.createStash(stashName);
+        stashedMessage = stashName;
       }
       const newBranch = await git.createBranch(newBranchName, baseRef.fullName);
       capture(AnalyticsEvent.BranchCreated);
@@ -583,6 +585,17 @@ export class CheckoutToCommand extends BaseCommand {
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
+
+      if (stashedMessage) {
+        try {
+          await git.popStash(stashedMessage);
+        } catch {
+          throw new Error(
+            `Failed to create the new branch: ${msg}\n\nYour changes are preserved in stash '${stashedMessage}'.`
+          );
+        }
+      }
+
       throw new Error(`Failed to create the new branch: ${msg}`);
     }
   }
