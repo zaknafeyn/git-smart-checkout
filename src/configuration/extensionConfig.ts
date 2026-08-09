@@ -48,6 +48,11 @@ export interface StacksConfig {
   enabled: boolean;
 }
 
+export interface StashesConfig {
+  /** Days after which a stash is flagged "stale" in the Stashes tree. 0 disables staleness. */
+  staleAfterDays: number;
+}
+
 export interface ExtensionConfig {
   mode: TAutoStashModeConfig;
   useFastBranchList: boolean;
@@ -82,6 +87,7 @@ export interface ExtensionConfig {
   branchTemplates: NamedTemplate[];
   jira: JiraConfig;
   stacks: StacksConfig;
+  stashes: StashesConfig;
 }
 
 export interface IAutoStashMode {

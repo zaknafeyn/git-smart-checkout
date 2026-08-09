@@ -35,7 +35,8 @@ All commands are grouped under the `GSC:` prefix in the Command Palette.
 | Pull the current branch while preserving local changes | `GSC: Pull (With Stash)` | [Pull with stash](docs/pull-with-stash.md) |
 | Pull with rebase while preserving local changes | `GSC: Pull (Rebase With Stash)` | [Pull rebase with stash](docs/pull-rebase-with-stash.md) |
 | Rebase the current branch onto another ref while preserving local changes | `GSC: Rebase (With Stash)` | [Rebase with stash](docs/rebase-with-stash.md) |
-| Inspect, recover, or remove stashes created by Git Smart Checkout | `GSC: Manage Auto-Stashes...` | [Manage auto-stashes](docs/manage-auto-stashes.md) |
+| Browse every stash (not just auto-stashes) for the open repositories in a dedicated "Stashes" view (activity bar), grouped into "Auto-stashes" and "Other stashes" with age, file count, and a stale marker (configurable threshold); expand a stash to see its changed files and click one for a side-by-side diff (including untracked files, via a synthetic `gsc-stash:` diff source); inline Apply/Pop/Drop, multi-select Drop with one confirmation, and a context menu for the full patch, creating a branch from the stash, and copying its message. The view's badge shows the auto-stash count and refreshes live on any stash mutation, from this view or elsewhere | `GSC: Refresh Stashes` | — |
+| Inspect, recover, or remove auto-stashes created by Git Smart Checkout from the command palette (superseded for day-to-day use by the "Stashes" view above, which manages all stashes; kept for palette-only workflows) | `GSC: Manage Auto-Stashes...` | [Manage auto-stashes](docs/manage-auto-stashes.md) |
 | Copy staged or WIP changes between existing worktrees | `GSC: Copy Staged Changes to Worktree...`, `GSC: Copy WIP Changes to Worktree...`, `GSC: Copy WIP from Worktree...`, `GSC: Move WIP from Worktree...` | [Copy changes to worktree](docs/copy-changes-to-worktree.md) |
 | Open a terminal in a selected worktree's directory | `GSC: Open Worktree Dev Terminal...` | [Open worktree dev terminal](docs/open-worktree-dev-terminal.md) |
 | Remove several Git worktrees at once with a single confirmation | `GSC: Remove Multiple Worktrees...` | [Remove multiple worktrees](docs/remove-multiple-worktrees.md) |
@@ -84,6 +85,7 @@ Click a setting ID to open that setting in VS Code.
 | ⚙️ [`git-smart-checkout.tagRemote`](vscode://settings/git-smart-checkout.tagRemote) (Tag remote) | `string` | Git remote used when pushing created tags. |
 | ⚙️ [`git-smart-checkout.telemetry.enabled`](vscode://settings/git-smart-checkout.telemetry.enabled) (Telemetry enabled) | `boolean` | Enables anonymous Git Smart Checkout analytics while respecting VS Code's global telemetry settings. |
 | ⚙️ [`git-smart-checkout.stacks.enabled`](vscode://settings/git-smart-checkout.stacks.enabled) (Stacks enabled) | `boolean` | Detects and visualizes the current branch's GitHub-native PR stack (Stacks view and status bar indicator). Default `true`. |
+| ⚙️ [`git-smart-checkout.stashes.staleAfterDays`](vscode://settings/git-smart-checkout.stashes.staleAfterDays) (Stashes stale after days) | `number` | Flags a stash as stale (⚠) in the Stashes view once it is older than this many days. Set to `0` to disable staleness. Default `7`. |
 
 ## Telemetry
 

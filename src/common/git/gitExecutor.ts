@@ -115,6 +115,32 @@ export function parseStashFilesOutput(output: string): string[] {
   return output.split('\0').filter((file) => file.length > 0);
 }
 
+/**
+ * Parses `--name-status -z` output. Under `-z` git separates the status from the path with a NUL
+ * (not a tab), so the stream is a flat run of alternating fields: `M\0a.txt\0D\0b.txt\0`. Rename
+ * and copy statuses (`R100`, `C75`) carry *two* paths — source then destination — and we report the
+ * destination, which is the path that exists once the stash is applied.
+ */
+export function parseStashNameStatusOutput(
+  output: string
+): Array<{ status: string; path: string }> {
+  const fields = output.split('\0').filter((field) => field.length > 0);
+  const entries: Array<{ status: string; path: string }> = [];
+
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    const takesTwoPaths = status.startsWith('R') || status.startsWith('C');
+    const path = takesTwoPaths ? fields[i + 1] : fields[i];
+    i += takesTwoPaths ? 2 : 1;
+
+    if (path) {
+      entries.push({ status, path });
+    }
+  }
+
+  return entries;
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -662,6 +688,40 @@ export class GitExecutor {
 
   async dropStash(selector: string): Promise<void> {
     await this.#execGitCommand(['stash', 'drop', selector]);
+  }
+
+  /** Name + status (`A`/`M`/`D`/…) for each file touched by a stash, including untracked files. */
+  async getStashFilesWithStatus(selector: string): Promise<Array<{ status: string; path: string }>> {
+    const { stdout } = await this.#execGitCommand([
+      'stash',
+      'show',
+      '--name-status',
+      '-z',
+      '--include-untracked',
+      '--format=',
+      selector,
+    ]);
+
+    return parseStashNameStatusOutput(stdout);
+  }
+
+  /**
+   * `git show <rev>:<path>` — the content of `path` at `rev`. Returns
+   * `undefined` (rather than throwing) when the file doesn't exist at that
+   * revision, so callers can render the missing side of a diff as empty.
+   */
+  async getFileAtRev(rev: string, filePath: string): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand(['show', `${rev}:${filePath}`]);
+      return stdout;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** `git stash branch <branchName> <selector>` — creates and checks out a new branch from a stash. */
+  async createBranchFromStash(branchName: string, selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'branch', branchName, selector]);
   }
 
   async getStashPatch(selector: string): Promise<string> {

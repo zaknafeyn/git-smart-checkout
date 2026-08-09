@@ -4,6 +4,9 @@ Command: `Git Smart Checkout: Manage auto-stashes...`
 
 Use this command to inspect and recover stashes created by Git Smart Checkout. The manager only lists stash messages beginning with `auto-stash-`; ordinary Git stashes are left out of the picker.
 
+> [!TIP]
+> The activity bar's "Stashes" view covers the same actions (plus per-file diffs, "Create Branch from Stash", and multi-select drop) for *every* stash, not just auto-stashes, and stays open instead of a one-shot picker. This command remains for palette-only workflows.
+
 ## What It Shows
 
 Each auto-stash entry includes:
