@@ -115,6 +115,58 @@ export function parseStashFilesOutput(output: string): string[] {
   return output.split('\0').filter((file) => file.length > 0);
 }
 
+/**
+ * Parses `--name-status -z` output. Under `-z` git separates the status from the path with a NUL
+ * (not a tab), so the stream is a flat run of alternating fields: `M\0a.txt\0D\0b.txt\0`. Rename
+ * and copy statuses (`R100`, `C75`) carry *two* paths — source then destination — and we report the
+ * destination, which is the path that exists once the stash is applied.
+ */
+export function parseStashNameStatusOutput(
+  output: string
+): Array<{ status: string; path: string }> {
+  const fields = output.split('\0').filter((field) => field.length > 0);
+  const entries: Array<{ status: string; path: string }> = [];
+
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    const takesTwoPaths = status.startsWith('R') || status.startsWith('C');
+    const path = takesTwoPaths ? fields[i + 1] : fields[i];
+    i += takesTwoPaths ? 2 : 1;
+
+    if (path) {
+      entries.push({ status, path });
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Parses `git status --porcelain` (v1) output into the changed/untracked paths it reports.
+ * Each line is `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the
+ * destination. Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the
+ * surrounding quotes and the escapes git adds for `"` and `\` are undone so the path reads
+ * naturally in UI.
+ */
+export function parseStatusPorcelainPaths(output: string): string[] {
+  return output
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => {
+      const pathPart = line.slice(3).trimEnd();
+      const arrowIndex = pathPart.lastIndexOf(' -> ');
+      return unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+    })
+    .filter((path) => path.length > 0);
+}
+
+function unquoteStatusPath(path: string): string {
+  if (!path.startsWith('"') || !path.endsWith('"') || path.length < 2) {
+    return path;
+  }
+  return path.slice(1, -1).replace(/\\(["\\])/g, '$1');
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -585,6 +637,23 @@ export class GitExecutor {
     } catch { return undefined; }
   }
 
+  /** Short upstream branch name (remote prefix stripped) for the current HEAD, or undefined when there is none. */
+  async getUpstreamRef(): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand([
+        'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}',
+      ]);
+      const upstream = stdout.trim();
+      if (!upstream) {
+        return undefined;
+      }
+      const slashIndex = upstream.indexOf('/');
+      return slashIndex === -1 ? upstream : upstream.slice(slashIndex + 1);
+    } catch {
+      return undefined;
+    }
+  }
+
   async pullFromRemoteBranch(options: { rebase?: boolean } = {}) {
     await this.#execGitCommand(['pull', ...(options.rebase ? ['--rebase'] : [])]);
   }
@@ -664,6 +733,40 @@ export class GitExecutor {
     await this.#execGitCommand(['stash', 'drop', selector]);
   }
 
+  /** Name + status (`A`/`M`/`D`/…) for each file touched by a stash, including untracked files. */
+  async getStashFilesWithStatus(selector: string): Promise<Array<{ status: string; path: string }>> {
+    const { stdout } = await this.#execGitCommand([
+      'stash',
+      'show',
+      '--name-status',
+      '-z',
+      '--include-untracked',
+      '--format=',
+      selector,
+    ]);
+
+    return parseStashNameStatusOutput(stdout);
+  }
+
+  /**
+   * `git show <rev>:<path>` — the content of `path` at `rev`. Returns
+   * `undefined` (rather than throwing) when the file doesn't exist at that
+   * revision, so callers can render the missing side of a diff as empty.
+   */
+  async getFileAtRev(rev: string, filePath: string): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand(['show', `${rev}:${filePath}`]);
+      return stdout;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** `git stash branch <branchName> <selector>` — creates and checks out a new branch from a stash. */
+  async createBranchFromStash(branchName: string, selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'branch', branchName, selector]);
+  }
+
   async getStashPatch(selector: string): Promise<string> {
     const includeUntrackedSupported = await this.#supportsStashShowIncludeUntracked();
 
@@ -692,11 +795,15 @@ export class GitExecutor {
     return dirtyFileCount !== 0;
   }
 
+  /** Paths of the changed/untracked files reported by `git status --porcelain`. */
+  async listDirtyFiles(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
+    return parseStatusPorcelainPaths(stdout);
+  }
+
   /** Number of changed/untracked files reported by `git status --porcelain`. */
   async getDirtyFileCount(): Promise<number> {
-    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
-    const trimmed = stdout.trim();
-    return trimmed.length === 0 ? 0 : trimmed.split('\n').length;
+    return (await this.listDirtyFiles()).length;
   }
 
   /** Subject and committer-timestamp (unix seconds) of `ref`'s tip commit. */

@@ -35,11 +35,20 @@ function makeVisibleWebviewView(messages: unknown[]) {
 function sampleView(): StackView {
   return {
     branches: [
-      { branch: 'feat/mid', isCurrent: true, pr: { number: 12, title: 'Mid', url: 'https://x/12', state: 'open' } },
-      { branch: 'feat/top', isCurrent: false, pr: { number: 52, title: 'Top', url: 'https://x/52', state: 'open' } },
+      {
+        branch: 'feat/mid',
+        isCurrent: true,
+        pr: { number: 12, title: 'Mid', url: 'https://x/12', state: 'open', status: 'open', blockedDownstack: false },
+      },
+      {
+        branch: 'feat/top',
+        isCurrent: false,
+        pr: { number: 52, title: 'Top', url: 'https://x/52', state: 'open', status: 'open', blockedDownstack: false },
+      },
     ],
     target: 'target-branch',
     targetIsCurrent: false,
+    currentIndex: 0,
     repositoryPath: '/repo',
   };
 }

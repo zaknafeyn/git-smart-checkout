@@ -1,0 +1,68 @@
+name: Pre-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Publish even if there are no commits since the last tag'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  pre-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check for new commits since the last tag
+        id: guard
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+          if [ "${{ inputs.force }}" = "true" ] || [ -z "$last_tag" ]; then
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$(git log "$last_tag"..HEAD --oneline)" ]; then
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+            echo "No commits since $last_tag -- skipping pre-release. Re-run with force=true to override."
+          else
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.guard.outputs.should-release == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        if: steps.guard.outputs.should-release == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Generate GitHub App token
+        if: steps.guard.outputs.should-release == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Pre-release
+        if: steps.guard.outputs.should-release == 'true'
+        run: yarn semantic-release
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          VSCODE_PAT: ${{ secrets.VSCODE_PAT }}
+          OPEN_VSX_PAT: ${{ secrets.OPEN_VSX_PAT }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
+          RELEASE_CHANNEL: pre

@@ -131,6 +131,9 @@ export class ConfigurationManager {
       cleanupBranches: {
         detectSquashMerged: vscodeConfig.get('cleanupBranches.detectSquashMerged', true),
       },
+      stashes: {
+        staleAfterDays: vscodeConfig.get('stashes.staleAfterDays', 7),
+      },
     };
   }
 

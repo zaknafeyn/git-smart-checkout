@@ -4,10 +4,11 @@ import { GitHubClient, resolveGitHubHostConfig } from '../common/api/ghClient';
 import { GitExecutor } from '../common/git/gitExecutor';
 import { IGitRef } from '../common/git/types';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
+import { parseReviewBranchName } from '../commands/reviewPrByNumberCommand';
 import { ConfigurationManager } from '../configuration/configurationManager';
 import { LoggingService } from '../logging/loggingService';
 import { resolveGitRepositoryRoot } from '../utils/getGitExecutor';
-import { findGithubStackForBranch, prStackFromGithubStack } from './prStack';
+import { findGithubStackForCheckout, prStackFromGithubStack, StackCheckoutIdentity } from './prStack';
 import { StackAheadBehind, StackView, stackViewFromPrStack } from './stackModel';
 
 export interface StackRefreshResult {
@@ -19,10 +20,12 @@ export interface StackRefreshResult {
 /**
  * Orchestrates a stacks refresh: GitHub's native Stacks API
  * (https://docs.github.com/en/rest/pulls/stacks) is the sole source — a
- * branch is stacked exactly when it's the target or a stacked PR's head in
- * one of the repository's stacks, with no configuration knob and no local
- * fallback. Nothing is cached: a stack can be dissolved on GitHub at any
- * time, so every refresh re-fetches live rather than risking a stale view.
+ * checkout is stacked exactly when its branch, PR-review worktree, upstream,
+ * or HEAD sha identifies it as the target or a stacked PR's head in one of
+ * the repository's stacks (see `findGithubStackForCheckout`), with no
+ * configuration knob and no local fallback. Nothing is cached: a stack can be
+ * dissolved on GitHub at any time, so every refresh re-fetches live rather
+ * than risking a stale view.
  */
 export class StackService {
   constructor(
@@ -59,15 +62,24 @@ export class StackService {
   }
 
   async refreshForRepo(git: GitExecutor): Promise<StackRefreshResult> {
-    const currentBranch = await git.getCurrentBranch().catch(() => undefined);
-    if (!currentBranch) {
-      return { isDetached: true };
+    let identity: StackCheckoutIdentity;
+    try {
+      identity = await this.resolveCheckoutIdentity(git);
+    } catch (error) {
+      this.logService.warn(`Failed to resolve checkout identity for ${git.repositoryPath}: ${error}`);
+      return { isDetached: false };
     }
+
+    if (!identity.branch && !identity.headSha) {
+      return { isDetached: false };
+    }
+
+    const isDetached = !identity.branch && !!identity.headSha;
 
     const config = this.configManager.get();
     const ghClient = await this.buildGithubClient(git, config.githubEnterpriseBaseUrl);
     if (!ghClient) {
-      return { currentBranch, isDetached: false };
+      return { currentBranch: identity.branch, isDetached };
     }
 
     const [prs, stacks] = await Promise.all([
@@ -75,16 +87,31 @@ export class StackService {
       this.fetchStacks(ghClient, git.repositoryPath),
     ]);
 
-    const githubStack = findGithubStackForBranch(stacks, currentBranch);
-    const view = githubStack
+    const match = findGithubStackForCheckout(stacks, identity);
+    const view = match
       ? stackViewFromPrStack(
-          prStackFromGithubStack(githubStack, prs, currentBranch, (n) => ghClient.pullRequestUrl(n)),
-          currentBranch,
+          prStackFromGithubStack(match.stack, prs, match, (n) => ghClient.pullRequestUrl(n)),
+          identity,
           git.repositoryPath,
-          await this.aheadBehindFor(git, githubStack.base.ref)
+          await this.aheadBehindFor(git, match.stack.base.ref)
         )
       : undefined;
-    return { view, currentBranch, isDetached: false };
+    return { view, currentBranch: identity.branch, isDetached };
+  }
+
+  /** Resolves every identity key that might tie the current checkout to a GitHub stack. */
+  private async resolveCheckoutIdentity(git: GitExecutor): Promise<StackCheckoutIdentity> {
+    const branchRaw = await git.getCurrentBranch();
+    const branch = branchRaw || undefined;
+
+    const [headSha, upstreamRef] = await Promise.all([
+      git.revParse('HEAD').catch(() => undefined),
+      git.getUpstreamRef(),
+    ]);
+
+    const prNumber = branch ? parseReviewBranchName(branch) : undefined;
+
+    return { branch, headSha, prNumber, upstreamRef };
   }
 
   /** Builds a `GitHubClient` for `git`'s repository, or `undefined` when it's not a GitHub repo. */

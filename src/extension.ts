@@ -64,6 +64,7 @@ import { CleanupBranchesCommand } from './commands/cleanupBranchesCommand';
 import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RemoveMultipleWorktreesCommand } from './commands/removeMultipleWorktreesCommand';
+import { PruneWorktreesCommand } from './commands/pruneWorktreesCommand';
 import { refreshRemoveMultipleWorktreesVisibility } from './commands/utils/worktreeCommandVisibility';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
@@ -81,6 +82,10 @@ import { indicatorBranchesOf, stackInfoMapOf } from './services/stackModel';
 import { StackWebViewProvider } from './view/StackWebViewProvider';
 import { CheckoutBranchCommand } from './commands/checkoutBranchCommand';
 import { FetchBranchCommand } from './commands/fetchBranchCommand';
+import { StashService } from './services/stashService';
+import { StashTreeDataProvider } from './view/StashTreeDataProvider';
+import { StashContentProvider, STASH_URI_SCHEME } from './view/stashContentProvider';
+import { StashTreeActionCommand } from './commands/stashTreeActionCommand';
 
 export function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
@@ -196,34 +201,83 @@ export function activate(context: vscode.ExtensionContext) {
     logService,
     prCloneService
   );
-  const autoStashService = new AutoStashService(configManager, logService, () =>
-    updateNotificationService.recordStashCarryingCheckoutSuccess(context)
+  const stashService = new StashService();
+  const autoStashService = new AutoStashService(
+    configManager,
+    logService,
+    () => updateNotificationService.recordStashCarryingCheckoutSuccess(context),
+    () => stashService.notifyChanged()
   );
   const refDetailsCache = new RefDetailsCache(context.globalState, logService);
 
+  let stashTreeView: vscode.TreeView<unknown> | undefined;
+  const stashTreeDataProvider = new StashTreeDataProvider(
+    logService,
+    () => configManager.get().stashes.staleAfterDays,
+    vscodeGitProvider,
+    (autoStashCount) => {
+      if (stashTreeView) {
+        stashTreeView.badge =
+          autoStashCount > 0 ? { value: autoStashCount, tooltip: 'auto-stashes' } : undefined;
+      }
+    }
+  );
+  // A stash mutation from anywhere — the tree view's own actions, the palette's "Manage
+  // Auto-Stashes..." command, or an auto-stash created/popped during checkout/pull/rebase —
+  // notifies through this one shared event, so the tree stays live without polling.
+  const stashChangeListener = stashService.onDidChangeStashes(() => stashTreeDataProvider.refreshDebounced());
+
+  const stashApplyCommand = new StashTreeActionCommand('apply', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.apply`, stashApplyCommand);
+  const stashPopCommand = new StashTreeActionCommand('pop', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.pop`, stashPopCommand);
+  const stashDropCommand = new StashTreeActionCommand('drop', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.drop`, stashDropCommand);
+  const stashViewPatchCommand = new StashTreeActionCommand('viewPatch', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.viewPatch`, stashViewPatchCommand);
+  const stashCreateBranchCommand = new StashTreeActionCommand('createBranch', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.createBranch`, stashCreateBranchCommand);
+  const stashCopyMessageCommand = new StashTreeActionCommand('copyMessage', logService, stashService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stash.copyMessage`, stashCopyMessageCommand);
+  commandManager.registerCommand(`${EXTENSION_NAME}.stashes.refresh`, {
+    execute: async () => stashTreeDataProvider.refresh(),
+  });
+
+  const stashContentProviderRegistration = vscode.workspace.registerTextDocumentContentProvider(
+    STASH_URI_SCHEME,
+    new StashContentProvider(logService, vscodeGitProvider)
+  );
+
   /**
-   * Refreshes the current branch's PR stack (GitHub PR chains, authoritative;
-   * the local ancestry heuristic only runs as an offline fallback — see
-   * `StackService`) and pushes the result to the Stacks webview and the
-   * status bar indicator. Never throws — detection failures (no GitHub
-   * remote/token, git errors) are swallowed so they can't break activation
-   * or command completion.
+   * Refreshes the current checkout's PR stack (GitHub's native Stacks API,
+   * matched by branch, PR-review worktree, HEAD sha, or upstream ref — see
+   * `findGithubStackForCheckout` in `StackService`) and pushes the result to
+   * the Stacks webview and the status bar indicator. Never throws —
+   * detection failures (no GitHub remote/token, git errors) are swallowed so
+   * they can't break activation or command completion. Guarded against
+   * out-of-order completion: activation, config-change, and debounced
+   * refreshes can all be in flight at once, and an older one finishing last
+   * must not clobber a newer view.
    */
+  let stackRefreshSequence = 0;
   const refreshStacks = async (): Promise<void> => {
+    const sequence = ++stackRefreshSequence;
     try {
       const result = await stackService.refresh();
+      if (sequence !== stackRefreshSequence) {
+        return;
+      }
       stackWebViewProvider.setStack(result.view);
       statusBarManager.setStackIndicator({
         isDetached: result.isDetached,
-        data:
-          result.view && result.currentBranch
-            ? {
-                orderedBranches: indicatorBranchesOf(result.view),
-                currentBranch: result.currentBranch,
-                target: result.view.target,
-                info: stackInfoMapOf(result.view),
-              }
-            : undefined,
+        data: result.view
+          ? {
+              orderedBranches: indicatorBranchesOf(result.view),
+              currentIndex: result.view.currentIndex,
+              target: result.view.target,
+              info: stackInfoMapOf(result.view),
+            }
+          : undefined,
       });
     } catch (error) {
       logService.warn(`Stack detection failed: ${error}`);
@@ -406,10 +460,15 @@ export function activate(context: vscode.ExtensionContext) {
     { mutatesWorktrees: true }
   );
 
+  const pruneWorktreesCommand = new PruneWorktreesCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.pruneWorktrees`, pruneWorktreesCommand, {
+    mutatesWorktrees: true,
+  });
+
   const openWorktreeDevTerminalCommand = new OpenWorktreeDevTerminalCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.openWorktreeDevTerminal`, openWorktreeDevTerminalCommand);
 
-  const manageAutoStashesCommand = new ManageAutoStashesCommand(logService, vscodeGitProvider);
+  const manageAutoStashesCommand = new ManageAutoStashesCommand(logService, stashService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.manageAutoStashes`, manageAutoStashesCommand);
   commandManager.registerCommand(
     `${EXTENSION_NAME}.cleanupBranches`,
@@ -559,12 +618,14 @@ export function activate(context: vscode.ExtensionContext) {
       // Debounced: rapid focus toggling (e.g. alt-tabbing) collapses into a
       // single reload rather than one per focus event.
       worktreeTreeDataProvider.refreshDebounced();
+      stashTreeDataProvider.refreshDebounced();
     }
   });
   const workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     void refreshRemoveMultipleWorktreesVisibility(logService, vscodeGitProvider);
     void refreshRepositoryContext(logService);
     worktreeTreeDataProvider.refresh();
+    stashTreeDataProvider.refresh();
   });
   // Keep the tree in sync with checkouts/commits/stash operations performed
   // outside this extension (VS Code's built-in Source Control view, terminal
@@ -581,9 +642,22 @@ export function activate(context: vscode.ExtensionContext) {
       void refreshStacks();
     }, delayMs);
   };
+  // A checked-out-HEAD change (branch switch, PR-review checkout) should
+  // refresh the Stacks view promptly; ordinary working-tree churn (saves,
+  // stages) keeps the longer debounce so it doesn't spend API calls on
+  // every keystroke-driven git status update.
+  const currentHeadsSnapshot = (): string =>
+    (vscode.workspace.workspaceFolders ?? [])
+      .map((folder) => vscodeGitProvider?.getCurrentBranch(folder.uri.fsPath) ?? '')
+      .join('\x1f');
+  let lastStackHeadsSnapshot = currentHeadsSnapshot();
   const gitStateListener = vscodeGitProvider?.onDidChangeAnyRepositoryState(() => {
     worktreeTreeDataProvider.refreshDebounced();
-    refreshStacksDebounced();
+    stashTreeDataProvider.refreshDebounced();
+    const heads = currentHeadsSnapshot();
+    const headChanged = heads !== lastStackHeadsSnapshot;
+    lastStackHeadsSnapshot = heads;
+    refreshStacksDebounced(headChanged ? 250 : 2000);
   });
 
   // Listen for configuration changes
@@ -603,12 +677,20 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: worktreeTreeDataProvider,
   });
 
+  stashTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.stashes`, {
+    treeDataProvider: stashTreeDataProvider,
+    // Enables selecting several stashes at once so "Drop" can act on the whole selection
+    // behind a single confirmation modal instead of one row at a time.
+    canSelectMany: true,
+  });
+
   // Add to context subscriptions
   context.subscriptions.push(
     configChangeListener,
     windowStateListener,
     workspaceFoldersListener,
     ...(gitStateListener ? [gitStateListener] : []),
+    { dispose: () => clearTimeout(stackRefreshDebounceTimer) },
     telemetryChangeListener,
     statusBarManager,
     logService,
@@ -628,7 +710,12 @@ export function activate(context: vscode.ExtensionContext) {
     worktreeTreeView,
     worktreeTreeDataProvider,
     stackWebViewProvider,
-    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider)
+    vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider),
+    stashTreeView,
+    stashTreeDataProvider,
+    stashService,
+    stashChangeListener,
+    stashContentProviderRegistration
   );
 
   // Show status bar

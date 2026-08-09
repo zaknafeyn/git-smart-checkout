@@ -8,22 +8,28 @@ import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { LoggingService } from '../../logging/loggingService';
 import { BaseCommand } from '../command';
 import { AUTO_STASH_PREFIX } from '../checkoutToCommand/constants';
-import { offerConflictRescue } from '../../services/stashConflictRescue';
+import { confirmDirtyWorktree, confirmDropStashes, StashService } from '../../services/stashService';
 
 const ACTION_APPLY = 'Apply';
 const ACTION_POP = 'Pop';
 const ACTION_DIFF = 'View Diff';
 const ACTION_DROP = 'Drop';
-const ACTION_CONTINUE = 'Continue';
-const ACTION_CANCEL = 'Cancel';
 
 type StashAction = 'apply' | 'pop' | 'diff' | 'drop';
 type StashQuickPickItem = vscode.QuickPickItem & { stash: IGitStash };
 type ActionQuickPickItem = vscode.QuickPickItem & { action: StashAction };
 
+/**
+ * Palette entry point for stash management (`GSC: Manage Auto-Stashes...`), kept as a modal
+ * QuickPick loop for users who prefer the command palette over the Stashes tree view. Superseded
+ * in day-to-day use by the tree view, but shares the exact same business logic — `StashService` —
+ * so both surfaces stay in lockstep on safety semantics (hash-verified selectors, dirty-worktree
+ * confirmation, conflict rescue, drop confirmation).
+ */
 export class ManageAutoStashesCommand extends BaseCommand {
   constructor(
     logService: LoggingService,
+    private readonly stashService: StashService,
     private vscodeGitProvider?: VscodeGitProvider
   ) {
     super(logService);
@@ -57,12 +63,12 @@ export class ManageAutoStashesCommand extends BaseCommand {
         if (
           (action === 'apply' || action === 'pop') &&
           hadChanges &&
-          !(await this.confirmDirtyWorktree(action))
+          !(await confirmDirtyWorktree(action))
         ) {
           continue;
         }
 
-        if (action === 'drop' && !(await this.confirmDrop(stash))) {
+        if (action === 'drop' && !(await confirmDropStashes([stash]))) {
           continue;
         }
 
@@ -133,28 +139,6 @@ export class ManageAutoStashesCommand extends BaseCommand {
     return picked?.action;
   }
 
-  private async confirmDirtyWorktree(action: 'apply' | 'pop'): Promise<boolean> {
-    const choice = await vscode.window.showWarningMessage(
-      `The current worktree has uncommitted changes. ${action === 'apply' ? ACTION_APPLY : ACTION_POP} this auto-stash anyway?`,
-      { modal: true },
-      ACTION_CONTINUE,
-      ACTION_CANCEL
-    );
-
-    return choice === ACTION_CONTINUE;
-  }
-
-  private async confirmDrop(stash: IGitStash): Promise<boolean> {
-    const choice = await vscode.window.showWarningMessage(
-      `Permanently drop the auto-stash for "${stash.sourceBranch ?? 'unknown branch'}"?`,
-      { modal: true },
-      ACTION_DROP,
-      ACTION_CANCEL
-    );
-
-    return choice === ACTION_DROP;
-  }
-
   /**
    * Runs the selected stash action. Returns true when the action ended in a
    * conflict-rescue path (so the caller can tag analytics instead of reporting
@@ -166,50 +150,31 @@ export class ManageAutoStashesCommand extends BaseCommand {
     action: StashAction
   ): Promise<boolean> {
     switch (action) {
-      case 'apply':
-        return this.applyOrPopStash(git, stash, 'apply');
-      case 'pop':
-        return this.applyOrPopStash(git, stash, 'pop');
+      case 'apply': {
+        const rescued = (await this.stashService.applyStash(git, stash)) === 'rescued';
+        if (!rescued) {
+          await vscode.window.showInformationMessage('Auto-stash applied.', 'OK');
+        }
+        return rescued;
+      }
+      case 'pop': {
+        const rescued = (await this.stashService.popStash(git, stash)) === 'rescued';
+        if (!rescued) {
+          await vscode.window.showInformationMessage('Auto-stash popped.', 'OK');
+        }
+        return rescued;
+      }
       case 'drop':
-        return this.dropStash(git, stash);
+        await this.stashService.dropStash(git, stash);
+        await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
+        return false;
       case 'diff':
         return this.showStashDiff(git, stash);
     }
   }
 
-  private async applyOrPopStash(
-    git: GitExecutor,
-    stash: IGitStash,
-    action: 'apply' | 'pop'
-  ): Promise<boolean> {
-    const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-    try {
-      if (action === 'apply') {
-        await git.applyStash(selector);
-      } else {
-        await git.popStashBySelector(selector);
-      }
-    } catch (error) {
-      const conflicts = await git.getConflictedFiles();
-      if (conflicts.length === 0) throw error;
-      await offerConflictRescue(git, conflicts, action);
-      return true;
-    }
-
-    const message = action === 'apply' ? 'Auto-stash applied.' : 'Auto-stash popped.';
-    await vscode.window.showInformationMessage(message, 'OK');
-    return false;
-  }
-
-  private async dropStash(git: GitExecutor, stash: IGitStash): Promise<boolean> {
-    const selector = await git.resolveStashSelector(stash.selector, stash.hash);
-    await git.dropStash(selector);
-    await vscode.window.showInformationMessage('Auto-stash dropped.', 'OK');
-    return false;
-  }
-
   private async showStashDiff(git: GitExecutor, stash: IGitStash): Promise<boolean> {
-    const patch = await git.getStashPatch(stash.selector);
+    const patch = await this.stashService.getStashPatch(git, stash);
     if (!patch) {
       await vscode.window.showInformationMessage('This auto-stash has no diff to display.', 'OK');
       return false;

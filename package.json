@@ -20,7 +20,7 @@
     "clone pull request"
   ],
   "license": "MIT",
-  "version": "0.16.1",
+  "version": "0.18.0",
   "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
@@ -61,6 +61,13 @@
           "name": "Stacks",
           "type": "webview",
           "icon": "$(layers)",
+          "when": "git-smart-checkout.hasRepository"
+        },
+        {
+          "id": "git-smart-checkout.stashes",
+          "name": "Stashes",
+          "type": "tree",
+          "icon": "$(archive)",
           "when": "git-smart-checkout.hasRepository"
         },
         {
@@ -241,6 +248,12 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.pruneWorktrees",
+        "title": "Prune Worktrees...",
+        "icon": "$(clear-all)",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.openWorktreeDevTerminal",
         "title": "Open Worktree Dev Terminal...",
         "category": "GSC"
@@ -302,6 +315,45 @@
         "category": "GSC"
       },
       {
+        "command": "git-smart-checkout.stash.apply",
+        "title": "Apply",
+        "icon": "$(git-stash-apply)",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stash.pop",
+        "title": "Pop",
+        "icon": "$(git-stash-pop)",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stash.drop",
+        "title": "Drop",
+        "icon": "$(trash)",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stash.viewPatch",
+        "title": "View Full Patch",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stash.createBranch",
+        "title": "Create Branch from Stash...",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stash.copyMessage",
+        "title": "Copy Message",
+        "category": "GSC"
+      },
+      {
+        "command": "git-smart-checkout.stashes.refresh",
+        "title": "Refresh Stashes",
+        "icon": "$(refresh)",
+        "category": "GSC"
+      },
+      {
         "command": "git-smart-checkout.cleanupBranches",
         "title": "Delete Merged Branches...",
         "category": "GSC"
@@ -348,6 +400,36 @@
           "command": "git-smart-checkout.worktree.reveal",
           "when": "view == git-smart-checkout.worktrees && viewItem =~ /\\bworktree\\b/",
           "group": "7_modification@3"
+        },
+        {
+          "command": "git-smart-checkout.stash.apply",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "inline@1"
+        },
+        {
+          "command": "git-smart-checkout.stash.pop",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "inline@2"
+        },
+        {
+          "command": "git-smart-checkout.stash.drop",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "inline@3"
+        },
+        {
+          "command": "git-smart-checkout.stash.viewPatch",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "git-smart-checkout.stash.createBranch",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "7_modification@2"
+        },
+        {
+          "command": "git-smart-checkout.stash.copyMessage",
+          "when": "view == git-smart-checkout.stashes && viewItem == stash",
+          "group": "7_modification@3"
         }
       ],
       "view/title": [
@@ -362,13 +444,23 @@
           "group": "navigation@2"
         },
         {
-          "command": "git-smart-checkout.worktree.refresh",
+          "command": "git-smart-checkout.pruneWorktrees",
           "when": "view == git-smart-checkout.worktrees",
           "group": "navigation@3"
         },
         {
+          "command": "git-smart-checkout.worktree.refresh",
+          "when": "view == git-smart-checkout.worktrees",
+          "group": "navigation@4"
+        },
+        {
           "command": "git-smart-checkout.stacks.refresh",
           "when": "view == git-smart-checkout.stacks",
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-smart-checkout.stashes.refresh",
+          "when": "view == git-smart-checkout.stashes",
           "group": "navigation@1"
         },
         {
@@ -462,6 +554,9 @@
         {
           "command": "git-smart-checkout.removeMultipleWorktrees",
           "when": "git-smart-checkout.hasMultipleRemovableWorktrees"
+        },
+        {
+          "command": "git-smart-checkout.pruneWorktrees"
         },
         {
           "command": "git-smart-checkout.openWorktreeDevTerminal"
@@ -718,6 +813,12 @@
           "type": "boolean",
           "default": true,
           "description": "When deleting merged branches, also detect squash- or rebase-merged branches (via patch equivalence, and via GitHub PR state when available) that 'git branch --merged' can't see."
+        },
+        "git-smart-checkout.stashes.staleAfterDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 0,
+          "description": "Flag a stash as stale in the Stashes view once it's older than this many days. Set to 0 to disable staleness."
         }
       }
     }

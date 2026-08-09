@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 
 import { ContextMenu, ContextMenuItem } from '@/components/ContextMenu';
+import { StackBadge, StackBadgeKind } from '@/components/StackBadge';
+import { StackStatusIcon } from '@/components/StackStatusIcon';
 
 import { StackViewBranch } from '../../../services/stackModel';
 
@@ -11,6 +13,16 @@ interface StackRowProps {
   onCheckout: (branch: string) => void;
   onOpenPr: (prNumber: number) => void;
   onCopyBranchName: (branch: string) => void;
+}
+
+function badgeKind(branch: StackViewBranch): StackBadgeKind | undefined {
+  if (branch.pr.blockedDownstack) {
+    return 'blocked';
+  }
+  if (branch.pr.status === 'draft' || branch.pr.status === 'merged' || branch.pr.status === 'closed') {
+    return branch.pr.status;
+  }
+  return undefined;
 }
 
 export const StackRow: React.FC<StackRowProps> = ({ branch, onCheckout, onOpenPr, onCopyBranchName }) => {
@@ -28,17 +40,22 @@ export const StackRow: React.FC<StackRowProps> = ({ branch, onCheckout, onOpenPr
     }
   };
 
-  const dotClass = branch.pr.draft ? styles.draft : styles.open;
-
   const menuItems: ContextMenuItem[] = [
     { label: 'Open PR in Browser', onSelect: () => onOpenPr(branch.pr.number) },
     { label: 'Checkout branch', onSelect: () => onCheckout(branch.branch) },
     { label: 'Copy branch name', onSelect: () => onCopyBranchName(branch.branch) },
   ];
 
+  const dimmed = branch.pr.status === 'merged' || branch.pr.status === 'closed';
+  const badge = badgeKind(branch);
+
   return (
     <div
-      className={[styles.row, branch.isCurrent && styles.current].filter(Boolean).join(' ')}
+      className={[
+        styles.row,
+        branch.isCurrent && styles.current,
+        dimmed && styles.dimmed,
+      ].filter(Boolean).join(' ')}
       role="button"
       tabIndex={0}
       onClick={() => onCheckout(branch.branch)}
@@ -46,15 +63,15 @@ export const StackRow: React.FC<StackRowProps> = ({ branch, onCheckout, onOpenPr
       onContextMenu={handleContextMenu}
     >
       <span className={styles.marker}>
-        <span className={[styles.dot, dotClass].filter(Boolean).join(' ')} />
+        <StackStatusIcon status={branch.pr.status} blocked={branch.pr.blockedDownstack} />
       </span>
       <div className={styles.content}>
-        <div className={styles.title}>{branch.pr.title}</div>
+        <div className={styles.titleLine}>
+          <span className={styles.title}>{branch.pr.title}</span>
+          {badge && <StackBadge kind={badge} />}
+        </div>
         <div className={styles.meta}>
-          <span>
-            #{branch.pr.number} · {branch.branch}
-          </span>
-          {branch.pr.draft && <span className={styles.draftBadge}>Draft</span>}
+          #{branch.pr.number} · {branch.branch}
         </div>
       </div>
       <button
