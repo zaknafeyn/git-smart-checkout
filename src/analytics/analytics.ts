@@ -24,6 +24,7 @@ export enum AnalyticsEvent {
   PrReviewWorktreeRemoved = 'pr_review_worktree_removed',
   WorktreeRemoved = 'worktree_removed',
   MultipleWorktreesRemoved = 'multiple_worktrees_removed',
+  WorktreesPruned = 'worktrees_pruned',
   CopyStagedChangesToWorktree = 'copy_staged_changes_to_worktree',
   CopyWipChangesToWorktree = 'copy_wip_changes_to_worktree',
   CopyWipChangesFromWorktree = 'copy_wip_changes_from_worktree',

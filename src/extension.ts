@@ -64,6 +64,7 @@ import { CleanupBranchesCommand } from './commands/cleanupBranchesCommand';
 import { RemovePRReviewInWorktreeCommand } from './commands/removePRReviewInWorktreeCommand';
 import { RemoveWorktreeCommand } from './commands/removeWorktreeCommand';
 import { RemoveMultipleWorktreesCommand } from './commands/removeMultipleWorktreesCommand';
+import { PruneWorktreesCommand } from './commands/pruneWorktreesCommand';
 import { refreshRemoveMultipleWorktreesVisibility } from './commands/utils/worktreeCommandVisibility';
 import { RebaseWithStashCommand } from './commands/rebaseWithStashCommand';
 import { PRReviewWorktreeStore } from './services/prReviewWorktreeStore';
@@ -451,6 +452,11 @@ export function activate(context: vscode.ExtensionContext) {
     removeMultipleWorktreesCommand,
     { mutatesWorktrees: true }
   );
+
+  const pruneWorktreesCommand = new PruneWorktreesCommand(logService, vscodeGitProvider);
+  commandManager.registerCommand(`${EXTENSION_NAME}.pruneWorktrees`, pruneWorktreesCommand, {
+    mutatesWorktrees: true,
+  });
 
   const openWorktreeDevTerminalCommand = new OpenWorktreeDevTerminalCommand(logService, vscodeGitProvider);
   commandManager.registerCommand(`${EXTENSION_NAME}.openWorktreeDevTerminal`, openWorktreeDevTerminalCommand);
