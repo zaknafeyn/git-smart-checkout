@@ -1,3 +1,10 @@
+# [0.18.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.17.0...v0.18.0) (2026-08-09)
+
+
+### Features
+
+* **worktrees:** add Prune Worktrees command ([#199](https://github.com/zaknafeyn/git-smart-checkout/issues/199)) ([8c62ea6](https://github.com/zaknafeyn/git-smart-checkout/commit/8c62ea6dcafeb3523ac980a200d84f267c351043)), closes [#198](https://github.com/zaknafeyn/git-smart-checkout/issues/198)
+
 # [0.17.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.16.1...v0.17.0) (2026-08-09)
 
 
