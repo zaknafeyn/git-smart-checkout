@@ -1,3 +1,15 @@
+# [0.19.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.18.0...v0.19.0) (2026-08-09)
+
+
+### Bug Fixes
+
+* **stacks:** resolve GitHub stack membership by checkout identity, not branch name ([#201](https://github.com/zaknafeyn/git-smart-checkout/issues/201)) ([fd3d513](https://github.com/zaknafeyn/git-smart-checkout/commit/fd3d5139c3745822c655713e1b52787021d44ef4))
+
+
+### Features
+
+* **cleanup:** detect squash-merged branches ([#195](https://github.com/zaknafeyn/git-smart-checkout/issues/195)) ([b599dcd](https://github.com/zaknafeyn/git-smart-checkout/commit/b599dcd1bcc0bbb7d6b9c2d8a89b1aa514f71d65)), closes [#189](https://github.com/zaknafeyn/git-smart-checkout/issues/189)
+
 # [0.18.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.17.0...v0.18.0) (2026-08-09)
 
 
