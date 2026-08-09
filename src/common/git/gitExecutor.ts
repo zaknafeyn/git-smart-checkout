@@ -664,6 +664,47 @@ export class GitExecutor {
     await this.#execGitCommand(['stash', 'drop', selector]);
   }
 
+  /** Name + status (`A`/`M`/`D`/…) for each file touched by a stash, including untracked files. */
+  async getStashFilesWithStatus(selector: string): Promise<Array<{ status: string; path: string }>> {
+    const { stdout } = await this.#execGitCommand([
+      'stash',
+      'show',
+      '--name-status',
+      '-z',
+      '--include-untracked',
+      '--format=',
+      selector,
+    ]);
+
+    return stdout
+      .split('\0')
+      .filter((entry) => entry.trim() !== '')
+      .map((entry) => {
+        const [status, ...pathParts] = entry.split('\t');
+        return { status: status.trim(), path: pathParts.join('\t') };
+      })
+      .filter((entry) => entry.path !== '');
+  }
+
+  /**
+   * `git show <rev>:<path>` — the content of `path` at `rev`. Returns
+   * `undefined` (rather than throwing) when the file doesn't exist at that
+   * revision, so callers can render the missing side of a diff as empty.
+   */
+  async getFileAtRev(rev: string, filePath: string): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.#execGitCommand(['show', `${rev}:${filePath}`]);
+      return stdout;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** `git stash branch <branchName> <selector>` — creates and checks out a new branch from a stash. */
+  async createBranchFromStash(branchName: string, selector: string): Promise<void> {
+    await this.#execGitCommand(['stash', 'branch', branchName, selector]);
+  }
+
   async getStashPatch(selector: string): Promise<string> {
     const includeUntrackedSupported = await this.#supportsStashShowIncludeUntracked();
 

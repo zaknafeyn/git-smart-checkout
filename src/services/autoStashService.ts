@@ -22,7 +22,13 @@ export class AutoStashService {
   constructor(
     private configManager: ConfigurationManager,
     private logService: LoggingService,
-    private onStashCarryingCheckoutSuccess?: () => void | Promise<void>
+    private onStashCarryingCheckoutSuccess?: () => void | Promise<void>,
+    /**
+     * Notified after every checkout/pull/rebase path that may have created, popped, or otherwise
+     * mutated a stash — shared with `StashService.onDidChangeStashes` so the Stashes tree view
+     * (and the auto-stash badge) refresh without polling for stashes created outside it.
+     */
+    private onStashesChanged?: () => void
   ) { }
 
   async getAutoStashMode(): Promise<TAutoStashMode | undefined> {
@@ -158,6 +164,7 @@ export class AutoStashService {
     }
 
     capture(event, { had_changes: isWorkdirHasChangesBeforeStash });
+    this.onStashesChanged?.();
   }
 
   async rebaseAndStashChanges(
@@ -172,6 +179,7 @@ export class AutoStashService {
     if (mode === AUTO_STASH_IGNORE) {
       await this.#doRebase(git, targetRef, vscodeGitProvider);
       capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
+      this.onStashesChanged?.();
       return;
     }
 
@@ -200,6 +208,7 @@ export class AutoStashService {
     }
 
     capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
+    this.onStashesChanged?.();
   }
 
   /**
@@ -332,6 +341,10 @@ export class AutoStashService {
       // Checkout happened, but the stash pop/apply conflicted and a rescue notification
       // was already shown in place of a generic error — tag instead of double-reporting success.
       capture(AnalyticsEvent.CheckoutToBranch, { stash_mode: autoStashMode, had_changes: isWorkdirHasChanges, stashConflict: true });
+    }
+
+    if (autoStashMode !== AUTO_STASH_IGNORE) {
+      this.onStashesChanged?.();
     }
 
     return outcome;
