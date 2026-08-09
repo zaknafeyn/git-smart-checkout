@@ -24,11 +24,13 @@
 .chip {
   all: unset;
   cursor: pointer;
-  padding: 2px 10px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-size: 12px;
-  background-color: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  background-color: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border);
 }
 
 .chip:hover {

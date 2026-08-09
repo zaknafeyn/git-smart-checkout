@@ -37,7 +37,8 @@ export interface StackIndicatorData {
    * the base they're aimed at.
    */
   orderedBranches: string[];
-  currentBranch: string;
+  /** Index into `orderedBranches` of the current checkout; -1 when it isn't a stack member (e.g. sitting on the target). */
+  currentIndex: number;
   /** The branch this stack is ultimately aimed at. */
   target: string;
   info: Map<string, StackBranchMeta>;
@@ -56,20 +57,16 @@ export interface StackPosition {
 }
 
 /**
- * Computes the current branch's 1-based position within its stack
- * (bottom = 1) and the stack's total size, from a bottom-to-top ordered
- * branch list. Returns undefined when the branch isn't in the list. Pure
+ * Computes the current checkout's 1-based position within its stack
+ * (bottom = 1) from its bottom-to-top index and the stack's total size.
+ * Returns undefined when `currentIndex` is -1 (not a stack member). Pure
  * and unit-testable.
  */
-export function computeStackPosition(
-  currentBranch: string,
-  orderedBottomToTop: string[]
-): StackPosition | undefined {
-  const index = orderedBottomToTop.indexOf(currentBranch);
-  if (index === -1) {
+export function computeStackPosition(currentIndex: number, size: number): StackPosition | undefined {
+  if (currentIndex === -1) {
     return undefined;
   }
-  return { position: index + 1, size: orderedBottomToTop.length };
+  return { position: currentIndex + 1, size };
 }
 
 /** Formats a stack position as e.g. "2/3". Pure. */
@@ -86,12 +83,16 @@ export interface StackIndicatorVisibilityInputs {
 
 /**
  * Whether the stack status bar indicator should be shown: stacks must be
- * enabled, the extension's status bar must be enabled, HEAD must not be
- * detached, and the current branch must actually be a member of a stack.
+ * enabled, the extension's status bar must be enabled, and the current
+ * checkout must actually be a member of a stack. Detached HEAD no longer
+ * excludes the badge on its own — a detached checkout can be matched to a
+ * stack member by its commit sha (`findGithubStackForCheckout`), so
+ * `isInStack` already carries the real signal. `isDetached` stays on the
+ * input shape for callers that still want it for logging/tooltip wording.
  * Pure and unit-testable.
  */
 export function shouldShowStackIndicator(inputs: StackIndicatorVisibilityInputs): boolean {
-  return inputs.stacksEnabled && inputs.showStatusBar && !inputs.isDetached && inputs.isInStack;
+  return inputs.stacksEnabled && inputs.showStatusBar && inputs.isInStack;
 }
 
 interface QuickActionItem extends QuickPickItem {
@@ -327,7 +328,7 @@ export class StatusBarManager implements Disposable {
       return;
     }
 
-    const position = computeStackPosition(data.currentBranch, data.orderedBranches);
+    const position = computeStackPosition(data.currentIndex, data.orderedBranches.length);
     if (!position) {
       this.stackStatusBarItem.hide();
       return;
@@ -337,10 +338,11 @@ export class StatusBarManager implements Disposable {
 
     const tooltipLines = [
       '**Stack**',
-      ...[...data.orderedBranches]
+      ...data.orderedBranches
+        .map((branch, index) => ({ branch, index }))
         .reverse() // top-down for the tooltip; orderedBranches is bottom-to-top, PR/stack branches only (target excluded).
-        .map((branch) => {
-          const marker = branch === data.currentBranch ? '→ ' : ' ';
+        .map(({ branch, index }) => {
+          const marker = index === data.currentIndex ? '→ ' : ' ';
           const meta = data.info.get(branch);
           const prPart = meta?.prNumber ? ` PR #${meta.prNumber}${meta.prTitle ? `: ${meta.prTitle}` : ''}` : '';
           return `${marker}${branch}${prPart}`;

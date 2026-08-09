@@ -248,28 +248,35 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   /**
-   * Refreshes the current branch's PR stack (GitHub PR chains, authoritative;
-   * the local ancestry heuristic only runs as an offline fallback — see
-   * `StackService`) and pushes the result to the Stacks webview and the
-   * status bar indicator. Never throws — detection failures (no GitHub
-   * remote/token, git errors) are swallowed so they can't break activation
-   * or command completion.
+   * Refreshes the current checkout's PR stack (GitHub's native Stacks API,
+   * matched by branch, PR-review worktree, HEAD sha, or upstream ref — see
+   * `findGithubStackForCheckout` in `StackService`) and pushes the result to
+   * the Stacks webview and the status bar indicator. Never throws —
+   * detection failures (no GitHub remote/token, git errors) are swallowed so
+   * they can't break activation or command completion. Guarded against
+   * out-of-order completion: activation, config-change, and debounced
+   * refreshes can all be in flight at once, and an older one finishing last
+   * must not clobber a newer view.
    */
+  let stackRefreshSequence = 0;
   const refreshStacks = async (): Promise<void> => {
+    const sequence = ++stackRefreshSequence;
     try {
       const result = await stackService.refresh();
+      if (sequence !== stackRefreshSequence) {
+        return;
+      }
       stackWebViewProvider.setStack(result.view);
       statusBarManager.setStackIndicator({
         isDetached: result.isDetached,
-        data:
-          result.view && result.currentBranch
-            ? {
-                orderedBranches: indicatorBranchesOf(result.view),
-                currentBranch: result.currentBranch,
-                target: result.view.target,
-                info: stackInfoMapOf(result.view),
-              }
-            : undefined,
+        data: result.view
+          ? {
+              orderedBranches: indicatorBranchesOf(result.view),
+              currentIndex: result.view.currentIndex,
+              target: result.view.target,
+              info: stackInfoMapOf(result.view),
+            }
+          : undefined,
       });
     } catch (error) {
       logService.warn(`Stack detection failed: ${error}`);
@@ -626,10 +633,22 @@ export function activate(context: vscode.ExtensionContext) {
       void refreshStacks();
     }, delayMs);
   };
+  // A checked-out-HEAD change (branch switch, PR-review checkout) should
+  // refresh the Stacks view promptly; ordinary working-tree churn (saves,
+  // stages) keeps the longer debounce so it doesn't spend API calls on
+  // every keystroke-driven git status update.
+  const currentHeadsSnapshot = (): string =>
+    (vscode.workspace.workspaceFolders ?? [])
+      .map((folder) => vscodeGitProvider?.getCurrentBranch(folder.uri.fsPath) ?? '')
+      .join('\x1f');
+  let lastStackHeadsSnapshot = currentHeadsSnapshot();
   const gitStateListener = vscodeGitProvider?.onDidChangeAnyRepositoryState(() => {
     worktreeTreeDataProvider.refreshDebounced();
     stashTreeDataProvider.refreshDebounced();
-    refreshStacksDebounced();
+    const heads = currentHeadsSnapshot();
+    const headChanged = heads !== lastStackHeadsSnapshot;
+    lastStackHeadsSnapshot = heads;
+    refreshStacksDebounced(headChanged ? 250 : 2000);
   });
 
   // Listen for configuration changes
@@ -662,6 +681,7 @@ export function activate(context: vscode.ExtensionContext) {
     windowStateListener,
     workspaceFoldersListener,
     ...(gitStateListener ? [gitStateListener] : []),
+    { dispose: () => clearTimeout(stackRefreshDebounceTimer) },
     telemetryChangeListener,
     statusBarManager,
     logService,

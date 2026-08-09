@@ -22,7 +22,10 @@ function pr(number: number, head: string, base: string): GitHubPR {
 }
 
 /** A GitHub-native stack fixture: `entries` bottom -> top, matching the Stacks API's own ordering. */
-function githubStack(target: string, entries: Array<{ number: number; head: string }>): GitHubStack {
+function githubStack(
+  target: string,
+  entries: Array<{ number: number; head: string; sha?: string }>
+): GitHubStack {
   return {
     id: 1,
     number: 1,
@@ -36,7 +39,7 @@ function githubStack(target: string, entries: Array<{ number: number; head: stri
       state: 'open',
       draft: false,
       merged_at: null,
-      head: { ref: e.head, sha: 'sha' },
+      head: { ref: e.head, sha: e.sha ?? 'sha' },
     })),
   };
 }
@@ -54,6 +57,8 @@ interface GitStubOptions {
   currentBranch?: string | (() => Promise<string>);
   repoInfo?: { owner: string; repo: string; host: string } | null;
   refs?: Array<{ name: string; remote?: string; isTag?: boolean; parsedUpstreamTrack?: [number, number] }>;
+  headSha?: string | (() => Promise<string>);
+  upstreamRef?: string;
 }
 
 function makeGitStub(options: GitStubOptions = {}): GitExecutor {
@@ -67,6 +72,13 @@ function makeGitStub(options: GitStubOptions = {}): GitExecutor {
     },
     getRepoInfo: async () => (options.repoInfo === undefined ? { owner: 'org', repo: 'repo', host: 'github.com' } : options.repoInfo),
     getAllRefListExtended: async () => options.refs ?? [],
+    revParse: async () => {
+      if (typeof options.headSha === 'function') {
+        return options.headSha();
+      }
+      return options.headSha ?? 'current-sha';
+    },
+    getUpstreamRef: async () => options.upstreamRef,
   } as unknown as GitExecutor;
 }
 
@@ -217,16 +229,67 @@ describe('StackService.refreshForRepo', () => {
     }
   });
 
-  it('reports isDetached when the current branch cannot be resolved', async () => {
+  it('reports no view and isDetached: false when the current branch cannot be resolved (a git failure, not detachment)', async () => {
     const service = new StackService(makeConfigManager(), mockLogService);
     const result = await service.refreshForRepo(
       makeGitStub({
-        currentBranch: () => Promise.reject(new Error('detached HEAD')),
+        currentBranch: () => Promise.reject(new Error('git error')),
       })
     );
 
-    assert.strictEqual(result.isDetached, true);
+    assert.strictEqual(result.isDetached, false);
     assert.strictEqual(result.view, undefined);
+  });
+
+  it('matches a detached HEAD sitting on a stack member commit by sha', async () => {
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target')],
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid', sha: 'commit-sha-12' }])]
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(
+        makeGitStub({ currentBranch: '', headSha: 'commit-sha-12' })
+      );
+
+      assert.strictEqual(result.isDetached, true);
+      assert.strictEqual(result.view?.branches[0]?.isCurrent, true);
+    } finally {
+      restore();
+    }
+  });
+
+  it('matches a PR-review worktree branch (pr/<n>-review) to its stack member by PR number', async () => {
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target'), pr(52, 'feat/top', 'feat/mid')],
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }, { number: 52, head: 'feat/top' }])]
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(makeGitStub({ currentBranch: 'pr/52-review' }));
+
+      assert.strictEqual(result.view?.branches[1]?.isCurrent, true);
+      assert.strictEqual(result.view?.currentIndex, 1);
+    } finally {
+      restore();
+    }
+  });
+
+  it('matches a renamed local branch by its upstream ref', async () => {
+    const restore = stubGithubClient(
+      async () => [pr(12, 'feat/mid', 'target')],
+      async () => [githubStack('target', [{ number: 12, head: 'feat/mid' }])]
+    );
+    try {
+      const service = new StackService(makeConfigManager(), mockLogService);
+      const result = await service.refreshForRepo(
+        makeGitStub({ currentBranch: 'my-rename', upstreamRef: 'feat/mid' })
+      );
+
+      assert.strictEqual(result.view?.branches[0]?.isCurrent, true);
+    } finally {
+      restore();
+    }
   });
 });
 

@@ -43,6 +43,12 @@ export function getReviewBranchName(prNumber: number): string {
   return `pr/${prNumber}-review`;
 }
 
+/** Parses the PR number out of a `pr/<n>-review` branch name, or undefined when it doesn't match. */
+export function parseReviewBranchName(branchName: string): number | undefined {
+  const match = /^pr\/(\d+)-review$/.exec(branchName);
+  return match ? Number(match[1]) : undefined;
+}
+
 interface ExistingReviewWorktree {
   worktreePath: string;
   branchName: string;
