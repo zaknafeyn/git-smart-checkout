@@ -141,6 +141,32 @@ export function parseStashNameStatusOutput(
   return entries;
 }
 
+/**
+ * Parses `git status --porcelain` (v1) output into the changed/untracked paths it reports.
+ * Each line is `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the
+ * destination. Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the
+ * surrounding quotes and the escapes git adds for `"` and `\` are undone so the path reads
+ * naturally in UI.
+ */
+export function parseStatusPorcelainPaths(output: string): string[] {
+  return output
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => {
+      const pathPart = line.slice(3).trimEnd();
+      const arrowIndex = pathPart.lastIndexOf(' -> ');
+      return unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+    })
+    .filter((path) => path.length > 0);
+}
+
+function unquoteStatusPath(path: string): string {
+  if (!path.startsWith('"') || !path.endsWith('"') || path.length < 2) {
+    return path;
+  }
+  return path.slice(1, -1).replace(/\\(["\\])/g, '$1');
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -752,11 +778,15 @@ export class GitExecutor {
     return dirtyFileCount !== 0;
   }
 
+  /** Paths of the changed/untracked files reported by `git status --porcelain`. */
+  async listDirtyFiles(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
+    return parseStatusPorcelainPaths(stdout);
+  }
+
   /** Number of changed/untracked files reported by `git status --porcelain`. */
   async getDirtyFileCount(): Promise<number> {
-    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
-    const trimmed = stdout.trim();
-    return trimmed.length === 0 ? 0 : trimmed.split('\n').length;
+    return (await this.listDirtyFiles()).length;
   }
 
   /** Subject and committer-timestamp (unix seconds) of `ref`'s tip commit. */
