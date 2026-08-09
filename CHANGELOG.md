@@ -1,3 +1,13 @@
+# [0.17.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.16.1...v0.17.0) (2026-08-09)
+
+
+### Features
+
+* **release:** add pre-release channel via odd/even minor versioning ([#197](https://github.com/zaknafeyn/git-smart-checkout/issues/197)) ([1700f41](https://github.com/zaknafeyn/git-smart-checkout/commit/1700f4157b617a3b7c68544fecbc4dc044581aa2)), closes [#193](https://github.com/zaknafeyn/git-smart-checkout/issues/193)
+* **stacks:** add stack detection and Stacks tree view ([#192](https://github.com/zaknafeyn/git-smart-checkout/issues/192)) ([d61054f](https://github.com/zaknafeyn/git-smart-checkout/commit/d61054f0d0a0166ee1c461333dc7070c78137994)), closes [#182](https://github.com/zaknafeyn/git-smart-checkout/issues/182)
+* **stashes:** add persistent Stashes tree view ([#196](https://github.com/zaknafeyn/git-smart-checkout/issues/196)) ([761ec09](https://github.com/zaknafeyn/git-smart-checkout/commit/761ec0925018ecb0acac10a4abb60444d3b2d7ee)), closes [#187](https://github.com/zaknafeyn/git-smart-checkout/issues/187)
+* **worktrees:** enrich Worktrees view with commit age, gone-upstream flag, stash marker, badge ([#194](https://github.com/zaknafeyn/git-smart-checkout/issues/194)) ([6059ef3](https://github.com/zaknafeyn/git-smart-checkout/commit/6059ef37bb076f957c3d96c51a8365043b3b9a96))
+
 ## [0.16.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.16.0...v0.16.1) (2026-08-07)
 
 
