@@ -128,6 +128,9 @@ export class ConfigurationManager {
       stacks: {
         enabled: vscodeConfig.get('stacks.enabled', true),
       },
+      cleanupBranches: {
+        detectSquashMerged: vscodeConfig.get('cleanupBranches.detectSquashMerged', true),
+      },
       stashes: {
         staleAfterDays: vscodeConfig.get('stashes.staleAfterDays', 7),
       },

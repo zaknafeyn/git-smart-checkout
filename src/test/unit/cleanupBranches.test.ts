@@ -7,9 +7,11 @@ import { QuickPickItemKind } from 'vscode';
 
 import {
   buildCleanupQuickPickItems,
+  buildConfirmDeletionMessage,
   buildRecoveryDocument,
   computeCleanupCandidates,
   ICleanupQuickPickItem,
+  IPrMergeInfo,
   summarizeDeletions,
   toSelectedCandidates,
 } from '../../commands/cleanupBranchesCommand/candidates';
@@ -70,6 +72,67 @@ describe('computeCleanupCandidates', () => {
     const candidates = computeCleanupCandidates(refs, new Set(['both']), new Set(), 'unrelated', 'main');
 
     assert.strictEqual(candidates[0].group, 'merged');
+  });
+
+  it('classifies a patch-equivalence squash-merged branch as "squashMerged"', () => {
+    const refs = [ref('squashed')];
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['squashed'])
+    );
+
+    assert.strictEqual(candidates[0].group, 'squashMerged');
+    assert.strictEqual(candidates[0].squashSource, 'patchEquivalence');
+  });
+
+  it('does not double-report an ancestor-merged (orphaned/empty) branch as squash-merged too', () => {
+    // Simulates an orphaned branch (tip === merge-base): getMergedBranches already
+    // reports it as merged, so it must never additionally show up via the
+    // patch-equivalence or PR-merge signals.
+    const refs = [ref('orphan')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([['orphan', { prNumber: 7, diverged: false }]]);
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(['orphan']),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['orphan']),
+      prMergeInfo
+    );
+
+    assert.strictEqual(candidates.length, 1);
+    assert.strictEqual(candidates[0].group, 'merged');
+  });
+
+  it('prefers GitHub PR-merge info over patch equivalence when both signals apply', () => {
+    const refs = [ref('feature')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([['feature', { prNumber: 42, diverged: false }]]);
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['feature']),
+      prMergeInfo
+    );
+
+    assert.strictEqual(candidates[0].squashSource, 'prMerged');
+    assert.strictEqual(candidates[0].prNumber, 42);
+  });
+
+  it('classifies a branch whose merged PR tip has diverged as "prDiverged"', () => {
+    const refs = [ref('feature')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([['feature', { prNumber: 42, diverged: true }]]);
+    const candidates = computeCleanupCandidates(refs, new Set(), new Set(), 'unrelated', 'main', new Set(), prMergeInfo);
+
+    assert.strictEqual(candidates[0].group, 'squashMerged');
+    assert.strictEqual(candidates[0].squashSource, 'prDiverged');
   });
 });
 
@@ -132,6 +195,100 @@ describe('buildCleanupQuickPickItems', () => {
       .map((item) => item.label);
 
     assert.deepStrictEqual(separatorLabels, ['Merged into main']);
+  });
+
+  it('pre-checks patch-equivalence and prMerged squash-merged items, but leaves prDiverged unchecked and still lists it', () => {
+    const refs = [ref('patch-squashed'), ref('pr-squashed'), ref('pr-diverged')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([
+      ['pr-squashed', { prNumber: 10, diverged: false }],
+      ['pr-diverged', { prNumber: 11, diverged: true }],
+    ]);
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['patch-squashed']),
+      prMergeInfo
+    );
+
+    const items = buildCleanupQuickPickItems(candidates, 'main') as ICleanupQuickPickItem[];
+    const byName = (name: string) => items.find((item) => item.candidate?.ref.name === name);
+
+    assert.strictEqual(byName('patch-squashed')?.picked, true);
+    assert.strictEqual(byName('pr-squashed')?.picked, true);
+    assert.strictEqual(byName('pr-diverged')?.picked, false);
+
+    // Still listed as a candidate, just unchecked.
+    assert.ok(byName('pr-diverged'));
+    assert.ok(byName('pr-diverged')?.description?.includes('diverged after merge'));
+  });
+
+  it('describes squash-merged items with their detection source', () => {
+    const refs = [ref('patch-squashed'), ref('pr-squashed')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([['pr-squashed', { prNumber: 99, diverged: false }]]);
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['patch-squashed']),
+      prMergeInfo
+    );
+
+    const items = buildCleanupQuickPickItems(candidates, 'main') as ICleanupQuickPickItem[];
+    const byName = (name: string) => items.find((item) => item.candidate?.ref.name === name);
+
+    assert.ok(byName('patch-squashed')?.description?.includes('squash-merged'));
+    assert.ok(byName('pr-squashed')?.description?.includes('PR #99 merged'));
+  });
+
+  it('groups squash-merged candidates under their own "Squash-merged" separator', () => {
+    const refs = [ref('merged-1'), ref('squashed'), ref('orphan', { upstreamTrack: '[gone]' })];
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(['merged-1']),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['squashed'])
+    );
+
+    const items = buildCleanupQuickPickItems(candidates, 'main');
+    const separatorLabels = items
+      .filter((item) => item.kind === QuickPickItemKind.Separator)
+      .map((item) => item.label);
+
+    assert.deepStrictEqual(separatorLabels, ['Merged into main', 'Squash-merged', 'Upstream deleted']);
+  });
+});
+
+describe('buildConfirmDeletionMessage', () => {
+  it('adds no extra line when nothing selected is patch-equivalence squash-merged', () => {
+    const candidates = computeCleanupCandidates([ref('merged-1')], new Set(['merged-1']), new Set(), 'unrelated', 'main');
+    const message = buildConfirmDeletionMessage(candidates);
+
+    assert.ok(!message.includes('squash-merged (verified by patch equivalence)'));
+  });
+
+  it('reports how many selected branches were verified squash-merged by patch equivalence', () => {
+    const refs = [ref('squashed-1'), ref('squashed-2'), ref('pr-merged')];
+    const prMergeInfo = new Map<string, IPrMergeInfo>([['pr-merged', { prNumber: 5, diverged: false }]]);
+    const candidates = computeCleanupCandidates(
+      refs,
+      new Set(),
+      new Set(),
+      'unrelated',
+      'main',
+      new Set(['squashed-1', 'squashed-2']),
+      prMergeInfo
+    );
+
+    const message = buildConfirmDeletionMessage(candidates);
+
+    assert.ok(message.includes('2 branches are squash-merged (verified by patch equivalence).'));
   });
 });
 
@@ -280,6 +437,81 @@ describe('GitExecutor.getMergedBranches', () => {
     assert.ok(merged.includes('merged-branch'));
     assert.ok(merged.includes('main'));
     assert.ok(!merged.includes('unmerged-branch'));
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('GitExecutor.isSquashMerged', () => {
+  function initRepo(prefix: string): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    execSync('git init -q -b main', { cwd: dir });
+    execSync('git config user.email "test@test.local"', { cwd: dir });
+    execSync('git config user.name "Test"', { cwd: dir });
+    return dir;
+  }
+
+  function writeAndCommit(dir: string, file: string, content: string, message: string) {
+    fs.writeFileSync(path.join(dir, file), content);
+    execSync(`git add ${file}`, { cwd: dir });
+    execSync(`git commit -q -m "${message}"`, { cwd: dir });
+  }
+
+  it('returns true for a branch whose changes were squash-merged into base', async () => {
+    const dir = initRepo('gsc-squash-true-');
+    writeAndCommit(dir, 'base.txt', 'a\n', 'init');
+
+    execSync('git checkout -q -b feature', { cwd: dir });
+    writeAndCommit(dir, 'feature.txt', 'feature line 1\n', 'feature commit 1');
+    writeAndCommit(dir, 'feature.txt', 'feature line 1\nfeature line 2\n', 'feature commit 2');
+
+    execSync('git checkout -q main', { cwd: dir });
+    // Simulate GitHub's squash merge: a single new commit on main with the
+    // combined diff, no merge commit, no ancestry link back to `feature`.
+    execSync('git merge -q --squash feature', { cwd: dir });
+    execSync('git commit -q -m "Squash merge feature (#1)"', { cwd: dir });
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    assert.strictEqual(await git.isSquashMerged('main', 'feature'), true);
+    // Sanity check: git's own ancestry check does NOT see this as merged.
+    assert.ok(!(await git.getMergedBranches('main')).includes('feature'));
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns false for a branch with an extra unmerged commit on top of a squash-merged base', async () => {
+    const dir = initRepo('gsc-squash-false-');
+    writeAndCommit(dir, 'base.txt', 'a\n', 'init');
+
+    execSync('git checkout -q -b feature', { cwd: dir });
+    writeAndCommit(dir, 'feature.txt', 'feature line 1\n', 'feature commit 1');
+
+    execSync('git checkout -q main', { cwd: dir });
+    execSync('git merge -q --squash feature', { cwd: dir });
+    execSync('git commit -q -m "Squash merge feature (#1)"', { cwd: dir });
+
+    // Branch keeps going after the squash merge landed — its combined patch no
+    // longer matches what's in base.
+    execSync('git checkout -q feature', { cwd: dir });
+    writeAndCommit(dir, 'feature.txt', 'feature line 1\nunmerged addition\n', 'unmerged follow-up');
+    execSync('git checkout -q main', { cwd: dir });
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    assert.strictEqual(await git.isSquashMerged('main', 'feature'), false);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns false for a branch that was never merged at all', async () => {
+    const dir = initRepo('gsc-squash-unmerged-');
+    writeAndCommit(dir, 'base.txt', 'a\n', 'init');
+
+    execSync('git checkout -q -b feature', { cwd: dir });
+    writeAndCommit(dir, 'feature.txt', 'never merged\n', 'feature commit');
+    execSync('git checkout -q main', { cwd: dir });
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    assert.strictEqual(await git.isSquashMerged('main', 'feature'), false);
+
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

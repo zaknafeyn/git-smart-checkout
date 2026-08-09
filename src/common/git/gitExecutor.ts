@@ -1077,6 +1077,39 @@ export class GitExecutor {
     return stdout.split('\n').map((line) => line.replace(/^\s*[*+]\s*/, '').trim()).filter(Boolean);
   }
 
+  /**
+   * Detects whether `branch` was squash- (or rebase-) merged into `base`,
+   * which `git branch --merged` can't see since the merge rewrote history
+   * instead of fast-forwarding/recording a merge commit. Uses the
+   * `git-delete-squashed` patch-equivalence technique: build a synthetic
+   * commit combining every change on `branch` since it diverged from `base`,
+   * then ask `git cherry` whether that combined patch already exists on
+   * `base` ("-" prefix means yes).
+   *
+   * Three fast local plumbing calls — no network access.
+   */
+  async isSquashMerged(base: string, branch: string): Promise<boolean> {
+    const { stdout: mergeBaseOut } = await this.#execGitCommand(['merge-base', base, branch]);
+    const mergeBase = mergeBaseOut.trim();
+
+    const { stdout: treeOut } = await this.#execGitCommand(['rev-parse', `${branch}^{tree}`]);
+    const tree = treeOut.trim();
+
+    const { stdout: syntheticCommitOut } = await this.#execGitCommand([
+      'commit-tree',
+      tree,
+      '-p',
+      mergeBase,
+      '-m',
+      '_',
+    ]);
+    const syntheticCommit = syntheticCommitOut.trim();
+
+    const { stdout: cherryOut } = await this.#execGitCommand(['cherry', base, syntheticCommit]);
+    const line = cherryOut.split('\n').find((entry) => entry.trim().length > 0);
+    return !!line && line.trimStart().startsWith('-');
+  }
+
   async getDefaultBranch(): Promise<string> {
     try {
       const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
