@@ -48,6 +48,10 @@ export interface StacksConfig {
   enabled: boolean;
 }
 
+export interface CleanupBranchesConfig {
+  detectSquashMerged: boolean;
+}
+
 export interface StashesConfig {
   /** Days after which a stash is flagged "stale" in the Stashes tree. 0 disables staleness. */
   staleAfterDays: number;
@@ -87,6 +91,7 @@ export interface ExtensionConfig {
   branchTemplates: NamedTemplate[];
   jira: JiraConfig;
   stacks: StacksConfig;
+  cleanupBranches: CleanupBranchesConfig;
   stashes: StashesConfig;
 }
 

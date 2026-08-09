@@ -156,12 +156,21 @@ export class AutoStashService {
     }
 
     if (isWorkdirHasChangesBeforeStash) {
-      const isWorkdirHasChanges = await git.isWorkdirHasChanges();
-      if (isWorkdirHasChanges) {
-        await git.resetLocalChanges();
+      try {
+        await git.popStash(stashMessage, false, stashHash);
+      } catch (e) {
+        const conflicts = await git.getConflictedFiles();
+        if (conflicts.length > 0) {
+          // The pull/rebase left tracked changes in the tree that overlap the stash. Git's
+          // `stash pop` already leaves the stash intact when the pop itself conflicts, so
+          // route to the same rescue flow used elsewhere instead of wiping the tree.
+          await offerConflictRescue(git, conflicts, 'pop');
+          capture(event, { had_changes: isWorkdirHasChangesBeforeStash, stashConflict: true });
+          this.onStashesChanged?.();
+          return;
+        }
+        throw e;
       }
-
-      await git.popStash(stashMessage, false, stashHash);
     }
 
     capture(event, { had_changes: isWorkdirHasChangesBeforeStash });
@@ -202,11 +211,21 @@ export class AutoStashService {
     }
 
     if (isWorkdirHasChanges) {
-      const hasChangesAfterRebase = await git.isWorkdirHasChanges();
-      if (hasChangesAfterRebase) {
-        await git.resetLocalChanges();
+      try {
+        await git.popStash(stashMessage, false, stashHash);
+      } catch (e) {
+        const conflicts = await git.getConflictedFiles();
+        if (conflicts.length > 0) {
+          // The rebase left tracked changes in the tree that overlap the stash. Git's
+          // `stash pop` already leaves the stash intact when the pop itself conflicts, so
+          // route to the same rescue flow used elsewhere instead of wiping the tree.
+          await offerConflictRescue(git, conflicts, 'pop');
+          capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges, stashConflict: true });
+          this.onStashesChanged?.();
+          return;
+        }
+        throw e;
       }
-      await git.popStash(stashMessage, false, stashHash);
     }
 
     capture(AnalyticsEvent.RebaseWithStash, { stash_mode: mode, had_changes: isWorkdirHasChanges });
