@@ -311,13 +311,13 @@
       {
         "command": "git-smart-checkout.stash.apply",
         "title": "Apply",
-        "icon": "$(files)",
+        "icon": "$(git-stash-apply)",
         "category": "GSC"
       },
       {
         "command": "git-smart-checkout.stash.pop",
         "title": "Pop",
-        "icon": "$(move)",
+        "icon": "$(git-stash-pop)",
         "category": "GSC"
       },
       {

@@ -115,6 +115,32 @@ export function parseStashFilesOutput(output: string): string[] {
   return output.split('\0').filter((file) => file.length > 0);
 }
 
+/**
+ * Parses `--name-status -z` output. Under `-z` git separates the status from the path with a NUL
+ * (not a tab), so the stream is a flat run of alternating fields: `M\0a.txt\0D\0b.txt\0`. Rename
+ * and copy statuses (`R100`, `C75`) carry *two* paths — source then destination — and we report the
+ * destination, which is the path that exists once the stash is applied.
+ */
+export function parseStashNameStatusOutput(
+  output: string
+): Array<{ status: string; path: string }> {
+  const fields = output.split('\0').filter((field) => field.length > 0);
+  const entries: Array<{ status: string; path: string }> = [];
+
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    const takesTwoPaths = status.startsWith('R') || status.startsWith('C');
+    const path = takesTwoPaths ? fields[i + 1] : fields[i];
+    i += takesTwoPaths ? 2 : 1;
+
+    if (path) {
+      entries.push({ status, path });
+    }
+  }
+
+  return entries;
+}
+
 export function parseWorktreeListPorcelain(output: string): IGitWorktree[] {
   const worktrees: IGitWorktree[] = [];
   let current: IGitWorktree | undefined;
@@ -676,14 +702,7 @@ export class GitExecutor {
       selector,
     ]);
 
-    return stdout
-      .split('\0')
-      .filter((entry) => entry.trim() !== '')
-      .map((entry) => {
-        const [status, ...pathParts] = entry.split('\t');
-        return { status: status.trim(), path: pathParts.join('\t') };
-      })
-      .filter((entry) => entry.path !== '');
+    return parseStashNameStatusOutput(stdout);
   }
 
   /**
