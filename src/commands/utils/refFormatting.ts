@@ -41,9 +41,11 @@ export const getRefDescription = (ref: IGitRef) => {
   const formattedDateDistance = ref.committerDate
     ? formatDistanceToNow(Number(ref.committerDate) * 1000, { addSuffix: true })
     : null;
-  const upstream = ref.parsedUpstreamTrack
+  const upstream = Array.isArray(ref.parsedUpstreamTrack)
     ? `${ICON_ARROW_UP}${ref.parsedUpstreamTrack[0]} ${ICON_ARROW_DOWN}${ref.parsedUpstreamTrack[1]}`
-    : null;
+    : ref.parsedUpstreamTrack === 'gone'
+      ? '⚑ gone'
+      : null;
 
   return [upstream, formattedDateDistance]
     .filter((part): part is string => !!part && part.length > 0)

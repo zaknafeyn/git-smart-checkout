@@ -1,24 +1,35 @@
 import * as os from 'os';
 import * as path from 'path';
+import { formatDistanceToNow } from 'date-fns';
 import * as vscode from 'vscode';
 import { GitExecutor } from '../common/git/gitExecutor';
-import { IGitWorktree, TUpstreamTrack } from '../common/git/types';
+import { IGitStash, IGitWorktree, TUpstreamTrack } from '../common/git/types';
 import { LoggingService } from '../logging/loggingService';
 import { PRReviewWorktreeStore } from '../services/prReviewWorktreeStore';
 import { VscodeGitProvider } from '../common/git/vscodeGitProvider';
 import { resolveGitRepositoryRoot } from '../utils/getGitExecutor';
+import { AUTO_STASH_PREFIX } from '../commands/checkoutToCommand/constants';
 
 export interface WorktreeEnrichment {
   isDirty: boolean;
   dirtyFileCount: number;
   track?: TUpstreamTrack;
   isPrReview: boolean;
+  lastCommit?: { subject: string; timestamp: number };
+  autoStashTimestamp?: number;
+}
+
+/** True when `stash` is the auto-stash created for `branch` by `AutoStashService`. */
+function isAutoStashForBranch(stash: IGitStash, branch: string): boolean {
+  const prefix = `${AUTO_STASH_PREFIX}-${branch}`;
+  return stash.message === prefix || stash.message.startsWith(`${prefix}-`);
 }
 
 export class WorktreeTreeItem extends vscode.TreeItem {
   public readonly branch: string | undefined;
   public readonly isMain: boolean;
   public readonly isDetached: boolean;
+  public isDirty = false;
 
   constructor(
     public readonly worktree: IGitWorktree,
@@ -41,15 +52,25 @@ export class WorktreeTreeItem extends vscode.TreeItem {
 
   /** Updates description, tooltip, icon and contextValue from freshly-loaded state. */
   applyEnrichment(enrichment?: WorktreeEnrichment): void {
+    this.isDirty = Boolean(enrichment?.isDirty);
+    const isGone = enrichment?.track === 'gone';
     const shortened = this.worktree.path.startsWith(os.homedir())
       ? `~${this.worktree.path.slice(os.homedir().length)}`
       : this.worktree.path;
-    const arrows = enrichment?.track ? `⇡${enrichment.track[0]} ⇣${enrichment.track[1]}` : '';
+    const arrows = Array.isArray(enrichment?.track)
+      ? `⇡${enrichment.track[0]} ⇣${enrichment.track[1]}`
+      : '';
+    const lastCommitAge = enrichment?.lastCommit
+      ? formatDistanceToNow(enrichment.lastCommit.timestamp * 1000)
+      : '';
     this.description = [
       shortened,
       arrows,
+      isGone ? '⚑ upstream gone' : '',
       enrichment?.isDirty ? '●' : '',
+      enrichment?.autoStashTimestamp !== undefined ? '$(archive)' : '',
       enrichment?.isPrReview ? 'PR review' : '',
+      lastCommitAge,
     ]
       .filter(Boolean)
       .join(' ');
@@ -57,16 +78,26 @@ export class WorktreeTreeItem extends vscode.TreeItem {
     const lines = [
       this.worktree.path,
       this.branch ? `Branch: ${this.branch}` : 'Detached HEAD',
-      enrichment?.track
+      Array.isArray(enrichment?.track)
         ? `Upstream: ⇡${enrichment.track[0]} ahead, ⇣${enrichment.track[1]} behind`
-        : 'Upstream: none',
+        : isGone
+          ? 'Upstream: gone (remote branch deleted)'
+          : 'Upstream: none',
       enrichment
         ? `Dirty files: ${enrichment.dirtyFileCount}`
         : 'Dirty files: (loading...)',
       this.isMain ? 'Source: main worktree' : 'Source: linked worktree',
     ];
+    if (enrichment?.lastCommit) {
+      const age = formatDistanceToNow(enrichment.lastCommit.timestamp * 1000, { addSuffix: true });
+      lines.push(`Last commit: ${enrichment.lastCommit.subject} (${age})`);
+    }
     if (enrichment?.isPrReview) {
       lines.push('Tracked as a PR-review worktree');
+    }
+    if (enrichment?.autoStashTimestamp !== undefined) {
+      const age = formatDistanceToNow(enrichment.autoStashTimestamp * 1000, { addSuffix: true });
+      lines.push(`Auto-stash waiting (from ${age})`);
     }
     this.tooltip = lines.join('\n');
 
@@ -78,6 +109,9 @@ export class WorktreeTreeItem extends vscode.TreeItem {
       tags.push(enrichment.isDirty ? 'dirty' : 'clean');
       if (enrichment.isPrReview) {
         tags.push('prReview');
+      }
+      if (isGone) {
+        tags.push('gone');
       }
     }
     this.contextValue = tags.join(' ');
@@ -112,7 +146,8 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
   constructor(
     private readonly logService: LoggingService,
     private readonly store: PRReviewWorktreeStore,
-    private readonly vscodeGitProvider?: VscodeGitProvider
+    private readonly vscodeGitProvider?: VscodeGitProvider,
+    private readonly onDirtyCountChanged?: (dirtyWorktreeCount: number) => void
   ) {}
 
   getTreeItem(item: WorktreeNode): vscode.TreeItem {
@@ -186,6 +221,12 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
         const git = new GitExecutor(repositoryPath, this.logService, this.vscodeGitProvider);
         const worktrees = await git.worktreeListDetailed(true);
         const visibleWorktrees = worktrees.filter((item) => !item.bare && !item.prunable);
+        // Fetched once per repository (not per worktree) and shared by every
+        // enrichment task below, since stashes aren't worktree-scoped.
+        const stashesPromise = git.listStashes().catch((error) => {
+          this.logService.warn(`Failed to list stashes for ${repositoryPath}: ${error}`);
+          return [] as IGitStash[];
+        });
 
         visibleWorktrees.forEach((worktree, index) => {
           // git worktree list always reports the main worktree first.
@@ -196,7 +237,7 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
           repoItems.push(item);
           grouped.set(repositoryPath, repoItems);
 
-          enrichmentTasks.push(() => this.enrichItem(item, git, repositoryPath));
+          enrichmentTasks.push(() => this.enrichItem(item, git, repositoryPath, stashesPromise));
         });
       } catch (error) {
         this.logService.warn(`Failed to load worktrees for ${folder.uri.fsPath}: ${error}`);
@@ -210,30 +251,41 @@ export class WorktreeTreeDataProvider implements vscode.TreeDataProvider<Worktre
     this.loaded = true;
 
     // Fire-and-forget: enrichment must not block the initial render.
-    void Promise.all(enrichmentTasks.map((task) => task()));
+    void Promise.all(enrichmentTasks.map((task) => task())).then(() => {
+      this.onDirtyCountChanged?.(this.items.filter((item) => item.isDirty).length);
+    });
   }
 
   private async enrichItem(
     item: WorktreeTreeItem,
     git: GitExecutor,
-    repositoryPath: string
+    repositoryPath: string,
+    stashesPromise: Promise<IGitStash[]>
   ): Promise<void> {
     try {
-      const [dirtyFileCount, refs, reviews] = await Promise.all([
-        new GitExecutor(item.worktree.path, this.logService, this.vscodeGitProvider).getDirtyFileCount(),
+      const worktreeGit = new GitExecutor(item.worktree.path, this.logService, this.vscodeGitProvider);
+      const [dirtyFileCount, refs, reviews, lastCommit, stashes] = await Promise.all([
+        worktreeGit.getDirtyFileCount(),
         git.getAllRefListExtended(),
         this.store.getForRepository({ repoKey: repositoryPath, repositoryPath }),
+        worktreeGit.getLastCommitInfo('HEAD'),
+        stashesPromise,
       ]);
       const ref = item.branch ? refs.find((entry) => !entry.remote && entry.name === item.branch) : undefined;
       const isPrReview = reviews.some(
         (review) => path.resolve(review.worktreePath) === path.resolve(item.worktree.path)
       );
+      const autoStash = item.branch
+        ? stashes.find((stash) => isAutoStashForBranch(stash, item.branch as string))
+        : undefined;
 
       item.applyEnrichment({
         isDirty: dirtyFileCount !== 0,
         dirtyFileCount,
         track: ref?.parsedUpstreamTrack,
         isPrReview,
+        lastCommit,
+        autoStashTimestamp: autoStash?.timestamp,
       });
     } catch (error) {
       this.logService.warn(`Failed to enrich worktree ${item.worktree.path}: ${error}`);

@@ -132,7 +132,7 @@ export class StackService {
       const refs = await git.getAllRefListExtended();
       const ref = refs.find((entry: IGitRef) => !entry.remote && !entry.isTag && entry.name === branch);
       const track = ref?.parsedUpstreamTrack;
-      return track ? { ahead: track[0], behind: track[1] } : undefined;
+      return Array.isArray(track) ? { ahead: track[0], behind: track[1] } : undefined;
     } catch (error) {
       this.logService.warn(`Failed to compute ahead/behind for ${branch}: ${error}`);
       return undefined;
