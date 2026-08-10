@@ -24,6 +24,8 @@ interface IServiceStore {
   createdBranchName?: string;
   stashMessage?: string;
   originalPrData?: PrCloneData;
+  /** Whether the working tree had uncommitted changes at the start of the clone. */
+  hadUncommittedChanges?: boolean;
 }
 
 /** Key used to persist an in-progress in-place clone operation so it can survive a window reload/crash. */
@@ -206,10 +208,27 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       if (this.serviceStore.createdBranchName) {
-        try {
-          await this.git.reset(true);
-        } catch (error) {
-          this.loggingService.warn(`Failed to reset working directory: ${error}`);
+        // A hard reset is only safe when there's nothing uncommitted to lose: either the
+        // uncommitted changes were actually stashed, or the tree was already clean at the
+        // start of the clone. If uncommitted changes exist that were never safely stashed
+        // (e.g. `createStash` itself failed), skip the destructive reset so we don't wipe
+        // the user's work — the checkout/branch-delete cleanup below still runs.
+        const safeToHardReset =
+          Boolean(this.serviceStore.stashMessage) || !this.serviceStore.hadUncommittedChanges;
+
+        if (safeToHardReset) {
+          try {
+            await this.git.reset(true);
+          } catch (error) {
+            this.loggingService.warn(`Failed to reset working directory: ${error}`);
+          }
+        } else {
+          this.loggingService.warn(
+            'Skipping hard reset during clone cleanup: uncommitted changes exist that were never stashed. Your working tree changes are preserved.'
+          );
+          await window.showWarningMessage(
+            'PR clone cleanup: your uncommitted changes could not be safely stashed, so they were left in your working tree instead of being discarded.'
+          );
         }
       }
 
@@ -302,6 +321,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       updateProgress.report({ message: 'Checking for uncommitted changes...' });
 
       const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
+      this.serviceStore.hadUncommittedChanges = hasUncommittedChanges;
       if (hasUncommittedChanges) {
         this.serviceStore.stashMessage = getStashMessage(this.serviceStore.originalBranch, true);
         this.loggingService.info(`Stashing uncommitted changes: ${this.serviceStore.stashMessage}`);
@@ -310,8 +330,13 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
           await this.git.createStash(this.serviceStore.stashMessage);
           this.loggingService.info('Changes stashed successfully');
         } catch (error) {
-          this.loggingService.warn(`Failed to stash changes: ${error}`);
           this.serviceStore.stashMessage = undefined;
+          // Continuing here would leave the tree dirty with no safety net: a later failure
+          // routes to cleanup, which could otherwise hard-reset and destroy this work. Abort
+          // the clone immediately instead, before anything else (fetch, branch creation) happens.
+          throw new Error(
+            `Failed to stash your uncommitted changes (${error}). The PR clone was aborted to protect your working tree. Commit or stash manually and retry.`
+          );
         }
       }
 

@@ -166,6 +166,61 @@ describe('PrCloneInPlaceService error recovery', () => {
     );
     assert.strictEqual(service.reportedErrors.length, 2);
   });
+
+  it('aborts before fetching and never hard-resets when stash creation fails on a dirty tree', async () => {
+    const events: string[] = [];
+    const stashError = new Error('index locked');
+
+    const git = {
+      getCurrentBranch: async () => {
+        events.push('get-current-branch');
+        return 'original';
+      },
+      isWorkdirHasChanges: async () => true,
+      createStash: async (message: string) => {
+        events.push(`stash-attempt:${message}`);
+        throw stashError;
+      },
+      fetchPullRequestHead: async () => {
+        events.push('fetch');
+      },
+      checkout: async (branch: string) => {
+        events.push(`checkout:${branch}`);
+      },
+      isCherryPickInProgress: async () => false,
+      reset: async () => {
+        events.push('reset');
+      },
+      deleteLocalBranch: async (branch: string) => {
+        events.push(`delete:${branch}`);
+      },
+    } as unknown as GitExecutor;
+
+    const service = new TestPrCloneInPlaceService(git, {} as GitHubClient, mockLogService);
+
+    await assert.rejects(service.clonePR(cloneData), (error: unknown) => {
+      assert.ok(error instanceof PrCloneReportedError);
+      assert.ok(
+        error.originalError instanceof Error &&
+          error.originalError.message.includes('Failed to stash your uncommitted changes')
+      );
+      return true;
+    });
+
+    // The clone must abort right after the failed stash attempt, before ever fetching the
+    // PR's commits, and cleanup must never hard-reset since no stash was actually created.
+    assert.ok(
+      events.some((event) => event.startsWith('stash-attempt:')),
+      'a stash attempt must have been made'
+    );
+    assert.ok(!events.includes('fetch'), 'fetch must never run after a failed stash');
+    assert.ok(!events.includes('reset'), 'hard reset must never run when changes were never stashed');
+    assert.strictEqual(service.reportedErrors.length, 1);
+    assert.ok(
+      String(service.reportedErrors[0]).includes('Failed to stash your uncommitted changes'),
+      'the reported error should explain the abort'
+    );
+  });
 });
 
 describe('PrCloneWebViewProvider clone state recovery', () => {
