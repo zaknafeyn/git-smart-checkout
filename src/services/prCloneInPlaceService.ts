@@ -84,10 +84,38 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     }
 
     if (isContinue) {
+      const unresolvedConflicts = await this.git.getUnresolvedConflicts();
+      if (unresolvedConflicts.length > 0) {
+        await window.showWarningMessage(
+          `Cannot continue: the following files still have unresolved conflicts:\n${unresolvedConflicts.join('\n')}`,
+          { modal: true }
+        );
+        return;
+      }
+
       if (await this.git.isWorkdirHasChanges()) {
         await this.git.cherryPickContinue();
       } else {
-        await this.git.cherryPickSkip();
+        // The conflict resolution collapsed to no diff against HEAD — cherry-pick --continue
+        // would fail ("previous cherry-pick is now empty"). Never decide silently: ask the user.
+        const skipOption = 'Skip this commit';
+        const emptyOption = 'Keep as empty commit';
+        const abortOption = 'Abort clone';
+        const choice = await window.showQuickPick([skipOption, emptyOption, abortOption], {
+          placeHolder:
+            'Resolving the conflict produced no changes. What should happen to this commit?',
+          ignoreFocusOut: true,
+        });
+
+        if (choice === emptyOption) {
+          await this.git.commitAllowEmpty();
+        } else if (choice === skipOption) {
+          await this.git.cherryPickSkip();
+        } else {
+          // 'Abort clone' or dismissed (Escape) — never silently skip or continue.
+          await this.abortClonePR();
+          return;
+        }
       }
     }
 
