@@ -159,6 +159,8 @@ describe('checkForInterruptedPrClone activation flow', () => {
     return {
       repoPath: '/repo',
       originalBranch: 'original',
+      originalRef: 'original',
+      isDetached: false,
       createdBranchName: 'feature/clone',
       stashMessage: undefined,
       remainingShas: ['c2'],

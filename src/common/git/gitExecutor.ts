@@ -634,6 +634,11 @@ export class GitExecutor {
     return stdout.trim();
   }
 
+  async getHeadCommit() {
+    const { stdout } = await this.#execGitCommand(['rev-parse', 'HEAD']);
+    return stdout.trim();
+  }
+
   async listRemotes(): Promise<Array<{ name: string; fetchUrl: string; pushUrl: string }>> {
     const { stdout } = await this.#execGitCommand(['remote', '-v']);
     const remotes = new Map<string, { name: string; fetchUrl: string; pushUrl: string }>();
