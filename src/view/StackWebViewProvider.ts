@@ -102,6 +102,28 @@ export class StackWebViewProvider implements WebviewViewProvider, Disposable {
     }
   }
 
+  /** Whether the view is currently on screen (resolved, expanded, and not covered by another container). */
+  public get isViewVisible(): boolean {
+    return this.webviewView?.visible ?? false;
+  }
+
+  /**
+   * Reveals the view through its own webview handle, without going through the
+   * workbench-generated `<viewId>.focus` command. Returns false when the view
+   * has never been resolved — a view that has never been on screen has no
+   * handle to show. Backs the status bar stack indicator's click (see
+   * `revealView`).
+   */
+  public reveal(preserveFocus = false): boolean {
+    if (!this.webviewView) {
+      return false;
+    }
+
+    this.webviewView.show(preserveFocus);
+
+    return true;
+  }
+
   /** Pushes a freshly-refreshed stack (or `undefined` when not stacked) to the webview. */
   public setStack(view: StackView | undefined): void {
     this.stack = view;
