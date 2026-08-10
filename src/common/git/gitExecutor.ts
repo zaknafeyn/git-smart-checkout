@@ -1108,8 +1108,8 @@ export class GitExecutor {
     await this.#execGitCommand(['tag', '-d', name]);
   }
 
-  async pushSetUpstream(branch: string): Promise<void> {
-    await this.#execGitCommand(['push', '-u', 'origin', branch]);
+  async pushSetUpstream(branch: string, remote = 'origin'): Promise<void> {
+    await this.#execGitCommand(['push', '-u', remote, branch]);
   }
 
   async getMergedBranches(base: string): Promise<string[]> {
@@ -1150,11 +1150,24 @@ export class GitExecutor {
     return !!line && line.trimStart().startsWith('-');
   }
 
-  async getDefaultBranch(): Promise<string> {
+  async getDefaultBranch(remote = 'origin'): Promise<string> {
     try {
-      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
-      return stdout.trim().replace(/^origin\//, '');
+      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', `refs/remotes/${remote}/HEAD`]);
+      return stdout.trim().replace(new RegExp(`^${remote}/`), '');
     } catch {
+      // The symbolic ref is only populated after an explicit `git remote set-head`
+      // (or a clone that set it up); many repos never have it. `git remote show`
+      // asks the remote directly for its HEAD branch instead.
+      try {
+        const { stdout } = await this.#execGitCommand(['remote', 'show', remote]);
+        const match = stdout.match(/HEAD branch:\s*(\S+)/);
+        if (match && match[1] && match[1] !== '(unknown)') {
+          return match[1];
+        }
+      } catch {
+        // Remote unreachable or doesn't exist — fall through to local guesses.
+      }
+
       const refs = await this.getAllRefListExtended();
       if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'main')) return 'main';
       if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'master')) return 'master';
