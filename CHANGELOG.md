@@ -1,3 +1,10 @@
+## [0.19.3](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.2...v0.19.3) (2026-08-10)
+
+
+### Bug Fixes
+
+* **stacks:** stop status bar indicator failing with "command not found" ([#221](https://github.com/zaknafeyn/git-smart-checkout/issues/221)) ([504ed76](https://github.com/zaknafeyn/git-smart-checkout/commit/504ed7661f01ede8979f22ad7963996387b6cbc1))
+
 ## [0.19.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.1...v0.19.2) (2026-08-10)
 
 
