@@ -509,7 +509,8 @@ export class GitExecutor {
     };
   }
 
-  async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked') {
+  /** Creates a stash and returns its commit hash, so callers can later verify they pop the same stash (see `popStash`). */
+  async createStash(stashName: string, include: 'all' | 'untracked' | 'none' = 'untracked'): Promise<string> {
     const args = [
       'stash', 'push', '-m', stashName,
       ...(include === 'all' ? ['-a'] : []),
@@ -521,6 +522,9 @@ export class GitExecutor {
     if (stdout.includes('No local changes to save')) {
       throw new Error('No local changes to save');
     }
+
+    const { stdout: hashOut } = await this.#execGitCommand(['rev-parse', 'stash@{0}']);
+    return hashOut.trim();
   }
 
   async resetLocalChanges() {
@@ -684,7 +688,14 @@ export class GitExecutor {
     await this.#execGitCommand(['rebase', target]);
   }
 
-  async popStash(stashName: string, apply = false) {
+  /**
+   * Pops (or applies) the stash named `stashName`. A stash message alone is not a reliable
+   * selector — two auto-stashes can share a derived message, or a stash can be created/removed
+   * elsewhere between listing and acting — so when `expectedHash` is supplied, the resolved
+   * `stash@{N}` selector is re-verified against it via `resolveStashSelector` before acting.
+   * If the hash can't be matched to any stash, this throws instead of popping a guess.
+   */
+  async popStash(stashName: string, apply = false, expectedHash?: string) {
     // Get the list of stashes
     const { stdout: stdoutGitStashList } = await this.#execGitCommand(['--no-pager', 'stash', 'list', '--format=%gs']);
 
@@ -708,8 +719,20 @@ export class GitExecutor {
       throw new Error(`No stash found`);
     }
 
+    let selector = `stash@{${stashIndex}}`;
+
+    if (expectedHash) {
+      try {
+        selector = await this.resolveStashSelector(selector, expectedHash);
+      } catch {
+        throw new Error(
+          `Could not verify the stash "${stashName}" — its expected commit no longer matches any stash. Refusing to pop a different stash.`
+        );
+      }
+    }
+
     // Pop the stash
-    await this.#execGitCommand(['stash', apply ? 'apply' : 'pop', `stash@{${stashIndex}}`]);
+    await this.#execGitCommand(['stash', apply ? 'apply' : 'pop', selector]);
   }
 
   async listStashes(): Promise<IGitStash[]> {

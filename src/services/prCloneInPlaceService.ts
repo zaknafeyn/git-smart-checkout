@@ -27,6 +27,7 @@ interface IServiceStore {
   isDetached?: boolean;
   createdBranchName?: string;
   stashMessage?: string;
+  stashHash?: string;
   originalPrData?: PrCloneData;
   /** Whether the working tree had uncommitted changes at the start of the clone. */
   hadUncommittedChanges?: boolean;
@@ -49,6 +50,12 @@ export interface IPersistedCloneOperation {
   isDetached: boolean;
   createdBranchName: string;
   stashMessage?: string;
+  /**
+   * Commit hash of the stash created for `stashMessage`, used to verify the correct stash is
+   * popped on restore (see `GitExecutor.popStash`). Optional for backward compatibility with
+   * state persisted before this field existed.
+   */
+  stashHash?: string;
   /** Shas that still need to land, including the one that may currently be mid-conflict. */
   remainingShas: string[];
   prNumber: number;
@@ -293,7 +300,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
         if (restoredOriginalBranch && this.serviceStore.stashMessage) {
           try {
-            await this.git.popStash(this.serviceStore.stashMessage);
+            await this.git.popStash(this.serviceStore.stashMessage, false, this.serviceStore.stashHash);
           } catch (error) {
             this.loggingService.warn(
               `Failed to restore stashed changes '${this.serviceStore.stashMessage}': ${error}`
@@ -376,10 +383,11 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
         this.loggingService.info(`Stashing uncommitted changes: ${this.serviceStore.stashMessage}`);
 
         try {
-          await this.git.createStash(this.serviceStore.stashMessage);
+          this.serviceStore.stashHash = await this.git.createStash(this.serviceStore.stashMessage);
           this.loggingService.info('Changes stashed successfully');
         } catch (error) {
           this.serviceStore.stashMessage = undefined;
+          this.serviceStore.stashHash = undefined;
           // Continuing here would leave the tree dirty with no safety net: a later failure
           // routes to cleanup, which could otherwise hard-reset and destroy this work. Abort
           // the clone immediately instead, before anything else (fetch, branch creation) happens.
@@ -529,7 +537,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       return;
     }
 
-    const { originalBranch, originalRef, isDetached, createdBranchName, stashMessage, originalPrData } =
+    const { originalBranch, originalRef, isDetached, createdBranchName, stashMessage, stashHash, originalPrData } =
       this.serviceStore;
     if ((!originalBranch && !originalRef) || !createdBranchName || !originalPrData) {
       return;
@@ -542,6 +550,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       isDetached: isDetached ?? false,
       createdBranchName,
       stashMessage,
+      stashHash,
       remainingShas: [...this.remainingShas],
       prNumber: originalPrData.prData.number,
       ts: Date.now(),
@@ -569,6 +578,7 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       isDetached: record.isDetached,
       createdBranchName: record.createdBranchName,
       stashMessage: record.stashMessage,
+      stashHash: record.stashHash,
       originalPrData: {
         prData: record.prData,
         targetBranch: record.targetBranch,

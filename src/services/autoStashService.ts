@@ -131,8 +131,9 @@ export class AutoStashService {
 
     const isWorkdirHasChangesBeforeStash = await git.isWorkdirHasChanges();
 
+    let stashHash: string | undefined;
     if (isWorkdirHasChangesBeforeStash) {
-      await git.createStash(stashMessage);
+      stashHash = await git.createStash(stashMessage);
     }
 
     try {
@@ -146,7 +147,7 @@ export class AutoStashService {
         const isWorkdirHasChangesAfterFailedPull = await git.isWorkdirHasChanges();
         if (!isWorkdirHasChangesAfterFailedPull) {
           // Nothing partially merged/rebased - safe to restore the user's changes.
-          await git.popStash(stashMessage);
+          await git.popStash(stashMessage, false, stashHash);
           throw new Error(`${operation} failed: ${msg}`);
         }
       }
@@ -156,7 +157,7 @@ export class AutoStashService {
 
     if (isWorkdirHasChangesBeforeStash) {
       try {
-        await git.popStash(stashMessage);
+        await git.popStash(stashMessage, false, stashHash);
       } catch (e) {
         const conflicts = await git.getConflictedFiles();
         if (conflicts.length > 0) {
@@ -195,8 +196,9 @@ export class AutoStashService {
     // AUTO_STASH_CURRENT_BRANCH (and any other mode treated as such)
     const stashMessage = getStashMessage(currentBranch, true);
 
+    let stashHash: string | undefined;
     if (isWorkdirHasChanges) {
-      await git.createStash(stashMessage);
+      stashHash = await git.createStash(stashMessage);
     }
 
     try {
@@ -210,7 +212,7 @@ export class AutoStashService {
 
     if (isWorkdirHasChanges) {
       try {
-        await git.popStash(stashMessage);
+        await git.popStash(stashMessage, false, stashHash);
       } catch (e) {
         const conflicts = await git.getConflictedFiles();
         if (conflicts.length > 0) {
@@ -490,6 +492,7 @@ export class AutoStashService {
     const stashMessage = getStashMessage(currentBranch, true);
     const operation = apply ? 'apply' : 'pop';
 
+    let stashHash: string | undefined;
     try {
       if (isWorkdirHasChanges) {
         const conflicts = await git.getStashConflictPreview(previewRef);
@@ -500,7 +503,7 @@ export class AutoStashService {
             return 'cancelled';
           }
         }
-        await git.createStash(stashMessage);
+        stashHash = await git.createStash(stashMessage);
       }
     } catch (e) {
       handleErrorMessage(e, undefined, undefined, undefined, this.logService);
@@ -524,7 +527,7 @@ export class AutoStashService {
     try {
       const isStashWithMessageExists = await git.isStashWithMessageExists(stashMessage);
       if (isStashWithMessageExists) {
-        await git.popStash(stashMessage, apply);
+        await git.popStash(stashMessage, apply, stashHash);
       }
     } catch (e) {
       const conflicts = await git.getConflictedFiles();

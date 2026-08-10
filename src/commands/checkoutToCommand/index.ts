@@ -583,15 +583,16 @@ export class CheckoutToCommand extends BaseCommand {
     try {
       const dirty = await git.isWorkdirHasChanges();
       const stashName = `smart-checkout-new-branch-${Date.now()}`;
+      let stashHash: string | undefined;
       if (dirty) {
-        await git.createStash(stashName);
+        stashHash = await git.createStash(stashName);
         stashedMessage = stashName;
       }
       const newBranch = await git.createBranch(newBranchName, baseRef.fullName);
       capture(AnalyticsEvent.BranchCreated);
       if (dirty) {
         try {
-          await git.popStash(stashName);
+          await git.popStash(stashName, false, stashHash);
         } catch {
           // conflicts are left for the user to resolve
         }
