@@ -1,3 +1,10 @@
+## [0.19.4](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.3...v0.19.4) (2026-08-10)
+
+
+### Bug Fixes
+
+* **views:** don't create a tree view the workbench hasn't registered ([#222](https://github.com/zaknafeyn/git-smart-checkout/issues/222)) ([38466fc](https://github.com/zaknafeyn/git-smart-checkout/commit/38466fc8c7e37dacd220f389c4ff68f9e6628e96))
+
 ## [0.19.3](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.2...v0.19.3) (2026-08-10)
 
 
