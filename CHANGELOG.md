@@ -1,3 +1,18 @@
+## [0.19.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.0...v0.19.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **checkoutTo:** restore stashed changes when new-branch creation fails ([#218](https://github.com/zaknafeyn/git-smart-checkout/issues/218)) ([35194fb](https://github.com/zaknafeyn/git-smart-checkout/commit/35194fb6440d447b5f6618159a6b657df11336ff))
+* **git:** force LC_ALL=C and LANG=C for git subprocesses ([#212](https://github.com/zaknafeyn/git-smart-checkout/issues/212)) ([0c052a9](https://github.com/zaknafeyn/git-smart-checkout/commit/0c052a92700bbf23d6edd498bca154b78bc110c9))
+* **pr-clone:** abort clone instead of hard-resetting unstashed work ([#213](https://github.com/zaknafeyn/git-smart-checkout/issues/213)) ([8d77269](https://github.com/zaknafeyn/git-smart-checkout/commit/8d7726963ece67bc65865799b084d99434829c04)), closes [#205](https://github.com/zaknafeyn/git-smart-checkout/issues/205)
+* **pr-clone:** preserve detached HEAD state for rollback ([#214](https://github.com/zaknafeyn/git-smart-checkout/issues/214)) ([869a6ae](https://github.com/zaknafeyn/git-smart-checkout/commit/869a6aef5fa880df4bf78fde7e92ed7a9e7d4da4)), closes [#204](https://github.com/zaknafeyn/git-smart-checkout/issues/204)
+* **pr-clone:** use real cherry-pick conflict state instead of workdir-dirtiness heuristic ([#215](https://github.com/zaknafeyn/git-smart-checkout/issues/215)) ([06077cc](https://github.com/zaknafeyn/git-smart-checkout/commit/06077ccadff063e495c77776718392df8cc981e2)), closes [#207](https://github.com/zaknafeyn/git-smart-checkout/issues/207)
+* **refDetailsCache:** normalize ref hashes and batch Memento writes ([#220](https://github.com/zaknafeyn/git-smart-checkout/issues/220)) ([53c7a26](https://github.com/zaknafeyn/git-smart-checkout/commit/53c7a26c3cd5d4c1960744b6f858244050af6335)), closes [#211](https://github.com/zaknafeyn/git-smart-checkout/issues/211)
+* resolve configured remote instead of hardcoding origin ([#219](https://github.com/zaknafeyn/git-smart-checkout/issues/219)) ([8ab17d7](https://github.com/zaknafeyn/git-smart-checkout/commit/8ab17d7c064f66100073d9496107ef8d067b60ac)), closes [#210](https://github.com/zaknafeyn/git-smart-checkout/issues/210)
+* **stash:** stop wiping tracked changes before popping post-pull/rebase stash ([#202](https://github.com/zaknafeyn/git-smart-checkout/issues/202)) ([a625567](https://github.com/zaknafeyn/git-smart-checkout/commit/a6255675cc6ad3bd99f9571e116d6de09b439608))
+* **view:** dispose webview listeners on re-resolve and target live webview ([#217](https://github.com/zaknafeyn/git-smart-checkout/issues/217)) ([0e786ee](https://github.com/zaknafeyn/git-smart-checkout/commit/0e786eefae76ea0511d50ebd04dc5ff295802059)), closes [#208](https://github.com/zaknafeyn/git-smart-checkout/issues/208)
+
 # [0.19.0](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.18.0...v0.19.0) (2026-08-09)
 
 
