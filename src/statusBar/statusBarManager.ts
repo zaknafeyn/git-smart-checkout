@@ -279,7 +279,10 @@ export class StatusBarManager implements Disposable {
     // Higher priority renders further left for items on the same alignment
     // side, so 101 lands immediately to the left of the mode item (100).
     this.stackStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 101);
-    this.stackStatusBarItem.command = `${EXTENSION_NAME}.stacks.focus`;
+    // Our own reveal command rather than the workbench-generated
+    // `git-smart-checkout.stacks.focus`, which is not always registered — see
+    // `revealView`.
+    this.stackStatusBarItem.command = `${EXTENSION_NAME}.stacks.show`;
 
     this.updateStatusBar();
     this.updateStackIndicator();

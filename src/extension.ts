@@ -74,6 +74,7 @@ import { AnalyticsEvent, capture, initAnalytics, setAnalyticsEnabled, shutdownAn
 import { randomUUID } from 'crypto';
 import { showErrorMessageWithIssueAction } from './utils/errorIssueNotification';
 import { UserCancelledError } from './utils/userCancelledError';
+import { revealView } from './utils/revealView';
 import { WorktreeTreeDataProvider } from './view/WorktreeTreeDataProvider';
 import { UpdateNotificationService } from './services/updateNotificationService';
 import { WorktreeTreeActionCommand } from './commands/worktreeTreeActionCommand';
@@ -286,6 +287,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   commandManager.registerCommand(`${EXTENSION_NAME}.stacks.refresh`, {
     execute: async () => refreshStacks(),
+  });
+
+  // Internal: backs the stack status bar indicator, deliberately not contributed
+  // to package.json so it doesn't appear in the command palette next to VS Code's
+  // own "Focus on Stacks View".
+  commandManager.registerCommand(`${EXTENSION_NAME}.stacks.show`, {
+    execute: async () => revealView(`${EXTENSION_NAME}.stacks`, EXTENSION_NAME),
   });
 
   const stackWebViewProvider = new StackWebViewProvider(context, logService, () => void refreshStacks());

@@ -404,6 +404,20 @@ describe('VS Code command interface', () => {
     assert.ok(commands.includes(commandId('removePRReviewInWorktree')));
   });
 
+  // The stack status bar indicator clicks through to this command; it must exist
+  // and survive a missing workbench-generated `git-smart-checkout.stacks.focus`.
+  it('registers the Stacks reveal command backing the status bar indicator', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(commands.includes(commandId('stacks.show')));
+
+    // Both reveal targets must be real commands, otherwise the fallback only
+    // trades one "command not found" for another.
+    assert.ok(commands.includes(`${EXTENSION_NAME}.stacks.focus`));
+    assert.ok(commands.includes(`workbench.view.extension.${EXTENSION_NAME}`));
+
+    await vscode.commands.executeCommand(commandId('stacks.show'));
+  });
+
   describe('checkoutTo', () => {
     const cases = [
       {
