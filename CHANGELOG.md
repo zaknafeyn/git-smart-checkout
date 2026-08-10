@@ -1,3 +1,10 @@
+## [0.19.2](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.1...v0.19.2) (2026-08-10)
+
+
+### Bug Fixes
+
+* verify stash hash before popping to avoid popping the wrong stash ([#216](https://github.com/zaknafeyn/git-smart-checkout/issues/216)) ([ce36d0d](https://github.com/zaknafeyn/git-smart-checkout/commit/ce36d0d634422fc785f7d54e5a2e7deab05f2081))
+
 ## [0.19.1](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.0...v0.19.1) (2026-08-10)
 
 
