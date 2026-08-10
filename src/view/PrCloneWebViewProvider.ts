@@ -126,6 +126,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
   private cloneServiceCleanUpAssigned = false;
   private readonly repositoryChangeSubscription: Disposable;
+  private viewDisposables: Disposable[] = [];
 
   constructor(
     private context: ExtensionContext,
@@ -141,6 +142,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
   resolveWebviewView(webviewView: WebviewView) {
     this.loggingService.info('...Resolve webview');
+
+    // Dispose listeners from any prior resolve before wiring up the new
+    // webview instance. VS Code re-invokes resolveWebviewView every time a
+    // collapsed view is re-expanded, so without this the old listeners
+    // keep firing alongside the new ones.
+    this.viewDisposables.forEach((disposable) => disposable.dispose());
+    this.viewDisposables = [];
+
     this.webviewView = webviewView;
 
     const extensionUri = this.context.extensionUri;
@@ -157,14 +166,14 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
         cleanUpActionEnd: async () => {
-          await webviewView.webview.postMessage({
+          await this.webviewView?.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });
 
           await this.updateCloningState(false);
 
-          await webviewView.webview.postMessage({
+          await this.webviewView?.webview.postMessage({
             command: WebviewCommand.CANCEL_PR_CLONE,
           });
         },
@@ -175,7 +184,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
     webviewView.webview.html = this.getReactHtml(webviewView.webview, extensionUri);
 
-    webviewView.webview.onDidReceiveMessage(async (message) => {
+    const onDidReceiveMessage = webviewView.webview.onDidReceiveMessage(async (message) => {
       console.log(`[<<<< ]: received command: ${JSON.stringify(message)}`);
       switch (message.command) {
         case WebviewCommand.WEBVIEW_READY:
@@ -207,6 +216,8 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
           break;
       }
     });
+
+    this.viewDisposables.push(onDidReceiveMessage);
   }
 
   private async handleWebViewReady() {
@@ -663,5 +674,7 @@ export class PrCloneWebViewProvider implements WebviewViewProvider {
 
   dispose(): void {
     this.repositoryChangeSubscription.dispose();
+    this.viewDisposables.forEach((disposable) => disposable.dispose());
+    this.viewDisposables = [];
   }
 }

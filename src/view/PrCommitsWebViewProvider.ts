@@ -1,6 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { commands, env, ExtensionContext, Uri, WebviewView, WebviewViewProvider } from 'vscode';
+import {
+  commands,
+  Disposable,
+  env,
+  ExtensionContext,
+  Uri,
+  WebviewView,
+  WebviewViewProvider,
+} from 'vscode';
 
 import { EXTENSION_NAME } from '../const';
 import { LoggingService } from '../logging/loggingService';
@@ -19,6 +27,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   private isCloning: boolean = false;
 
   private cloneServiceCleanUpAssigned = false;
+  private viewDisposables: Disposable[] = [];
 
   constructor(
     private context: ExtensionContext,
@@ -62,13 +71,21 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
   resolveWebviewView(webviewView: WebviewView) {
     this.loggingService.info('...Resolve commits webview');
+
+    // Dispose listeners from any prior resolve before wiring up the new
+    // webview instance. VS Code re-invokes resolveWebviewView every time a
+    // collapsed view is re-expanded, so without this the old listeners
+    // keep firing alongside the new ones.
+    this.viewDisposables.forEach((disposable) => disposable.dispose());
+    this.viewDisposables = [];
+
     this.webviewView = webviewView;
 
     if (!this.cloneServiceCleanUpAssigned) {
       // register clean up actions
       this.prCloneService.addCleanUpActions({
         cleanUpActionEnd: async () => {
-          await webviewView.webview.postMessage({
+          await this.webviewView?.webview.postMessage({
             command: WebviewCommand.UPDATE_CLONING_STATE,
             isCloning: false,
           });
@@ -90,7 +107,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
 
     webviewView.webview.html = this.getReactHtml(webviewView.webview, extensionUri);
 
-    webviewView.webview.onDidReceiveMessage(async (message) => {
+    const onDidReceiveMessage = webviewView.webview.onDidReceiveMessage(async (message) => {
       this.loggingService.debug(`[CommitsWebView] received command: ${JSON.stringify(message)}`);
 
       switch (message.command) {
@@ -118,7 +135,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
     });
 
     // Handle webview visibility changes - restore state when becoming visible
-    webviewView.onDidChangeVisibility(() => {
+    const onDidChangeVisibility = webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
         this.loggingService.debug('Commits webview became visible, restoring persisted state');
         // Load persisted state first in case it was updated
@@ -127,6 +144,8 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
         this.sendCommitsToWebview();
       }
     });
+
+    this.viewDisposables.push(onDidReceiveMessage, onDidChangeVisibility);
 
     // Send initial data if available
     if (this.commits.length > 0) {
@@ -357,6 +376,7 @@ export class PrCommitsWebViewProvider implements WebviewViewProvider {
   }
 
   dispose(): void {
-    // Clean up resources if needed
+    this.viewDisposables.forEach((disposable) => disposable.dispose());
+    this.viewDisposables = [];
   }
 }
