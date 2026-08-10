@@ -87,8 +87,9 @@ import { StashService } from './services/stashService';
 import { StashTreeDataProvider } from './view/StashTreeDataProvider';
 import { StashContentProvider, STASH_URI_SCHEME } from './view/stashContentProvider';
 import { StashTreeActionCommand } from './commands/stashTreeActionCommand';
+import { createTreeViewWhenContributed } from './view/createTreeViewWhenContributed';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
     const id = randomUUID();
     context.globalState.update('analytics.anonymousId', id);
@@ -681,16 +682,27 @@ export function activate(context: vscode.ExtensionContext) {
 
   const telemetryChangeListener = vscode.env.onDidChangeTelemetryEnabled(() => updateTelemetryState());
 
-  worktreeTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.worktrees`, {
-    treeDataProvider: worktreeTreeDataProvider,
-  });
-
-  stashTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.stashes`, {
-    treeDataProvider: stashTreeDataProvider,
-    // Enables selecting several stashes at once so "Drop" can act on the whole selection
-    // behind a single confirmation modal instead of one row at a time.
-    canSelectMany: true,
-  });
+  // Both trees go through `createTreeViewWhenContributed` rather than `createTreeView` directly:
+  // a window whose view registry doesn't hold our contribution would otherwise answer with an
+  // unactionable "No view is registered with id: ..." error notification. Created in parallel so
+  // the probe costs one round-trip, not two.
+  [worktreeTreeView, stashTreeView] = await Promise.all([
+    createTreeViewWhenContributed(
+      `${EXTENSION_NAME}.worktrees`,
+      { treeDataProvider: worktreeTreeDataProvider },
+      logService
+    ),
+    createTreeViewWhenContributed(
+      `${EXTENSION_NAME}.stashes`,
+      {
+        treeDataProvider: stashTreeDataProvider,
+        // Enables selecting several stashes at once so "Drop" can act on the whole selection
+        // behind a single confirmation modal instead of one row at a time.
+        canSelectMany: true,
+      },
+      logService
+    ),
+  ]);
 
   // Add to context subscriptions
   context.subscriptions.push(
@@ -715,11 +727,11 @@ export function activate(context: vscode.ExtensionContext) {
       `${EXTENSION_NAME}.prCommits`,
       prCommitsWebViewProvider
     ),
-    worktreeTreeView,
+    ...(worktreeTreeView ? [worktreeTreeView] : []),
     worktreeTreeDataProvider,
     stackWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider),
-    stashTreeView,
+    ...(stashTreeView ? [stashTreeView] : []),
     stashTreeDataProvider,
     stashService,
     stashChangeListener,
