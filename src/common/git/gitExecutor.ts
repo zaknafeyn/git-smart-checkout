@@ -142,23 +142,35 @@ export function parseStashNameStatusOutput(
 }
 
 /**
- * Parses `git status --porcelain` (v1) output into the changed/untracked paths it reports.
- * Each line is `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the
- * destination. Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the
- * surrounding quotes and the escapes git adds for `"` and `\` are undone so the path reads
- * naturally in UI.
+ * Parses `git status --porcelain` (v1) output into `{ status, path }` entries. Each line is
+ * `XY <path>`; rename and copy entries are `XY <old> -> <new>`, and we report the destination.
+ * Paths containing special characters arrive C-quoted (`"src/\303\251.ts"`) — the surrounding
+ * quotes and the escapes git adds for `"` and `\` are undone so the path reads naturally in UI.
  */
-export function parseStatusPorcelainPaths(output: string): string[] {
+export function parseStatusPorcelainEntries(output: string): Array<{ status: string; path: string }> {
   return output
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => {
+      const status = line.slice(0, 2);
       const pathPart = line.slice(3).trimEnd();
       const arrowIndex = pathPart.lastIndexOf(' -> ');
-      return unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+      const path = unquoteStatusPath(arrowIndex === -1 ? pathPart : pathPart.slice(arrowIndex + 4));
+      return { status, path };
     })
-    .filter((path) => path.length > 0);
+    .filter((entry) => entry.path.length > 0);
 }
+
+/** Paths of the changed/untracked files reported by `git status --porcelain`. */
+export function parseStatusPorcelainPaths(output: string): string[] {
+  return parseStatusPorcelainEntries(output).map((entry) => entry.path);
+}
+
+/**
+ * `git status --porcelain` XY status codes that indicate an unmerged/conflicted path: either
+ * side is `U`, or both sides agree on an add/add or delete/delete conflict.
+ */
+const UNMERGED_STATUS_CODES = new Set(['UU', 'AA', 'DD', 'AU', 'UA', 'UD', 'DU']);
 
 function unquoteStatusPath(path: string): string {
   if (!path.startsWith('"') || !path.endsWith('"') || path.length < 2) {
@@ -544,7 +556,12 @@ export class GitExecutor {
     // Separator cannot occur in ref names, hashes, dates, or (practically)
     // commit subjects, and Git passes it through the format string verbatim.
     const SEPARATOR = '\x1f';
-    const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
+    // Use the full %(objectname) (not :short) so hashes produced here match the
+    // full 40-char SHAs VscodeGitProvider stores — RefDetailsCache validates
+    // cache hits by comparing hashes from both producers, and a length
+    // mismatch there defeats the cache. Short hashes are truncated at render
+    // time where a compact display is wanted (see refFormatting.ts).
+    const format = `%(refname)${SEPARATOR}%(objectname)${SEPARATOR}%(*objectname)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
     const { stdout: branchesOutput } = await this.#execGitCommand([
       'for-each-ref',
       '--sort', '-committerdate',
@@ -618,6 +635,11 @@ export class GitExecutor {
 
   async getCurrentBranch() {
     const { stdout } = await this.#execGitCommand(['branch', '--show-current']);
+    return stdout.trim();
+  }
+
+  async getHeadCommit() {
+    const { stdout } = await this.#execGitCommand(['rev-parse', 'HEAD']);
     return stdout.trim();
   }
 
@@ -999,6 +1021,29 @@ export class GitExecutor {
     return conflictedFiles.length > 0;
   }
 
+  /**
+   * Paths of files still unmerged per `git status --porcelain`'s XY status code (`UU`, `AA`,
+   * `DD`, `AU`, `UA`, `UD`, `DU` — either side `U`, or both `A`/both `D`). Used to distinguish a
+   * real unresolved conflict from a conflict the user resolved down to an empty diff, which
+   * `isWorkdirHasChanges()` alone cannot tell apart (see issue #207).
+   */
+  async getUnresolvedConflicts(): Promise<string[]> {
+    const { stdout } = await this.#execGitCommand(['status', '--porcelain']);
+    return parseStatusPorcelainEntries(stdout)
+      .filter(({ status }) => UNMERGED_STATUS_CODES.has(status))
+      .map(({ path }) => path);
+  }
+
+  /**
+   * Finishes an in-progress cherry-pick (`CHERRY_PICK_HEAD` set) whose conflict resolution
+   * collapsed to no diff against HEAD, by committing an intentionally empty commit with the
+   * original commit message. Equivalent to `cherry-pick --continue` for that case, which would
+   * otherwise fail with "previous cherry-pick is now empty".
+   */
+  async commitAllowEmpty(): Promise<void> {
+    await this.#execGitCommand(['commit', '--allow-empty', '--no-edit']);
+  }
+
   async cherryPick(
     commitSha: string | string[],
     parseError = false,
@@ -1091,8 +1136,8 @@ export class GitExecutor {
     await this.#execGitCommand(['tag', '-d', name]);
   }
 
-  async pushSetUpstream(branch: string): Promise<void> {
-    await this.#execGitCommand(['push', '-u', 'origin', branch]);
+  async pushSetUpstream(branch: string, remote = 'origin'): Promise<void> {
+    await this.#execGitCommand(['push', '-u', remote, branch]);
   }
 
   async getMergedBranches(base: string): Promise<string[]> {
@@ -1133,11 +1178,24 @@ export class GitExecutor {
     return !!line && line.trimStart().startsWith('-');
   }
 
-  async getDefaultBranch(): Promise<string> {
+  async getDefaultBranch(remote = 'origin'): Promise<string> {
     try {
-      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
-      return stdout.trim().replace(/^origin\//, '');
+      const { stdout } = await this.#execGitCommand(['symbolic-ref', '--short', `refs/remotes/${remote}/HEAD`]);
+      return stdout.trim().replace(new RegExp(`^${remote}/`), '');
     } catch {
+      // The symbolic ref is only populated after an explicit `git remote set-head`
+      // (or a clone that set it up); many repos never have it. `git remote show`
+      // asks the remote directly for its HEAD branch instead.
+      try {
+        const { stdout } = await this.#execGitCommand(['remote', 'show', remote]);
+        const match = stdout.match(/HEAD branch:\s*(\S+)/);
+        if (match && match[1] && match[1] !== '(unknown)') {
+          return match[1];
+        }
+      } catch {
+        // Remote unreachable or doesn't exist — fall through to local guesses.
+      }
+
       const refs = await this.getAllRefListExtended();
       if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'main')) return 'main';
       if (refs.some((ref) => !ref.remote && !ref.isTag && ref.name === 'master')) return 'master';

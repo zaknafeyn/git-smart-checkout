@@ -21,10 +21,16 @@ import { PrCloneReportedError } from './prCloneError';
 
 interface IServiceStore {
   originalBranch?: string;
+  /** Ref to restore on cleanup: the original branch name, or the original commit SHA when HEAD was detached. */
+  originalRef?: string;
+  /** True when the clone was started from a detached HEAD (so `originalRef` is a SHA, not a branch). */
+  isDetached?: boolean;
   createdBranchName?: string;
   stashMessage?: string;
   stashHash?: string;
   originalPrData?: PrCloneData;
+  /** Whether the working tree had uncommitted changes at the start of the clone. */
+  hadUncommittedChanges?: boolean;
 }
 
 /** Key used to persist an in-progress in-place clone operation so it can survive a window reload/crash. */
@@ -38,6 +44,10 @@ export const PR_CLONE_IN_PLACE_STATE_KEY = 'gitSmartCheckout.prCloneInPlaceOpera
 export interface IPersistedCloneOperation {
   repoPath: string;
   originalBranch: string;
+  /** Ref to restore on cleanup: the original branch name, or the original commit SHA when HEAD was detached. */
+  originalRef: string;
+  /** True when the clone was started from a detached HEAD (so `originalRef` is a SHA, not a branch). */
+  isDetached: boolean;
   createdBranchName: string;
   stashMessage?: string;
   /**
@@ -89,10 +99,38 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
     }
 
     if (isContinue) {
+      const unresolvedConflicts = await this.git.getUnresolvedConflicts();
+      if (unresolvedConflicts.length > 0) {
+        await window.showWarningMessage(
+          `Cannot continue: the following files still have unresolved conflicts:\n${unresolvedConflicts.join('\n')}`,
+          { modal: true }
+        );
+        return;
+      }
+
       if (await this.git.isWorkdirHasChanges()) {
         await this.git.cherryPickContinue();
       } else {
-        await this.git.cherryPickSkip();
+        // The conflict resolution collapsed to no diff against HEAD — cherry-pick --continue
+        // would fail ("previous cherry-pick is now empty"). Never decide silently: ask the user.
+        const skipOption = 'Skip this commit';
+        const emptyOption = 'Keep as empty commit';
+        const abortOption = 'Abort clone';
+        const choice = await window.showQuickPick([skipOption, emptyOption, abortOption], {
+          placeHolder:
+            'Resolving the conflict produced no changes. What should happen to this commit?',
+          ignoreFocusOut: true,
+        });
+
+        if (choice === emptyOption) {
+          await this.git.commitAllowEmpty();
+        } else if (choice === skipOption) {
+          await this.git.cherryPickSkip();
+        } else {
+          // 'Abort clone' or dismissed (Escape) — never silently skip or continue.
+          await this.abortClonePR();
+          return;
+        }
       }
     }
 
@@ -199,7 +237,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // A service for an inactive clone mode can be disposed without ever
       // touching the repository. Do not reset that repository during cleanup.
-      if (!this.serviceStore.originalBranch) {
+      const restoreRef = this.serviceStore.originalBranch || this.serviceStore.originalRef;
+      if (!restoreRef) {
         return;
       }
 
@@ -213,10 +252,27 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       }
 
       if (this.serviceStore.createdBranchName) {
-        try {
-          await this.git.reset(true);
-        } catch (error) {
-          this.loggingService.warn(`Failed to reset working directory: ${error}`);
+        // A hard reset is only safe when there's nothing uncommitted to lose: either the
+        // uncommitted changes were actually stashed, or the tree was already clean at the
+        // start of the clone. If uncommitted changes exist that were never safely stashed
+        // (e.g. `createStash` itself failed), skip the destructive reset so we don't wipe
+        // the user's work — the checkout/branch-delete cleanup below still runs.
+        const safeToHardReset =
+          Boolean(this.serviceStore.stashMessage) || !this.serviceStore.hadUncommittedChanges;
+
+        if (safeToHardReset) {
+          try {
+            await this.git.reset(true);
+          } catch (error) {
+            this.loggingService.warn(`Failed to reset working directory: ${error}`);
+          }
+        } else {
+          this.loggingService.warn(
+            'Skipping hard reset during clone cleanup: uncommitted changes exist that were never stashed. Your working tree changes are preserved.'
+          );
+          await window.showWarningMessage(
+            'PR clone cleanup: your uncommitted changes could not be safely stashed, so they were left in your working tree instead of being discarded.'
+          );
         }
       }
 
@@ -231,12 +287,15 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       let restoredOriginalBranch = false;
       if (!stayOnClonedBranch) {
         try {
-          await this.git.checkout(this.serviceStore.originalBranch);
+          if (this.serviceStore.isDetached) {
+            // Detached HEAD has no branch to restore — check out the captured SHA directly.
+            await this.git.checkout(restoreRef);
+          } else {
+            await this.git.checkout(this.serviceStore.originalBranch || restoreRef);
+          }
           restoredOriginalBranch = true;
         } catch (error) {
-          this.loggingService.warn(
-            `Failed to restore original branch '${this.serviceStore.originalBranch}': ${error}`
-          );
+          this.loggingService.warn(`Failed to restore original ref '${restoreRef}': ${error}`);
         }
 
         if (restoredOriginalBranch && this.serviceStore.stashMessage) {
@@ -306,9 +365,19 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
 
       // Step 1: Store original branch and stash changes if needed
       this.serviceStore.originalBranch = await this.git.getCurrentBranch();
+      if (!this.serviceStore.originalBranch) {
+        // Detached HEAD: capture the commit SHA so cleanup can still restore the original
+        // state instead of silently leaving the clone's branch/stash/commits behind.
+        this.serviceStore.originalRef = await this.git.getHeadCommit();
+        this.serviceStore.isDetached = true;
+      } else {
+        this.serviceStore.originalRef = this.serviceStore.originalBranch;
+        this.serviceStore.isDetached = false;
+      }
       updateProgress.report({ message: 'Checking for uncommitted changes...' });
 
       const hasUncommittedChanges = await this.git.isWorkdirHasChanges();
+      this.serviceStore.hadUncommittedChanges = hasUncommittedChanges;
       if (hasUncommittedChanges) {
         this.serviceStore.stashMessage = getStashMessage(this.serviceStore.originalBranch, true);
         this.loggingService.info(`Stashing uncommitted changes: ${this.serviceStore.stashMessage}`);
@@ -317,9 +386,14 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
           this.serviceStore.stashHash = await this.git.createStash(this.serviceStore.stashMessage);
           this.loggingService.info('Changes stashed successfully');
         } catch (error) {
-          this.loggingService.warn(`Failed to stash changes: ${error}`);
           this.serviceStore.stashMessage = undefined;
           this.serviceStore.stashHash = undefined;
+          // Continuing here would leave the tree dirty with no safety net: a later failure
+          // routes to cleanup, which could otherwise hard-reset and destroy this work. Abort
+          // the clone immediately instead, before anything else (fetch, branch creation) happens.
+          throw new Error(
+            `Failed to stash your uncommitted changes (${error}). The PR clone was aborted to protect your working tree. Commit or stash manually and retry.`
+          );
         }
       }
 
@@ -463,14 +537,17 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
       return;
     }
 
-    const { originalBranch, createdBranchName, stashMessage, stashHash, originalPrData } = this.serviceStore;
-    if (!originalBranch || !createdBranchName || !originalPrData) {
+    const { originalBranch, originalRef, isDetached, createdBranchName, stashMessage, stashHash, originalPrData } =
+      this.serviceStore;
+    if ((!originalBranch && !originalRef) || !createdBranchName || !originalPrData) {
       return;
     }
 
     const record: IPersistedCloneOperation = {
       repoPath: this.git.repositoryPath,
-      originalBranch,
+      originalBranch: originalBranch ?? '',
+      originalRef: originalRef ?? originalBranch ?? '',
+      isDetached: isDetached ?? false,
       createdBranchName,
       stashMessage,
       stashHash,
@@ -497,6 +574,8 @@ export class PrCloneInPlaceService extends PrCloneServiceBase {
   private restoreServiceStoreFromRecord(record: IPersistedCloneOperation): void {
     this.serviceStore = {
       originalBranch: record.originalBranch,
+      originalRef: record.originalRef,
+      isDetached: record.isDetached,
       createdBranchName: record.createdBranchName,
       stashMessage: record.stashMessage,
       stashHash: record.stashHash,

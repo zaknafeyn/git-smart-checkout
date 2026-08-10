@@ -10,6 +10,7 @@ import { LoggingService } from '../../logging/loggingService';
 import { AutoStashService } from '../../services/autoStashService';
 import { RefDetailsCache } from '../../services/refDetailsCache';
 import { getRepoId } from '../../utils/getRepoId';
+import { resolveRemoteInteractive } from '../../utils/remoteSelection';
 import { UserCancelledError } from '../../utils/userCancelledError';
 import { BaseCommand } from '../command';
 import { validateBranchName } from '../createBranchFromTemplateCommand/validateBranchName';
@@ -386,12 +387,21 @@ export class CheckoutToCommand extends BaseCommand {
 
   protected async publishBranchAction(git: GitExecutor, ref: IGitRef): Promise<boolean> {
     try {
+      const remote = await resolveRemoteInteractive(git, {
+        branch: ref.name,
+        defaultRemote: this.configManager.get().defaultRemote,
+        purpose: 'push',
+      });
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: `Publishing ${ref.name}` },
-        () => git.pushSetUpstream(ref.name)
+        () => git.pushSetUpstream(ref.name, remote)
       );
       return true;
     } catch (e) {
+      if (e instanceof UserCancelledError) {
+        // User dismissed the remote picker — not an error.
+        return false;
+      }
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       await this.showErrorMessage(`Failed to publish branch ${ref.name}: ${msg}`, 'OK');
@@ -470,7 +480,12 @@ export class CheckoutToCommand extends BaseCommand {
     let force = false;
     let defaultBranch: string | undefined;
     try {
-      defaultBranch = await git.getDefaultBranch();
+      const remote = await resolveRemoteInteractive(git, {
+        branch: ref.name,
+        defaultRemote: this.configManager.get().defaultRemote,
+        purpose: 'fetch',
+      });
+      defaultBranch = await git.getDefaultBranch(remote);
       const merged = await git.getMergedBranches(defaultBranch);
       force = !merged.includes(ref.name);
     } catch (e) {
@@ -564,12 +579,14 @@ export class CheckoutToCommand extends BaseCommand {
       return undefined;
     }
 
+    let stashedMessage: string | undefined;
     try {
       const dirty = await git.isWorkdirHasChanges();
       const stashName = `smart-checkout-new-branch-${Date.now()}`;
       let stashHash: string | undefined;
       if (dirty) {
         stashHash = await git.createStash(stashName);
+        stashedMessage = stashName;
       }
       const newBranch = await git.createBranch(newBranchName, baseRef.fullName);
       capture(AnalyticsEvent.BranchCreated);
@@ -584,6 +601,17 @@ export class CheckoutToCommand extends BaseCommand {
     } catch (e) {
       captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
+
+      if (stashedMessage) {
+        try {
+          await git.popStash(stashedMessage);
+        } catch {
+          throw new Error(
+            `Failed to create the new branch: ${msg}\n\nYour changes are preserved in stash '${stashedMessage}'.`
+          );
+        }
+      }
+
       throw new Error(`Failed to create the new branch: ${msg}`);
     }
   }

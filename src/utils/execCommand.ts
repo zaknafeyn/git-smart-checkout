@@ -11,7 +11,11 @@ export async function execCommand(
   options?: ExecFileOptions
 ): Promise<TPromiseResponse> {
   const commandStr = [file, ...args].join(' ');
-  const combinedOptions = { encoding: 'utf-8' as const, ...options };
+  const combinedOptions = {
+    encoding: 'utf-8' as const,
+    ...options,
+    env: { ...process.env, ...options?.env, LC_ALL: 'C', LANG: 'C' },
+  };
 
   return new Promise((resolve, reject) => {
     execFile(file, args, combinedOptions, (err, stdout, stderr) => {

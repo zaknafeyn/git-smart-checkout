@@ -184,7 +184,10 @@ describe('buildCleanupQuickPickItems', () => {
     const gone = items.find((item) => item.candidate?.ref.name === 'orphan');
 
     assert.ok(gone?.description?.includes('not merged — force delete'));
-    assert.ok(gone?.description?.includes('orphan-sha'));
+    // The QuickPick description shows a truncated (7-char) SHA for compact
+    // display; the full SHA is still used for the recovery document (see
+    // buildRecoveryDocument tests below).
+    assert.ok(gone?.description?.includes('orphan-'.slice(0, 7)));
   });
 
   it('omits a group separator entirely when that group has no candidates', () => {
@@ -409,6 +412,85 @@ describe('GitExecutor.getDefaultBranch', () => {
 
     const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
     await assert.rejects(() => git.getDefaultBranch(), /Could not determine the default branch/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('resolves the HEAD branch of a non-"origin" remote (e.g. a fork\'s "upstream")', async () => {
+    const remoteDir = initRepo('gsc-default-upstream-remote-');
+    execSync('git checkout -q -b develop', { cwd: remoteDir });
+    commit(remoteDir, 'init');
+
+    const dir = initRepo('gsc-default-upstream-local-');
+    execSync('git checkout -q -b unrelated', { cwd: dir });
+    commit(dir, 'init');
+    execSync(`git remote add upstream "${remoteDir}"`, { cwd: dir });
+    execSync('git fetch -q upstream', { cwd: dir });
+    execSync('git remote set-head upstream develop', { cwd: dir });
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    assert.strictEqual(await git.getDefaultBranch('upstream'), 'develop');
+    fs.rmSync(remoteDir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('falls back to "git remote show <remote>" when the symbolic ref is absent, then to local main/master', async () => {
+    // A repo with only an "upstream" remote and no `refs/remotes/upstream/HEAD`
+    // symbolic ref set locally (e.g. never explicitly `git remote set-head`d)
+    // must still resolve via `git remote show upstream`, not throw or assume "origin".
+    const remoteDir = initRepo('gsc-default-show-remote-');
+    execSync('git checkout -q -b develop', { cwd: remoteDir });
+    commit(remoteDir, 'init');
+
+    const dir = initRepo('gsc-default-show-local-');
+    execSync('git checkout -q -b unrelated', { cwd: dir });
+    commit(dir, 'init');
+    execSync(`git remote add upstream "${remoteDir}"`, { cwd: dir });
+    execSync('git fetch -q upstream', { cwd: dir });
+    // Intentionally no `git remote set-head` — refs/remotes/upstream/HEAD is absent.
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    assert.strictEqual(await git.getDefaultBranch('upstream'), 'develop');
+    fs.rmSync(remoteDir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('GitExecutor.pushSetUpstream', () => {
+  function initRepo(prefix: string): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    execSync('git init -q', { cwd: dir });
+    execSync('git config user.email "test@test.local"', { cwd: dir });
+    execSync('git config user.name "Test"', { cwd: dir });
+    return dir;
+  }
+
+  function commit(dir: string, message: string) {
+    fs.writeFileSync(path.join(dir, 'file.txt'), `${message}\n`);
+    execSync('git add file.txt', { cwd: dir });
+    execSync(`git commit -q -m "${message}"`, { cwd: dir });
+  }
+
+  it('pushes and sets upstream tracking against the given remote, not "origin"', async () => {
+    const remoteDir = initRepo('gsc-push-remote-');
+    execSync('git checkout -q -b main', { cwd: remoteDir });
+    commit(remoteDir, 'init');
+
+    const dir = initRepo('gsc-push-local-');
+    execSync(`git remote add upstream "${remoteDir}"`, { cwd: dir });
+    execSync('git fetch -q upstream', { cwd: dir });
+    execSync('git checkout -q -b feat upstream/main', { cwd: dir });
+    commit(dir, 'feat change');
+
+    const git = new GitExecutor(dir, mockLogService as unknown as LoggingService);
+    await git.pushSetUpstream('feat', 'upstream');
+
+    const remoteBranches = execSync('git branch', { cwd: remoteDir }).toString();
+    assert.ok(remoteBranches.includes('feat'), `expected "feat" to be pushed to remote, got: ${remoteBranches}`);
+
+    const upstreamRef = execSync('git rev-parse --abbrev-ref feat@{upstream}', { cwd: dir }).toString().trim();
+    assert.strictEqual(upstreamRef, 'upstream/feat');
+
+    fs.rmSync(remoteDir, { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

@@ -47,7 +47,7 @@ export class RefDetailsCache {
     }
 
     const refHash = this.getRefHash(ref);
-    if (entry.refHash !== refHash && entry.details.hash !== refHash) {
+    if (!this.hashesMatch(entry.refHash, refHash) && !this.hashesMatch(entry.details.hash, refHash)) {
       return undefined;
     }
 
@@ -84,10 +84,35 @@ export class RefDetailsCache {
     });
   }
 
+  /**
+   * Upserts many refs in a single Memento read-modify-write cycle instead of
+   * one per ref — `upsert` alone would read and rewrite the entire cache
+   * state for every ref, which is O(N) full-state writes for large repos.
+   */
   async upsertFromRefs(repoKey: string, refs: IGitRef[], now = Date.now()): Promise<void> {
-    for (const ref of refs) {
-      await this.upsert(repoKey, ref, ref, now);
+    if (!this.storage) {
+      return;
     }
+
+    const pending = refs
+      .map((ref) => ({ ref, sanitized: this.sanitize(ref) }))
+      .filter(({ sanitized }) => Object.keys(sanitized).length > 0);
+
+    if (pending.length === 0) {
+      return;
+    }
+
+    await this.enqueueUpdate(async () => {
+      const state = this.getState();
+      for (const { ref, sanitized } of pending) {
+        state.entries[this.createKey(repoKey, ref)] = {
+          refHash: this.getRefHash(ref),
+          details: sanitized,
+          updatedAt: now,
+        };
+      }
+      await this.updateState(state);
+    });
   }
 
   isMissing(repoKey: string, ref: IGitRef, now = Date.now()): boolean {
@@ -147,6 +172,20 @@ export class RefDetailsCache {
 
   private getRefHash(ref: IGitRef): string {
     return ref.hash ?? '';
+  }
+
+  /**
+   * Compares two commit hashes for cache-validity purposes. Different
+   * producers may emit different SHA lengths (e.g. legacy short-SHA entries
+   * persisted before hashes were normalized to full length), so hashes are
+   * considered equal when one is a non-empty prefix of the other rather than
+   * requiring an exact string match.
+   */
+  private hashesMatch(a: string | undefined, b: string | undefined): boolean {
+    if (!a || !b) {
+      return false;
+    }
+    return a.startsWith(b) || b.startsWith(a);
   }
 }
 

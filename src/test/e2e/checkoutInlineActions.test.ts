@@ -27,7 +27,8 @@ class TestableCheckoutToCommand extends CheckoutToCommand {
   errorMessages: string[] = [];
 
   constructor() {
-    super({} as ConfigurationManager, mockLogService, {} as AutoStashService);
+    const configManager = { get: () => ({ defaultRemote: undefined }) } as unknown as ConfigurationManager;
+    super(configManager, mockLogService, {} as AutoStashService);
   }
 
   protected async showInformationMessage(message: string): Promise<string | undefined> {

@@ -4,6 +4,8 @@ import { GitExecutor } from '../../common/git/gitExecutor';
 import { VscodeGitProvider } from '../../common/git/vscodeGitProvider';
 import { ConfigurationManager } from '../../configuration/configurationManager';
 import { LoggingService } from '../../logging/loggingService';
+import { resolveRemoteInteractive } from '../../utils/remoteSelection';
+import { UserCancelledError } from '../../utils/userCancelledError';
 import { BaseCommand } from '../command';
 import {
   buildCleanupQuickPickItems,
@@ -33,8 +35,17 @@ export class CleanupBranchesCommand extends BaseCommand {
 
     let base: string;
     try {
-      base = await git.getDefaultBranch();
+      const remote = await resolveRemoteInteractive(git, {
+        branch: current,
+        defaultRemote: this.configManager.get().defaultRemote,
+        purpose: 'fetch',
+      });
+      base = await git.getDefaultBranch(remote);
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        // User dismissed the remote picker — not an error.
+        return;
+      }
       await vscode.window.showErrorMessage(
         `Could not determine the default branch: ${error instanceof Error ? error.message : String(error)}`
       );
