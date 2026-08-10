@@ -552,7 +552,12 @@ export class GitExecutor {
     // Separator cannot occur in ref names, hashes, dates, or (practically)
     // commit subjects, and Git passes it through the format string verbatim.
     const SEPARATOR = '\x1f';
-    const format = `%(refname)${SEPARATOR}%(objectname:short)${SEPARATOR}%(*objectname:short)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
+    // Use the full %(objectname) (not :short) so hashes produced here match the
+    // full 40-char SHAs VscodeGitProvider stores — RefDetailsCache validates
+    // cache hits by comparing hashes from both producers, and a length
+    // mismatch there defeats the cache. Short hashes are truncated at render
+    // time where a compact display is wanted (see refFormatting.ts).
+    const format = `%(refname)${SEPARATOR}%(objectname)${SEPARATOR}%(*objectname)${SEPARATOR}%(committerdate:unix)${SEPARATOR}%(*committerdate:unix)${SEPARATOR}%(subject)${SEPARATOR}%(*subject)${SEPARATOR}%(upstream:track)${SEPARATOR}%(authorname)${SEPARATOR}%(*authorname)`;
     const { stdout: branchesOutput } = await this.#execGitCommand([
       'for-each-ref',
       '--sort', '-committerdate',

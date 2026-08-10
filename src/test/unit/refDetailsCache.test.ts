@@ -4,15 +4,21 @@ import * as vscode from 'vscode';
 import { IGitRef } from '../../common/git/types';
 import { RefDetailsCache, REF_DETAILS_CACHE_TTL_MS } from '../../services/refDetailsCache';
 
-function makeMemoryMemento(): Pick<vscode.Memento, 'get' | 'update'> & { values: Map<string, unknown> } {
+function makeMemoryMemento(): Pick<vscode.Memento, 'get' | 'update'> & {
+  values: Map<string, unknown>;
+  updateCallCount: number;
+} {
   const values = new Map<string, unknown>();
-  return {
+  const memento = {
     values,
+    updateCallCount: 0,
     get: <T>(key: string) => values.get(key) as T | undefined,
     update: async (key: string, value: unknown) => {
+      memento.updateCallCount += 1;
       values.set(key, value);
     },
   };
+  return memento;
 }
 
 function makeRef(overrides: Partial<IGitRef> = {}): IGitRef {
@@ -164,5 +170,51 @@ describe('RefDetailsCache', () => {
       cache.get('repo', makeRef({ name: 'three', fullName: 'three', hash: '3' }), 1000)?.comment,
       'three'
     );
+  });
+
+  it('hits the cache when a short-SHA producer entry is looked up with a full-SHA ref', async () => {
+    const cache = new RefDetailsCache(makeMemoryMemento());
+    const fullHash = 'abc1234def5678901234567890123456789012';
+    const shortHash = fullHash.slice(0, 7);
+
+    // Seed via the short-SHA producer path (e.g. getAllRefListExtended before
+    // the objectname:short -> objectname normalization).
+    await cache.upsert(
+      'repo',
+      makeRef({ hash: shortHash }),
+      { comment: 'Seeded via short SHA', authorName: 'A' },
+      1000
+    );
+
+    // Look up via the full-SHA producer path (e.g. VscodeGitProvider.mapRef).
+    const result = cache.get('repo', makeRef({ hash: fullHash }), 1000);
+
+    assert.deepStrictEqual(result, { comment: 'Seeded via short SHA', authorName: 'A' });
+  });
+
+  it('performs exactly one Memento update when upserting many refs via upsertFromRefs', async () => {
+    const memento = makeMemoryMemento();
+    const cache = new RefDetailsCache(memento);
+
+    const refs = Array.from({ length: 100 }, (_, i) =>
+      makeRef({
+        name: `branch-${i}`,
+        fullName: `branch-${i}`,
+        hash: `hash-${i}`,
+        comment: `Subject ${i}`,
+      })
+    );
+
+    await cache.upsertFromRefs('repo', refs, 1000);
+
+    assert.strictEqual(memento.updateCallCount, 1);
+
+    for (let i = 0; i < 100; i++) {
+      assert.strictEqual(
+        cache.get('repo', makeRef({ name: `branch-${i}`, fullName: `branch-${i}`, hash: `hash-${i}` }), 1000)
+          ?.comment,
+        `Subject ${i}`
+      );
+    }
   });
 });
