@@ -291,9 +291,23 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Internal: backs the stack status bar indicator, deliberately not contributed
   // to package.json so it doesn't appear in the command palette next to VS Code's
-  // own "Focus on Stacks View".
+  // own "Focus on Stacks View". The provider hooks let `revealView` tell an
+  // actual reveal from a command that resolved without putting the view on
+  // screen, and escalate instead of leaving the click looking like a no-op.
   commandManager.registerCommand(`${EXTENSION_NAME}.stacks.show`, {
-    execute: async () => revealView(`${EXTENSION_NAME}.stacks`, EXTENSION_NAME),
+    execute: async () => {
+      const revealed = await revealView(`${EXTENSION_NAME}.stacks`, EXTENSION_NAME, {
+        isVisible: () => stackWebViewProvider.isViewVisible,
+        showFromProvider: () => stackWebViewProvider.reveal(),
+        log: (message) => logService.debug(message),
+      });
+
+      if (!revealed) {
+        void vscode.window.showWarningMessage(
+          'Could not open the Stacks view. It may be hidden — right-click the Git Smart Checkout sidebar and enable "Stacks".'
+        );
+      }
+    },
   });
 
   const stackWebViewProvider = new StackWebViewProvider(context, logService, () => void refreshStacks());
@@ -736,7 +750,10 @@ export function activate(context: vscode.ExtensionContext) {
   // `context` and `updateNotificationService` are exposed alongside `commandManager` so
   // e2e tests can exercise the exact activation-time notification logic (seeding
   // globalState, invoking checkOnActivation) against the real extension context.
-  return { commandManager, context, updateNotificationService };
+  // `stackWebViewProvider` is exposed so e2e can assert the Stacks view actually
+  // lands on screen, which is the only thing that makes the status bar
+  // indicator's click meaningful.
+  return { commandManager, context, updateNotificationService, stackWebViewProvider };
 }
 
 async function refreshRepositoryContext(logService: LoggingService): Promise<void> {
