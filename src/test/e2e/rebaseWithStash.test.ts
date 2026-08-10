@@ -157,7 +157,7 @@ describe('AutoStashService - rebaseAndStashChanges', () => {
     before(() => { repo = createRebaseTestRepo(); });
     after(() => { repo.cleanup(); });
 
-    it('resets tracked changes created by a successful rebase before popping the stash', async () => {
+    it('preserves tracked changes created by a successful rebase when popping the stash', async () => {
       repo.makeChange('file1.txt', 'tracked work in progress\n');
 
       const hookPath = path.join(repo.repoPath, '.git', 'hooks', 'post-rewrite');
@@ -167,7 +167,7 @@ describe('AutoStashService - rebaseAndStashChanges', () => {
       await sut.rebaseAndStashChanges(repo.git, repo.featureBranch, repo.mainBranch, AUTO_STASH_CURRENT_BRANCH);
 
       assertHeadContains(repo, repo.mainBranch);
-      assert.strictEqual(repo.readFile('main.txt'), 'main content\n', 'hook change should be discarded');
+      assert.strictEqual(repo.readFile('main.txt'), 'hook dirtied main\n', 'hook change must not be discarded');
       assert.strictEqual(repo.readFile('file1.txt'), 'tracked work in progress\n', 'original stash should be restored');
       assert.strictEqual(repo.stashCount(), 0);
     });

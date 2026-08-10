@@ -27,6 +27,8 @@ export interface GitHubPR {
   html_url: string;
   /** PR state as reported by the GitHub REST API. */
   state?: 'open' | 'closed';
+  /** Timestamp the PR was merged, or null/undefined if closed without merging (as reported by the GitHub REST API). */
+  merged_at?: string | null;
   /** Whether the PR is a draft, as reported by the GitHub REST API. */
   draft?: boolean;
   labels: GitHubLabel[];

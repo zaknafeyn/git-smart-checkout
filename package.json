@@ -20,7 +20,7 @@
     "clone pull request"
   ],
   "license": "MIT",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "icon": "resources/icon-512.png",
   "engines": {
     "vscode": "^1.74.0",
@@ -808,6 +808,11 @@
           "type": "boolean",
           "default": true,
           "description": "Detect and visualize the current branch's GitHub-native PR stack (Stacks view and status bar indicator)."
+        },
+        "git-smart-checkout.cleanupBranches.detectSquashMerged": {
+          "type": "boolean",
+          "default": true,
+          "description": "When deleting merged branches, also detect squash- or rebase-merged branches (via patch equivalence, and via GitHub PR state when available) that 'git branch --merged' can't see."
         },
         "git-smart-checkout.stashes.staleAfterDays": {
           "type": "number",
