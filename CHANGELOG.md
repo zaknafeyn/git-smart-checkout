@@ -1,3 +1,10 @@
+## [0.19.5](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.4...v0.19.5) (2026-08-10)
+
+
+### Bug Fixes
+
+* **stacks:** reveal the Stacks view when the status bar indicator is clicked ([#223](https://github.com/zaknafeyn/git-smart-checkout/issues/223)) ([c33a45f](https://github.com/zaknafeyn/git-smart-checkout/commit/c33a45f6969332963dd065ac212a9fe72cad3ce0))
+
 ## [0.19.4](https://github.com/zaknafeyn/git-smart-checkout/compare/v0.19.3...v0.19.4) (2026-08-10)
 
 
