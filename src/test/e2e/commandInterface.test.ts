@@ -19,6 +19,7 @@ import {
   COPY_AND_OPEN_ISSUE_ACTION,
   ISSUE_URL,
 } from '../../utils/errorIssueNotification';
+import { StackWebViewProvider } from '../../view/StackWebViewProvider';
 
 import {
   createPullTestRepo,
@@ -40,6 +41,33 @@ const commandId = (name: string) => `${EXTENSION_NAME}.${name}`;
 
 function delay(ms = 0): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Polls `condition` until it holds or the budget runs out. */
+async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (condition()) {
+      return true;
+    }
+    await delay(50);
+  }
+
+  return condition();
+}
+
+interface ExtensionApi {
+  stackWebViewProvider: StackWebViewProvider;
+}
+
+async function getExtensionApi(): Promise<ExtensionApi> {
+  const extension = vscode.extensions.all.find(
+    (candidate) => candidate.packageJSON?.name === EXTENSION_NAME
+  );
+  assert.ok(extension, `Extension ${EXTENSION_NAME} should be installed in the test host.`);
+
+  return (await extension.activate()) as ExtensionApi;
 }
 
 async function visualPause(): Promise<void> {
@@ -414,8 +442,26 @@ describe('VS Code command interface', () => {
     // trades one "command not found" for another.
     assert.ok(commands.includes(`${EXTENSION_NAME}.stacks.focus`));
     assert.ok(commands.includes(`workbench.view.extension.${EXTENSION_NAME}`));
+  });
+
+  // Registering the command is not the point — the click has to put the Stacks
+  // view on screen. Opening the view container instead restores whichever view
+  // was last active there (Worktrees), which is indistinguishable from a broken
+  // click for the user.
+  it('puts the Stacks view on screen when the reveal command runs', async () => {
+    // The Stacks view is contributed `when: git-smart-checkout.hasRepository`;
+    // the test host opens an empty window, so make the view open-able first.
+    await vscode.commands.executeCommand('setContext', `${EXTENSION_NAME}.hasRepository`, true);
+    await delay(100);
+
+    const { stackWebViewProvider } = await getExtensionApi();
 
     await vscode.commands.executeCommand(commandId('stacks.show'));
+
+    assert.ok(
+      await waitFor(() => stackWebViewProvider.isViewVisible),
+      'Stacks view should be visible after the reveal command'
+    );
   });
 
   describe('checkoutTo', () => {

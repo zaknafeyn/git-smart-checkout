@@ -87,8 +87,9 @@ import { StashService } from './services/stashService';
 import { StashTreeDataProvider } from './view/StashTreeDataProvider';
 import { StashContentProvider, STASH_URI_SCHEME } from './view/stashContentProvider';
 import { StashTreeActionCommand } from './commands/stashTreeActionCommand';
+import { createTreeViewWhenContributed } from './view/createTreeViewWhenContributed';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   const anonymousId = context.globalState.get<string>('analytics.anonymousId') ?? (() => {
     const id = randomUUID();
     context.globalState.update('analytics.anonymousId', id);
@@ -291,9 +292,23 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Internal: backs the stack status bar indicator, deliberately not contributed
   // to package.json so it doesn't appear in the command palette next to VS Code's
-  // own "Focus on Stacks View".
+  // own "Focus on Stacks View". The provider hooks let `revealView` tell an
+  // actual reveal from a command that resolved without putting the view on
+  // screen, and escalate instead of leaving the click looking like a no-op.
   commandManager.registerCommand(`${EXTENSION_NAME}.stacks.show`, {
-    execute: async () => revealView(`${EXTENSION_NAME}.stacks`, EXTENSION_NAME),
+    execute: async () => {
+      const revealed = await revealView(`${EXTENSION_NAME}.stacks`, EXTENSION_NAME, {
+        isVisible: () => stackWebViewProvider.isViewVisible,
+        showFromProvider: () => stackWebViewProvider.reveal(),
+        log: (message) => logService.debug(message),
+      });
+
+      if (!revealed) {
+        void vscode.window.showWarningMessage(
+          'Could not open the Stacks view. It may be hidden — right-click the Git Smart Checkout sidebar and enable "Stacks".'
+        );
+      }
+    },
   });
 
   const stackWebViewProvider = new StackWebViewProvider(context, logService, () => void refreshStacks());
@@ -681,16 +696,27 @@ export function activate(context: vscode.ExtensionContext) {
 
   const telemetryChangeListener = vscode.env.onDidChangeTelemetryEnabled(() => updateTelemetryState());
 
-  worktreeTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.worktrees`, {
-    treeDataProvider: worktreeTreeDataProvider,
-  });
-
-  stashTreeView = vscode.window.createTreeView(`${EXTENSION_NAME}.stashes`, {
-    treeDataProvider: stashTreeDataProvider,
-    // Enables selecting several stashes at once so "Drop" can act on the whole selection
-    // behind a single confirmation modal instead of one row at a time.
-    canSelectMany: true,
-  });
+  // Both trees go through `createTreeViewWhenContributed` rather than `createTreeView` directly:
+  // a window whose view registry doesn't hold our contribution would otherwise answer with an
+  // unactionable "No view is registered with id: ..." error notification. Created in parallel so
+  // the probe costs one round-trip, not two.
+  [worktreeTreeView, stashTreeView] = await Promise.all([
+    createTreeViewWhenContributed(
+      `${EXTENSION_NAME}.worktrees`,
+      { treeDataProvider: worktreeTreeDataProvider },
+      logService
+    ),
+    createTreeViewWhenContributed(
+      `${EXTENSION_NAME}.stashes`,
+      {
+        treeDataProvider: stashTreeDataProvider,
+        // Enables selecting several stashes at once so "Drop" can act on the whole selection
+        // behind a single confirmation modal instead of one row at a time.
+        canSelectMany: true,
+      },
+      logService
+    ),
+  ]);
 
   // Add to context subscriptions
   context.subscriptions.push(
@@ -715,11 +741,11 @@ export function activate(context: vscode.ExtensionContext) {
       `${EXTENSION_NAME}.prCommits`,
       prCommitsWebViewProvider
     ),
-    worktreeTreeView,
+    ...(worktreeTreeView ? [worktreeTreeView] : []),
     worktreeTreeDataProvider,
     stackWebViewProvider,
     vscode.window.registerWebviewViewProvider(`${EXTENSION_NAME}.stacks`, stackWebViewProvider),
-    stashTreeView,
+    ...(stashTreeView ? [stashTreeView] : []),
     stashTreeDataProvider,
     stashService,
     stashChangeListener,
@@ -736,7 +762,10 @@ export function activate(context: vscode.ExtensionContext) {
   // `context` and `updateNotificationService` are exposed alongside `commandManager` so
   // e2e tests can exercise the exact activation-time notification logic (seeding
   // globalState, invoking checkOnActivation) against the real extension context.
-  return { commandManager, context, updateNotificationService };
+  // `stackWebViewProvider` is exposed so e2e can assert the Stacks view actually
+  // lands on screen, which is the only thing that makes the status bar
+  // indicator's click meaningful.
+  return { commandManager, context, updateNotificationService, stackWebViewProvider };
 }
 
 async function refreshRepositoryContext(logService: LoggingService): Promise<void> {
