@@ -898,7 +898,7 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.4.17",
     "jira-client": "^8.2.2",
-    "markdown-it": "^14.3.3",
+    "markdown-it": "^15.0.3",
     "markdown-it-task-lists": "^2.1.1",
     "posthog-node": "^5.33.0"
   },
